@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/wthmeftu/repositories/WTHME_2025/
+    - /bin/cp -R * $DEPLOYPATH

@@ -1,0 +1,23 @@
+name: Auto Deploy to cPanel
+
+on:
+  push:
+    branches:
+      - main  # Ubah ke master kalau branch kamu namanya master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: wthmeftuntirta.my.id
+          username: wthmeftu
+          password: adminwthme123 # Pakai password cPanel kamu
+          port: 22
+          script: |
+            cd /home/wthmeftu/repositories/WTHME_2025
+            git pull origin main
+            php artisan config:cache
+            php artisan view:clear
