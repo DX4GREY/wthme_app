@@ -118,8 +118,23 @@
                 0% { top: 0; }
                 100% { top: 100%; }
             }
-            #qr-reader__dashboard { display: none !important; } /* Sembunyikan tombol file html5-qrcode */
             #qr-reader { border: none !important; }
+            #qr-reader__status_span { background: transparent !important; color: #002f45 !important; font-size: 0.8rem !important; }
+            #qr-reader button { 
+                padding: 0.5rem 1rem !important; 
+                background: #002f45 !important; 
+                color: #d2c296 !important; 
+                border-radius: 0.5rem !important; 
+                border: none !important;
+                font-weight: 600 !important;
+                margin-top: 10px !important;
+            }
+            #qr-reader select {
+                padding: 0.4rem !important;
+                border-radius: 0.5rem !important;
+                border: 1px solid #bdd1d3 !important;
+                margin-top: 10px !important;
+            }
         </style>
     </div>
 </div>
@@ -127,12 +142,15 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Scanner UI yang lebih bersih
+    // Jalankan inisialisasi scanner jika kontainer elemennya ada
     if (document.getElementById('qr-reader')) {
         const scanner = new Html5QrcodeScanner("qr-reader", { 
             fps: 15, 
             qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0
+            aspectRatio: 1.0,
+            rememberLastUsedCamera: true,
+            // Perbaikan Krusial: Paksa browser hanya memicu kamera agar sensor aktif
+            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
         }, false);
         
         scanner.render(function(decodedText) {
@@ -142,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
-// Geolocation dengan UI Feedback yang lebih manis
+// Geolocation dengan UI Feedback yang manis
 const btnAbsen  = document.getElementById('btn-absen');
 const geoText   = document.getElementById('geo-text');
 const geoIcon   = document.getElementById('geo-icon');
@@ -179,7 +197,7 @@ function enableButton() {
     btnAbsen.textContent  = 'Konfirmasi Kehadiran';
 }
 
-// Fingerprint tetap sama (Logic background)
+// Fingerprint Logic (Background Security)
 async function getFingerprint() {
     const data = [navigator.userAgent, navigator.language, screen.width + 'x' + screen.height, new Date().getTimezoneOffset()].join('|');
     const encoder = new TextEncoder();
