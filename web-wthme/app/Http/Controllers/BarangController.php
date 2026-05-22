@@ -14,7 +14,6 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Font;
-use PhpOffice\PhpSpreadsheet\Worksheet\Drawing; // <-- Import Drawing untuk handle foto di Excel
 
 class BarangController extends Controller
 {
@@ -129,7 +128,7 @@ class BarangController extends Controller
                 'updated_at'       => $p ? $p->updated_at : null,
                 'updated_by_name'  => ($p && $p->updatedBy) ? $p->updatedBy->name : null,
             ];
-         });
+        });
 
         return view('panitia.barang.kelompok', compact('kelompok', 'data'));
     }
@@ -166,9 +165,6 @@ class BarangController extends Controller
 
     public function exportRekap()
     {
-        // Naikkan memory limit untuk memproses gambar di spreadsheet jika datanya banyak
-        ini_set('memory_limit', '256M');
-
         $kelompoks = User::where('role', 'peserta')
             ->whereNotNull('kelompok')
             ->distinct()
@@ -193,7 +189,7 @@ class BarangController extends Controller
             $sheet = $spreadsheet->createSheet();
             $sheet->setTitle("Kelompok $kelompok");
 
-            // Header judul (Diperluas sampai G karena tambah kolom foto)
+            // Header judul
             $sheet->mergeCells('A1:G1');
             $sheet->setCellValue('A1', "REKAP PENGUMPULAN BARANG - KELOMPOK $kelompok");
             $sheet->getStyle('A1')->applyFromArray([
@@ -203,8 +199,8 @@ class BarangController extends Controller
             ]);
             $sheet->getRowDimension(1)->setRowHeight(30);
 
-            // Header kolom (Tambah item 'Foto Bukti' di urutan ke-7 / Kolom G)
-            $headers = ['No', 'Nama Barang', 'Kebutuhan', 'Terkumpul', 'Progress', 'Status', 'Foto Bukti'];
+            // Header kolom
+            $headers = ['No', 'Nama Barang', 'Kebutuhan', 'Terkumpul', 'Progress', 'Status', 'Link Bukti Foto'];
             foreach ($headers as $i => $h) {
                 $col = chr(65 + $i);
                 $sheet->setCellValue("{$col}2", $h);
@@ -232,11 +228,15 @@ class BarangController extends Controller
                     $terkumpul . ' ' . $b->satuan,
                     $terkumpul . '/' . $b->jumlah_kebutuhan,
                     $lengkap ? 'Lengkap ✓' : ($terkumpul > 0 ? 'Sebagian' : 'Belum'),
-                    '' // Kolom G sengaja dikosongkan untuk diisi Drawing Object gambar nanti
+                    '' // Kolom G (Index ke-6) di-handle khusus untuk hyperlink di bawah
                 ];
 
                 foreach ($rowData as $ci => $val) {
                     $col = chr(65 + $ci);
+                    
+                    // Lewati set biasa jika ini kolom G (agar tidak menimpa rumus hyperlink nanti)
+                    if ($ci === 6) continue;
+
                     $sheet->setCellValue("{$col}{$row}", $val);
                     $sheet->getStyle("{$col}{$row}")->applyFromArray([
                         'font'      => [
@@ -245,37 +245,37 @@ class BarangController extends Controller
                             'color' => ['rgb' => $lengkap ? '155724' : ($terkumpul > 0 ? '856404' : '721c24')]
                         ],
                         'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
-                        'alignment' => [
-                            'horizontal' => $ci === 1 ? Alignment::HORIZONTAL_LEFT : Alignment::HORIZONTAL_CENTER,
-                            'vertical'   => Alignment::VERTICAL_CENTER // Gambar rapi tepat di tengah cell
-                        ],
+                        'alignment' => ['horizontal' => $ci === 1 ? Alignment::HORIZONTAL_LEFT : Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                         'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
                     ]);
                 }
 
-                // ─── PROSES EKSTRAK & PASTE FOTO KE EXCEL ───
+                // ─── PROSES EKSTRAK HYPERLINK FOTO BUKTI ───
                 if ($p && $p->foto_bukti) {
-                    $filePath = storage_path('app/public/' . $p->foto_bukti);
-
-                    if (file_exists($filePath)) {
-                        $drawing = new Drawing();
-                        $drawing->setName('Foto Bukti');
-                        $drawing->setDescription('Bukti upload barang');
-                        $drawing->setPath($filePath);
-                        $drawing->setHeight(55); // Tinggi gambar diset 55 pixel
-                        $drawing->setCoordinates("G{$row}"); // Masukkan ke cell G
-                        $drawing->setOffsetX(15); // Geser kanan dikit biar center
-                        $drawing->setOffsetY(5);  // Geser bawah dikit biar center
-                        $drawing->setWorksheet($sheet);
-                    } else {
-                        $sheet->setCellValue("G{$row}", "File Rusak/Hilang");
-                    }
+                    // Membuat URL absolut (https://wthmeftuntirta.site/storage/barang-bukti/xxx.png)
+                    $fullUrl = url(Storage::url($p->foto_bukti));
+                    
+                    // Set formula HYPERLINK Excel
+                    $sheet->setCellValue("G{$row}", '=HYPERLINK("' . $fullUrl . '", "Lihat Foto ↗")');
+                    
+                    // Styling link warna Biru bergaris bawah khas Link Internet
+                    $sheet->getStyle("G{$row}")->applyFromArray([
+                        'font'      => ['name' => 'Arial', 'size' => 10, 'underlined' => true, 'color' => ['rgb' => '0000FF'], 'bold' => true],
+                        'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
+                    ]);
                 } else {
                     $sheet->setCellValue("G{$row}", "Tidak Ada Foto");
+                    $sheet->getStyle("G{$row}")->applyFromArray([
+                        'font'      => ['name' => 'Arial', 'size' => 10, 'color' => ['rgb' => '721c24']],
+                        'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
+                    ]);
                 }
 
-                // Naikkan tinggi baris cell supaya muat merender preview gambar
-                $sheet->getRowDimension($row)->setRowHeight(50);
+                $sheet->getRowDimension($row)->setRowHeight(20);
                 $row++;
             }
 
@@ -283,8 +283,6 @@ class BarangController extends Controller
             $sheet->mergeCells("A{$row}:D{$row}");
             $sheet->setCellValue("A{$row}", 'TOTAL BARANG LENGKAP');
             $sheet->setCellValue("E{$row}", "=COUNTIF(F3:F" . ($row - 1) . ",\"Lengkap ✓\")&\"/\"&COUNTA(B3:B" . ($row - 1) . ")");
-            
-            // Beri warna background navy kosongan di ujung baris summary agar selaras
             $sheet->setCellValue("F{$row}", "");
             $sheet->setCellValue("G{$row}", "");
 
@@ -294,19 +292,19 @@ class BarangController extends Controller
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                 'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
             ]);
-            $sheet->getRowDimension($row)->setRowHeight(25);
+            $sheet->getRowDimension($row)->setRowHeight(24);
 
-            // Lebar kolom (Kolom G dilebarkan menjadi 22 biar pas ukuran gambarnya)
+            // Lebar kolom
             $sheet->getColumnDimension('A')->setWidth(5);
             $sheet->getColumnDimension('B')->setWidth(30);
             $sheet->getColumnDimension('C')->setWidth(15);
             $sheet->getColumnDimension('D')->setWidth(15);
             $sheet->getColumnDimension('E')->setWidth(12);
             $sheet->getColumnDimension('F')->setWidth(15);
-            $sheet->getColumnDimension('G')->setWidth(22);
+            $sheet->getColumnDimension('G')->setWidth(18); // Lebar kolom link foto
         }
 
-        // Sheet rekap global (Tetap mode text statis/dashboard utama)
+        // Sheet rekap global
         $global = $spreadsheet->createSheet();
         $global->setTitle('Rekap Global');
 
@@ -436,9 +434,7 @@ class BarangController extends Controller
         $pengumpulan->jumlah_terkumpul = $request->jumlah_terkumpul;
         $pengumpulan->updated_by       = $user->id;
 
-        // Handle foto
         if ($request->hasFile('foto_bukti')) {
-            // Hapus foto lama jika ada
             if ($pengumpulan->foto_bukti) {
                 Storage::disk('public')->delete($pengumpulan->foto_bukti);
             }
