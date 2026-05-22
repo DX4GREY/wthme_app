@@ -10,27 +10,6 @@ use Illuminate\Http\Request;
 
 class AbsensiController extends Controller
 {
-    // Range IP Wifi Untirta — sesuaikan dengan info dari IT kampus
-    private $untirtaIpRanges = [
-        '192.168.1.',
-        '10.10.',
-        '172.16.',
-        '127.0.0.1',
-        '103.142.195.',
-        '103.142.',
-        // Tambahkan range IP Untirta yang sebenarnya di sini
-    ];
-
-    private function isUntirtaNetwork(string $ip): bool
-    {
-        foreach ($this->untirtaIpRanges as $range) {
-            if (str_starts_with($ip, $range)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     // ===== ABSENSI PESERTA =====
 
     public function formPeserta(Request $request)
@@ -74,13 +53,9 @@ class AbsensiController extends Controller
             'fingerprint'  => 'required|string',
         ]);
 
-        // === CEK 1: Jaringan WiFi ===
         $ip = $request->ip();
-        if (!$this->isUntirtaNetwork($ip)) {
-            return back()->with('error', 'Absensi hanya bisa dilakukan menggunakan WiFi Untirta.');
-        }
 
-        // === CEK 2: QR Session valid ===
+        // === CEK 1: QR Session valid ===
         $qrSession = QrSession::where('session_code', $request->session_code)
             ->where('untuk', 'peserta')
             ->where('aktif', true)
@@ -90,67 +65,21 @@ class AbsensiController extends Controller
             return back()->with('error', 'Sesi absensi tidak ditemukan atau sudah ditutup.');
         }
 
-        // === CEK 3: Token rotating masih valid ===
+        // === CEK 2: Token rotating masih valid ===
         if ($qrSession->rotating && !$qrSession->isTokenValid($request->token)) {
             return back()->with('error', 'QR Code sudah expired. Silakan scan ulang QR terbaru dari layar.');
         }
 
-        // === CEK 4: Geolocation ===
-        if ($request->filled('latitude') && $request->filled('longitude')) {
-            $aulaLat    = config('app.aula_lat');
-            $aulaLng    = config('app.aula_lng');
-            $maxRadius  = config('app.aula_radius'); // meter
-
-            $jarak = $this->hitungJarak(
-                $request->latitude,
-                $request->longitude,
-                $aulaLat,
-                $aulaLng
-            );
-
-            if ($jarak > $maxRadius) {
-                return back()->with(
-                    'error',
-                    'Kamu tidak berada di dalam area aula (' . round($jarak) . 'm dari lokasi acara, maks ' . $maxRadius . 'm). ' .
-                        'Pastikan kamu berada di ruangan dan izinkan akses lokasi.'
-                );
-            }
-        }
-
-        // === CEK 5: Fingerprint device ===
-        // if ($request->filled('fingerprint')) {
-        //     $user = auth()->user();
-        //     $fp   = $request->fingerprint;
-
-        //     // Cek apakah fingerprint ini sudah dipakai akun LAIN
-        //     $ownerLain = \App\Models\User::where('device_fingerprint', $fp)
-        //         ->where('id', '!=', $user->id)
-        //         ->first();
-
-        //     if ($ownerLain) {
-        //         return back()->with('error',
-        //             'Perangkat ini terdeteksi sudah digunakan untuk absen akun lain. ' .
-        //             'Tidak bisa melakukan joki absen.'
-        //         );
-        //     }
-
-        //     // Simpan fingerprint ke akun ini kalau belum ada
-        //     if (!$user->device_fingerprint) {
-        //         $user->update([
-        //             'device_fingerprint'  => $fp,
-        //             'fingerprint_set_at'  => now(),
-        //         ]);
-        //     }
-        // }
+        // === CEK 3: Fingerprint device ===
         $user = auth()->user();
         $fp   = $request->fingerprint;
 
-        // ❗ kalau user sudah punya fingerprint → HARUS sama
+        // Jika user sudah punya fingerprint → harus sama
         if ($user->device_fingerprint && $user->device_fingerprint !== $fp) {
             return back()->with('error', 'Perangkat berbeda terdeteksi. Gunakan device yang sama.');
         }
 
-        // ❗ kalau fingerprint dipakai akun lain → blok
+        // Jika fingerprint dipakai akun lain → blok
         $ownerLain = \App\Models\User::where('device_fingerprint', $fp)
             ->where('id', '!=', $user->id)
             ->first();
@@ -159,7 +88,7 @@ class AbsensiController extends Controller
             return back()->with('error', 'Perangkat ini sudah digunakan akun lain.');
         }
 
-        // ❗ simpan fingerprint pertama kali
+        // Simpan fingerprint pertama kali
         if (!$user->device_fingerprint) {
             $user->update([
                 'device_fingerprint' => $fp,
@@ -167,7 +96,7 @@ class AbsensiController extends Controller
             ]);
         }
 
-        // === CEK 6: Sudah absen sebelumnya ===
+        // === CEK 4: Sudah absen sebelumnya ===
         $sudahAbsen = AbsensiPeserta::where('user_id', auth()->id())
             ->where('qr_session_id', $qrSession->id)
             ->exists();
@@ -194,17 +123,6 @@ class AbsensiController extends Controller
             ->with('success', 'Absensi berhasil! Terima kasih ' . $user->name . ' 🎉');
     }
 
-    // Hitung jarak dua koordinat (Haversine formula) → hasil dalam meter
-    private function hitungJarak(float $lat1, float $lng1, float $lat2, float $lng2): float
-    {
-        $R    = 6371000; // radius bumi dalam meter
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLng = deg2rad($lng2 - $lng1);
-        $a    = sin($dLat / 2) * sin($dLat / 2)
-            + cos(deg2rad($lat1)) * cos(deg2rad($lat2))
-            * sin($dLng / 2) * sin($dLng / 2);
-        return $R * 2 * atan2(sqrt($a), sqrt(1 - $a));
-    }
 
     // ===== ABSENSI PANITIA =====
 
@@ -241,12 +159,6 @@ class AbsensiController extends Controller
         ]);
 
         $ip = $request->ip();
-        if (!$this->isUntirtaNetwork($ip)) {
-            return back()->with(
-                'error',
-                'Absensi hanya bisa dilakukan menggunakan jaringan WiFi Untirta.'
-            );
-        }
 
         $qrSession = QrSession::where('session_code', $request->session_code)
             ->where('untuk', 'panitia')
@@ -309,10 +221,8 @@ class AbsensiController extends Controller
         return view('panitia.data-absensi-panitia', compact('absensi'));
     }
 
-    // Di AbsensiController atau buat FaceAbsensiController
     public function faceGate()
     {
-        // Halaman fullscreen kamera untuk laptop gate
         return view('panitia.face-gate');
     }
 
@@ -320,7 +230,7 @@ class AbsensiController extends Controller
     {
         $request->validate([
             'photo'   => 'required|image|max:5120',
-            'qr_code' => 'required|string', // kode sesi absensi (dari QR yang sudah ada)
+            'qr_code' => 'required|string',
         ]);
 
         $faceService = app(FaceRecognitionService::class);
@@ -336,10 +246,6 @@ class AbsensiController extends Controller
 
         $userId = $result['user_id'];
         $user   = \App\Models\User::find($userId);
-
-        // Gunakan logik absensi yang sudah ada
-        // (misalnya cek QR code sesi valid, lalu simpan ke AbsensiPeserta)
-        // ... sesuaikan dengan AbsensiController yang sudah ada
 
         return response()->json([
             'success'    => true,
