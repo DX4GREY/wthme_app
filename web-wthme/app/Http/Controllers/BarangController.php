@@ -129,7 +129,7 @@ class BarangController extends Controller
                 'updated_at'       => $p ? $p->updated_at : null,
                 'updated_by_name'  => ($p && $p->updatedBy) ? $p->updatedBy->name : null,
             ];
-         biographical});
+         });
 
         return view('panitia.barang.kelompok', compact('kelompok', 'data'));
     }
