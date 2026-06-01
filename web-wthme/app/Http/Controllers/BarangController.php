@@ -101,6 +101,7 @@ class BarangController extends Controller
             }
             $summary[$k] = ['total' => $total, 'lengkap' => $lengkap];
         }
+        ksort($summary);
 
         return view('panitia.barang.index', compact('kelompoks', 'summary', 'barangs'));
     }
