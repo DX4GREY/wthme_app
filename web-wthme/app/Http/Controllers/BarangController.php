@@ -64,7 +64,6 @@ class BarangController extends Controller
         $this->authorizeLogistik();
         $barang = BarangKebutuhan::findOrFail($id);
 
-        // Hapus semua foto bukti terkait
         foreach ($barang->pengumpulan as $p) {
             if ($p->foto_bukti) {
                 Storage::disk('public')->delete($p->foto_bukti);
@@ -81,7 +80,6 @@ class BarangController extends Controller
 
     public function panitiaIndex()
     {
-        // Hitung jumlah kelompok dari users peserta
         $kelompoks = User::where('role', 'peserta')
             ->whereNotNull('kelompok')
             ->distinct()
@@ -90,7 +88,6 @@ class BarangController extends Controller
 
         $barangs = BarangKebutuhan::where('aktif', true)->get();
 
-        // Summary per kelompok: berapa barang sudah lengkap
         $summary = [];
         foreach ($kelompoks as $k) {
             $total   = $barangs->count();
@@ -123,14 +120,29 @@ class BarangController extends Controller
                 'pengumpulan'      => $p,
                 'jumlah_terkumpul' => $p ? $p->jumlah_terkumpul : 0,
                 'foto'             => $p && $p->foto_bukti ? Storage::url($p->foto_bukti) : null,
-                'foto_url'         => $p && $p->foto_bukti ? Storage::url($p->foto_bukti) : null,
                 'is_lengkap'       => $p && $p->jumlah_terkumpul >= $b->jumlah_kebutuhan,
+                'is_validated'     => $p ? $p->is_validated : false, 
                 'updated_at'       => $p ? $p->updated_at : null,
                 'updated_by_name'  => ($p && $p->updatedBy) ? $p->updatedBy->name : null,
             ];
         });
 
         return view('panitia.barang.kelompok', compact('kelompok', 'data'));
+    }
+
+    public function toggleValidasi(Request $request, $barangId, $kelompok)
+    {
+        $this->authorizeLogistik();
+
+        $pengumpulan = PengumpulanBarang::where('barang_kebutuhan_id', $barangId)
+            ->where('kelompok', $kelompok)
+            ->firstOrFail();
+
+        $pengumpulan->is_validated = !$pengumpulan->is_validated;
+        $pengumpulan->save();
+
+        $statusPesan = $pengumpulan->is_validated ? 'berhasil di-ACC.' : 'batal di-ACC.';
+        return back()->with('success', "Status progress barang {$statusPesan}");
     }
 
     public function panitiaRekap()
@@ -176,7 +188,6 @@ class BarangController extends Controller
         $spreadsheet = new Spreadsheet();
         $spreadsheet->removeSheetByIndex(0);
 
-        // Warna tema
         $navyHex  = '002f45';
         $tealHex  = 'bdd1d3';
         $sandHex  = 'd2c296';
@@ -189,7 +200,6 @@ class BarangController extends Controller
             $sheet = $spreadsheet->createSheet();
             $sheet->setTitle("Kelompok $kelompok");
 
-            // Header judul
             $sheet->mergeCells('A1:G1');
             $sheet->setCellValue('A1', "REKAP PENGUMPULAN BARANG - KELOMPOK $kelompok");
             $sheet->getStyle('A1')->applyFromArray([
@@ -199,7 +209,6 @@ class BarangController extends Controller
             ]);
             $sheet->getRowDimension(1)->setRowHeight(30);
 
-            // Header kolom
             $headers = ['No', 'Nama Barang', 'Kebutuhan', 'Terkumpul', 'Progress', 'Status', 'Link Bukti Foto'];
             foreach ($headers as $i => $h) {
                 $col = chr(65 + $i);
@@ -213,7 +222,6 @@ class BarangController extends Controller
             }
             $sheet->getRowDimension(2)->setRowHeight(22);
 
-            // Data
             $row = 3;
             foreach ($barangs as $idx => $b) {
                 $p       = PengumpulanBarang::where('barang_kebutuhan_id', $b->id)->where('kelompok', $kelompok)->first();
@@ -228,13 +236,11 @@ class BarangController extends Controller
                     $terkumpul . ' ' . $b->satuan,
                     $terkumpul . '/' . $b->jumlah_kebutuhan,
                     $lengkap ? 'Lengkap ✓' : ($terkumpul > 0 ? 'Sebagian' : 'Belum'),
-                    '' // Kolom G (Index ke-6) di-handle khusus untuk hyperlink di bawah
+                    ''
                 ];
 
                 foreach ($rowData as $ci => $val) {
                     $col = chr(65 + $ci);
-                    
-                    // Lewati set biasa jika ini kolom G (agar tidak menimpa rumus hyperlink nanti)
                     if ($ci === 6) continue;
 
                     $sheet->setCellValue("{$col}{$row}", $val);
@@ -250,15 +256,9 @@ class BarangController extends Controller
                     ]);
                 }
 
-                // ─── PROSES EKSTRAK HYPERLINK FOTO BUKTI ───
                 if ($p && $p->foto_bukti) {
-                    // Membuat URL absolut (https://wthmeftuntirta.site/storage/barang-bukti/xxx.png)
                     $fullUrl = url(Storage::url($p->foto_bukti));
-                    
-                    // Set formula HYPERLINK Excel
                     $sheet->setCellValue("G{$row}", '=HYPERLINK("' . $fullUrl . '", "Lihat Foto ↗")');
-                    
-                    // Styling link warna Biru bergaris bawah khas Link Internet
                     $sheet->getStyle("G{$row}")->applyFromArray([
                         'font'      => ['name' => 'Arial', 'size' => 10, 'underlined' => true, 'color' => ['rgb' => '0000FF'], 'bold' => true],
                         'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
@@ -279,7 +279,6 @@ class BarangController extends Controller
                 $row++;
             }
 
-            // Summary baris
             $sheet->mergeCells("A{$row}:D{$row}");
             $sheet->setCellValue("A{$row}", 'TOTAL BARANG LENGKAP');
             $sheet->setCellValue("E{$row}", "=COUNTIF(F3:F" . ($row - 1) . ",\"Lengkap ✓\")&\"/\"&COUNTA(B3:B" . ($row - 1) . ")");
@@ -294,17 +293,15 @@ class BarangController extends Controller
             ]);
             $sheet->getRowDimension($row)->setRowHeight(24);
 
-            // Lebar kolom
             $sheet->getColumnDimension('A')->setWidth(5);
             $sheet->getColumnDimension('B')->setWidth(30);
             $sheet->getColumnDimension('C')->setWidth(15);
             $sheet->getColumnDimension('D')->setWidth(15);
             $sheet->getColumnDimension('E')->setWidth(12);
             $sheet->getColumnDimension('F')->setWidth(15);
-            $sheet->getColumnDimension('G')->setWidth(18); // Lebar kolom link foto
+            $sheet->getColumnDimension('G')->setWidth(18);
         }
 
-        // Sheet rekap global
         $global = $spreadsheet->createSheet();
         $global->setTitle('Rekap Global');
 
@@ -317,7 +314,6 @@ class BarangController extends Controller
         ]);
         $global->getRowDimension(1)->setRowHeight(30);
 
-        // Header Global
         $global->setCellValue('A2', 'Kelompok');
         $global->getStyle('A2')->applyFromArray([
             'font'      => ['bold' => true, 'color' => ['rgb' => $navyHex], 'name' => 'Arial'],
@@ -399,28 +395,35 @@ class BarangController extends Controller
 
         $barangs = BarangKebutuhan::where('aktif', true)->orderBy('nama_barang')->get();
 
+        $panitiaLogistik = User::where('role', 'panitia')
+            ->where('divisi', 'logistik')
+            ->orderBy('name')
+            ->get();
+
         $data = $barangs->map(function ($b) use ($kelompok) {
             $p = PengumpulanBarang::where('barang_kebutuhan_id', $b->id)
                 ->where('kelompok', $kelompok)->first();
             return [
-                'barang'          => $b,
-                'pengumpulan'     => $p,
+                'barang'           => $b,
+                'pengumpulan'      => $p,
                 'jumlah_terkumpul' => $p ? $p->jumlah_terkumpul : 0,
-                'foto_url'        => $p && $p->foto_bukti ? Storage::url($p->foto_bukti) : null,
-                'is_lengkap'      => $p && $p->jumlah_terkumpul >= $b->jumlah_kebutuhan,
-                'updated_by_name' => $p && $p->updatedBy ? $p->updatedBy->name : null,
-                'updated_at'      => $p ? $p->updated_at : null,
+                'foto_url'         => $p && $p->foto_bukti ? Storage::url($p->foto_bukti) : null,
+                'is_lengkap'       => $p && $p->jumlah_terkumpul >= $b->jumlah_kebutuhan,
+                'is_validated'     => $p ? $p->is_validated : false,
+                'updated_by_name'  => $p && $p->updatedBy ? $p->updatedBy->name : null,
+                'updated_at'       => $p ? $p->updated_at : null,
             ];
         });
 
-        return view('peserta.barang', compact('kelompok', 'data'));
+        return view('peserta.barang', compact('kelompok', 'data', 'panitiaLogistik'));
     }
 
     public function pesertaUpdate(Request $request, $barangId)
     {
         $request->validate([
-            'jumlah_terkumpul' => 'required|integer|min:0',
-            'foto_bukti'       => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'jumlah_terkumpul'    => 'required|integer|min:0',
+            'panitia_penerima_id' => 'required|exists:users,id', 
+            'foto_bukti'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         $user    = Auth::user();
@@ -431,8 +434,25 @@ class BarangController extends Controller
             'kelompok'            => $user->kelompok,
         ]);
 
-        $pengumpulan->jumlah_terkumpul = $request->jumlah_terkumpul;
-        $pengumpulan->updated_by       = $user->id;
+        // 🔥 PERBAIKAN LOGIKA PROTEKSI: 
+        // Hanya dikunci total jika data sudah di-ACC DAN jumlahnya SUDAH LENGKAP memenuhi kebutuhan target.
+        if ($pengumpulan->is_validated && $pengumpulan->jumlah_terkumpul >= $barang->jumlah_kebutuhan) {
+            return back()->withErrors(['error' => 'Data sudah lengkap dan di-ACC panitia, tidak dapat diubah lagi.']);
+        }
+
+        // Jika baru di-ACC sebagian (misal 3 dari 6), tapi peserta malah mencoba menurunkan jumlah di bawah data lama, kita cegah.
+        if ($pengumpulan->is_validated && $request->jumlah_terkumpul < $pengumpulan->jumlah_terkumpul) {
+            return back()->withErrors(['error' => 'Jumlah barang tidak boleh lebih kecil dari jumlah yang sudah di-ACC sebelumnya.']);
+        }
+
+        $pengumpulan->jumlah_terkumpul    = $request->jumlah_terkumpul;
+        $pengumpulan->panitia_penerima_id = $request->panitia_penerima_id; 
+        $pengumpulan->updated_by          = $user->id;
+
+        // Otomatis turunkan status ACC jika jumlah diubah bertambah agar panitia memvalidasi ulang sisa cicilan barunya
+        if ($pengumpulan->is_validated && $request->jumlah_terkumpul > $pengumpulan->getOriginal('jumlah_terkumpul')) {
+            $pengumpulan->is_validated = false;
+        }
 
         if ($request->hasFile('foto_bukti')) {
             if ($pengumpulan->foto_bukti) {
@@ -444,19 +464,27 @@ class BarangController extends Controller
 
         $pengumpulan->save();
 
-        return back()->with('success', 'Data barang berhasil disimpan.');
+        return back()->with('success', 'Data barang berhasil diperbarui.');
     }
 
     public function pesertaHapusFoto($barangId)
     {
         $user        = Auth::user();
+        $barang      = BarangKebutuhan::findOrFail($barangId);
         $pengumpulan = PengumpulanBarang::where('barang_kebutuhan_id', $barangId)
             ->where('kelompok', $user->kelompok)
             ->firstOrFail();
 
+        // 🔥 Hanya dikunci total jika sudah lengkap target bawaannya
+        if ($pengumpulan->is_validated && $pengumpulan->jumlah_terkumpul >= $barang->jumlah_kebutuhan) {
+            return back()->withErrors(['error' => 'Data sudah di-ACC panitia sepenuhnya.']);
+        }
+
         if ($pengumpulan->foto_bukti) {
             Storage::disk('public')->delete($pengumpulan->foto_bukti);
             $pengumpulan->foto_bukti = null;
+            // Jika status ACC turun karena perubahan berkas bukti baru
+            $pengumpulan->is_validated = false;
             $pengumpulan->save();
         }
 
@@ -466,9 +494,15 @@ class BarangController extends Controller
     public function pesertaReset($barangId)
     {
         $user        = Auth::user();
+        $barang      = BarangKebutuhan::findOrFail($barangId);
         $pengumpulan = PengumpulanBarang::where('barang_kebutuhan_id', $barangId)
             ->where('kelompok', $user->kelompok)
             ->firstOrFail();
+
+        // 🔥 Hanya dikunci total jika sudah lengkap target bawaannya
+        if ($pengumpulan->is_validated && $pengumpulan->jumlah_terkumpul >= $barang->jumlah_kebutuhan) {
+            return back()->withErrors(['error' => 'Data sudah di-ACC panitia sepenuhnya.']);
+        }
 
         if ($pengumpulan->foto_bukti) {
             Storage::disk('public')->delete($pengumpulan->foto_bukti);
@@ -476,12 +510,8 @@ class BarangController extends Controller
 
         $pengumpulan->delete();
 
-        return back()->with('success', 'Data berhasil dihapus.');
+        return back()->with('success', 'Data berhasil direset.');
     }
-
-    // ─────────────────────────────────────────────────────────────
-    // Helper
-    // ─────────────────────────────────────────────────────────────
 
     private function authorizeLogistik()
     {

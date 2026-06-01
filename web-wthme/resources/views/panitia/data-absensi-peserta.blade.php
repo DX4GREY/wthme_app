@@ -1,14 +1,11 @@
 @extends('layouts.app')
 
 @section('content')
-    <div
-        style="min-height:calc(100vh - 64px); padding:3rem 1.5rem; background: linear-gradient(135deg, #e0decd 0%, #bdd1d3 100%); font-family: 'Inter', sans-serif;">
-        <div style="max-width:1100px; margin:0 auto;">
+    <div style="min-height:calc(100vh - 64px); padding:3rem 1.5rem; background: linear-gradient(135deg, #e0decd 0%, #bdd1d3 100%); font-family: 'Inter', sans-serif;">
+        <div style="max-width:1200px; margin:0 auto;">
 
             {{-- Header & Action Bar --}}
-
-            <div
-                style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:2.5rem; flex-wrap:wrap; gap:1.5rem;">
+            <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:2.5rem; flex-wrap:wrap; gap:1.5rem;">
                 <div>
                     <a href="{{ route('panitia.index') }}"
                         style="color:#002f45; opacity:0.7; text-decoration:none; font-size:0.9rem; display:inline-flex; align-items:center; margin-bottom:1rem; transition:0.3s; font-weight:600;"
@@ -16,184 +13,186 @@
                         onmouseout="this.style.opacity='0.7'; this.style.transform='translateX(0)'">
                         <span style="margin-right:8px;">←</span> Kembali ke Dashboard
                     </a>
-                    <h1
-                        style="font-family:'Playfair Display',serif; color:#002f45; font-size:2.5rem; font-weight:800; margin:0; letter-spacing:-0.02em;">
-                        Rekap <span style="color:#6b705c; font-style:italic;">Kehadiran</span>
+                    <h1 style="font-family:'Playfair Display',serif; color:#002f45; font-size:2.5rem; font-weight:800; margin:0; letter-spacing:-0.02em;">
+                        Rekap Matriks <span style="color:#6b705c; font-style:italic;">Kehadiran Global</span>
                     </h1>
-                    {{-- TOMBOL INI AKAN MUNCUL HANYA DI HALAMAN UTAMA (SAAT BELUM PILIH FOLDER) --}}
-                    @if (!request('session_id'))
-                        <div style="margin-top: 1.5rem;">
-                            <a href="{{ route('panitia.export.peserta') }}"
-                                style="padding:0.8rem 1.5rem; background: #6b705c; color:white; border-radius:1rem; text-decoration:none; font-size:0.875rem; font-weight:700; display:inline-flex; align-items:center; gap:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;"
-                                onmouseover="this.style.background='#002f45'" onmouseout="this.style.background='#6b705c'">
-                                <span>📊</span> Download Rekap Seluruh Sesi (.xlsx)
-                            </a>
-                        </div>
-                    @endif
                 </div>
 
-                @if (request('session_id'))
-                    <div style="display: flex; gap: 10px;">
-                        <a href="{{ route('panitia.absensi.peserta') }}"
-                            style="padding:0.8rem 1.5rem; background: rgba(255, 255, 255, 0.5); color:#002f45; border-radius:1rem; text-decoration:none; font-size:0.875rem; font-weight:700; transition:0.3s; border: 1px solid rgba(0,0,0,0.1);">
-                            📂 Pilih Sesi Lain
-                        </a>
-                        <a href="{{ route('panitia.export.peserta', ['session_id' => request('session_id')]) }}"
-                            style="padding:0.8rem 1.5rem; background: rgba(0, 47, 69, 0.9); color:#d2c296; border-radius:1rem; text-decoration:none; font-size:0.875rem; font-weight:700; backdrop-filter: blur(10px); transition:0.3s; display:flex; align-items:center; gap:10px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
-                            <span style="font-size: 1.1rem;">⬇</span> Export Excel
-                        </a>
-                    </div>
-                @endif
+                <div style="display: flex; gap: 12px;">
+                    <a href="{{ route('panitia.export.peserta') }}"
+                        style="padding:0.8rem 1.5rem; background: #002f45; color:#e0decd; border-radius:1rem; text-decoration:none; font-size:0.875rem; font-weight:700; display:inline-flex; align-items:center; gap:10px; box-shadow: 0 4px 15px rgba(0,47,69,0.2); transition: 0.3s;"
+                        onmouseover="this.style.background='#6b705c'; this.style.color='white'" onmouseout="this.style.background='#002f45'; this.style.color='#e0decd'">
+                        <span>📊</span> Download Rekap Excel (.xlsx)
+                    </a>
+                </div>
             </div>
 
-            {{-- TAMPILAN 1: PILIH SESI (FOLDER) --}}
-            {{-- Di sini variabel $qr_sessions diganti menjadi $sesiList sesuai Controller --}}
-            @if (!request('session_id'))
-                <div
-                    style="background: rgba(255,255,255,0.2); padding: 2rem; border-radius: 2rem; border: 1px solid rgba(255,255,255,0.4);">
-                    <h3 style="color:#002f45; margin-bottom: 2rem; font-weight: 700;">Silahkan Pilih Sesi Absensi:</h3>
+            {{-- PANEL MATRIKS UTAMA --}}
+            <div style="background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(15px); border-radius: 2rem; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 20px 40px rgba(0,0,0,0.04);">
+                
+                {{-- Pembungkus Fitur Scroll Horizontal Otomatis jika Kolom Sesi Terlalu Banyak --}}
+                <div style="overflow-x: auto; width: 100%;">
+                    <table style="width:100%; border-collapse:collapse; min-width: 900px;">
+                        <thead>
+                            {{-- BARIS HEADER UTAMA TABEL (NAVY GELAP PREMIUM LIKE EXCEL) --}}
+                            <tr style="background: #002f45;">
+                                <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 5px;">No</th>
+                                <th style="padding:1.25rem 1.5rem; text-align:left; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); min-width: 200px;">Nama Lengkap Peserta</th>
+                                <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 90px;">NIM</th>
+                                <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 70px;">Angkatan</th>
+                                
+                                {{-- Judul Kolom Dinamis Bergeser Ke Kanan Mengikuti Jumlah Sesi --}}
+                                @foreach($sesiList as $sesi)
+                                    <th style="padding:1.25rem 1rem; text-align:center; color:#d2c296; font-size:0.7rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); min-width: 140px; line-height: 1.2;">
+                                        {{ $sesi->nama_sesi }}
+                                        <div style="font-size: 0.6rem; color: white; opacity: 0.6; font-weight: 400; margin-top: 3px;">{{ $sesi->created_at->format('d/m/Y') }}</div>
+                                    </th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody>
+                            
+                            {{-- LOOP LEVEL 1: MEMECAH GRUP KELOMPOK KEBAWAH --}}
+                            @forelse($matrixData as $noKelompok => $daftarPeserta)
+                                
+                                {{-- BARIS SEKAT PEMBATAS KELOMPOK (Membelah tabel secara horizontal) --}}
+                                <tr style="background: rgba(0, 47, 69, 0.08);">
+                                    <td colspan="{{ 4 + $sesiList->count() }}" style="padding: 1rem 1.5rem; font-weight: 800; color: #002f45; font-size: 0.9rem; letter-spacing: 0.05em; border-bottom: 2px solid #002f45;">
+                                        🌿 KELOMPOK {{ $noKelompok ?? 'TANPA KELOMPOK' }} 
+                                        <span style="font-weight: 500; font-size: 0.75rem; opacity: 0.7; margin-left: 8px;">(Total {{ $daftarPeserta->count() }} Anggota)</span>
+                                    </td>
+                                </tr>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
-                        @forelse($sesiList as $sesi)
-                            <a href="{{ request()->fullUrlWithQuery(['session_id' => $sesi->id]) }}"
-                                style="text-decoration: none; transition: 0.3s;"
-                                onmouseover="this.querySelector('.folder-card').style.transform='translateY(-10px)'; this.querySelector('.folder-card').style.background='rgba(255,255,255,0.8)'"
-                                onmouseout="this.querySelector('.folder-card').style.transform='translateY(0)'; this.querySelector('.folder-card').style.background='rgba(255,255,255,0.5)'">
+                                {{-- LOOP LEVEL 2: MENAMPILKAN DATA ANGGOTA KELOMPOK TERKAIT --}}
+                                @foreach($daftarPeserta as $index => $user)
+                                    <tr style="border-bottom:1px solid rgba(0,0,0,0.05); transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.45)'" onmouseout="this.style.background='transparent'">
+                                        
+                                        {{-- No Urut yang mereset kembali dari 1 di setiap kelompok baru --}}
+                                        <td style="padding:1rem; text-align:center; color:#002f45; opacity:0.6; font-family:monospace; font-weight:600; border-right: 1px solid rgba(0,0,0,0.02);">
+                                            {{ $index + 1 }}
+                                        </td>
+                                        
+                                        <td style="padding:1rem 1.5rem; color:#002f45; font-weight:700; font-size:0.9rem;">
+                                            {{ $user->name }}
+                                        </td>
+                                        
+                                        <td style="padding:1rem; text-align:center; color:#002f45; font-size:0.8rem; font-family:monospace; opacity:0.8;">
+                                            {{ $user->nim }}
+                                        </td>
+                                        
+                                        <td style="padding:1rem; text-align:center; color:#002f45; font-weight:600; font-size:0.85rem;">
+                                            {{ $user->angkatan }}
+                                        </td>
 
-                                <div class="folder-card"
-                                    style="background: rgba(255,255,255,0.5); padding: 2rem; border-radius: 1.5rem; border: 1px solid rgba(255,255,255,0.6); text-align: center; transition: 0.3s;">
-                                    <div style="font-size: 4rem; margin-bottom: 1rem;">📁</div>
-                                    <h4 style="color:#002f45; margin:0; font-size: 1.2rem; font-weight: 800;">
-                                        {{ $sesi->nama_sesi }}</h4>
-                                    <p style="color:#6b705c; font-size: 0.85rem; margin-top: 0.5rem; font-weight: 600;">
-                                        {{ $sesi->created_at->format('d M Y') }}
-                                    </p>
-                                </div>
-                            </a>
-                        @empty
-                            <div style="grid-column: 1/-1; text-align: center; padding: 3rem;">
-                                <p style="color: #002f45; opacity: 0.6;">Belum ada sesi absensi yang dibuat.</p>
-                            </div>
-                        @endforelse
-                    </div>
-                </div>
+                                        {{-- LOOP LEVEL 3: MENGISI STATUS ABSENSI TIAP USER DI TIAP SESI SECARA HORIZONTAL --}}
+                                        @foreach($sesiList as $sesi)
+                                            @php
+                                                // Cari record absensi spesifik milik user ini pada sesi ini di collection ram
+                                                $log = $logAbsensi->get($user->id)?->get($sesi->id)?->first();
+                                                
+                                                // Penentuan default value
+                                                $status = 'tidak_hadir';
+                                                if ($log) {
+                                                    $status = ($log->status === 'hadir' && !$log->waktu_absen) ? 'izin' : $log->status;
+                                                }
 
-                {{-- TAMPILAN 2: DETAIL DATA ABSENSI --}}
-            @else
-                @php
-                    // Kita ambil sesi yang dipilih dari variabel $sesiList
-                    $selectedSesi = $sesiList->where('id', request('session_id'))->first();
+                                                // Penentuan warna background pill dropdown pembaca awal
+                                                $bgSelect = '#c53030'; // Merah
+                                                if($status === 'hadir') $bgSelect = '#2f855a'; // Hijau
+                                                if($status === 'izin') $bgSelect = '#ecc94b';  // Kuning
+                                            @endphp
 
-                    // Karena Controller sudah melakukan grouping di awal, kita perlu meratakan data
-                    // lalu memfilternya berdasarkan session_id yang dipilih user
-                    $allData = $absensi->flatten();
-                    $dataFiltered = $allData->where('qr_session_id', request('session_id'));
-                    $groupedByKelompok = $dataFiltered->groupBy('kelompok');
-                @endphp
-
-                <div
-                    style="margin-bottom: 2rem; padding: 1.5rem; background: rgba(0,47,69,0.05); border-radius: 1rem; border-left: 5px solid #002f45;">
-                    <p style="margin:0; font-size: 0.9rem; color: #002f45; opacity: 0.7;">Menampilkan data untuk:</p>
-                    <h2 style="margin:0; color: #002f45; font-family: 'Playfair Display';">
-                        {{ $selectedSesi->nama_sesi ?? 'Sesi Detail' }}</h2>
-                </div>
-
-                @if ($dataFiltered->isEmpty())
-                    <div
-                        style="background: rgba(255, 255, 255, 0.3); border-radius: 2rem; padding: 5rem 2rem; text-align: center; border: 1px solid rgba(255, 255, 255, 0.4);">
-                        <div style="font-size:5rem; margin-bottom:1.5rem;">📋</div>
-                        <h3 style="color:#002f45; font-weight:700;">Tidak ada peserta yang absen di sesi ini</h3>
-                    </div>
-                @else
-                    @foreach ($groupedByKelompok as $noKelompok => $daftarPeserta)
-                        <div
-                            style="background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(15px); border-radius: 1.5rem; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.4); margin-bottom: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.03);">
-
-                            <div
-                                style="background: rgba(0, 47, 69, 0.85); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;">
-                                <div style="display:flex; align-items:center; gap:12px;">
-                                    <div
-                                        style="width:10px; height:10px; background:#d2c296; border-radius:2px; transform: rotate(45deg);">
-                                    </div>
-                                    <span
-                                        style="color:#d2c296; font-weight:800; letter-spacing: 0.1em; font-size:0.8rem; text-transform:uppercase;">KELOMPOK
-                                        {{ $noKelompok ?? 'N/A' }}</span>
-                                </div>
-                                <span
-                                    style="color:white; background:rgba(255,255,255,0.15); padding:0.3rem 0.8rem; border-radius:2rem; font-size:0.7rem; font-weight:600;">
-                                    {{ $daftarPeserta->count() }} Peserta Hadir
-                                </span>
-                            </div>
-
-                            <div style="overflow-x: auto;">
-                                <table style="width:100%; border-collapse:collapse;">
-                                    <thead>
-                                        <tr style="background: rgba(255, 255, 255, 0.1);">
-                                            <th
-                                                style="padding:1.25rem 1.5rem; text-align:left; color:#002f45; font-size:0.65rem; font-weight:800; text-transform:uppercase;">
-                                                No</th>
-                                            <th
-                                                style="padding:1.25rem 1.5rem; text-align:left; color:#002f45; font-size:0.65rem; font-weight:800; text-transform:uppercase;">
-                                                Identitas Peserta</th>
-                                            <th
-                                                style="padding:1.25rem 1.5rem; text-align:left; color:#002f45; font-size:0.65rem; font-weight:800; text-transform:uppercase;">
-                                                Angkatan</th>
-                                            <th
-                                                style="padding:1.25rem 1.5rem; text-align:left; color:#002f45; font-size:0.65rem; font-weight:800; text-transform:uppercase;">
-                                                Waktu Presensi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach ($daftarPeserta as $i => $absen)
-                                            <tr style="border-bottom:1px solid rgba(0,0,0,0.03); transition: 0.2s;"
-                                                onmouseover="this.style.background='rgba(255,255,255,0.4)'"
-                                                onmouseout="this.style.background='transparent'">
-                                                <td
-                                                    style="padding:1.25rem 1.5rem; color:#002f45; opacity:0.5; font-family:monospace; font-weight:600;">
-                                                    {{ sprintf('%02d', $i + 1) }}</td>
-                                                <td style="padding:1.25rem 1.5rem;">
-                                                    <div style="color:#002f45; font-weight:700; font-size:0.95rem;">
-                                                        {{ $absen->nama }}</div>
-                                                    <div
-                                                        style="color:#002f45; font-size:0.8rem; opacity:0.6; font-family:monospace;">
-                                                        {{ $absen->nim }}</div>
-                                                </td>
-                                                <td
-                                                    style="padding:1.25rem 1.5rem; color:#002f45; font-weight:600; font-size:0.85rem;">
-                                                    {{ $absen->angkatan }}</td>
-                                                <td style="padding:1.25rem 1.5rem;">
-                                                    <div style="color:#002f45; font-size:0.8rem; font-weight:600;">
-                                                        <span style="opacity:0.5; margin-right:4px;">⏰</span>
-                                                        {{ \Carbon\Carbon::parse($absen->waktu_absen)->format('H:i') }}
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                            <td style="padding:0.75rem 0.5rem; text-align:center; border-left: 1px solid rgba(0,0,0,0.02);">
+                                                {{-- Dropdown Interaktif Warna-Warni Realtime Multi Sesi --}}
+                                                <select class="status-select" 
+                                                        data-user="{{ $user->id }}" 
+                                                        data-session="{{ $sesi->id }}"
+                                                        style="padding: 0.35rem 0.6rem; border-radius: 0.5rem; border: none; font-size: 0.75rem; font-weight: 700; color: white; cursor: pointer; outline: none; background-color: {{ $bgSelect }}; transition: 0.2s; width: 100%; max-width: 125px; text-align-last: center;">
+                                                    <option value="hadir" {{ $status === 'hadir' ? 'selected' : '' }} style="background:#2f855a; color:white;">Hadir</option>
+                                                    <option value="izin" {{ $status === 'izin' ? 'selected' : '' }} style="background:#ecc94b; color:#002f45;">Izin</option>
+                                                    <option value="tidak_hadir" {{ $status === 'tidak_hadir' ? 'selected' : '' }} style="background:#c53030; color:white;">Alfa</option>
+                                                </select>
+                                            </td>
                                         @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    @endforeach
-                @endif
-            @endif
+
+                                    </tr>
+                                @endforeach
+
+                                {{-- Jarak Baris Kosong Pemisah Antar Kelompok Agar Nyaman Dibaca --}}
+                                <tr style="height: 1.5rem;"><td colspan="{{ 4 + $sesiList->count() }}"></td></tr>
+
+                            @empty
+                                <tr>
+                                    <td colspan="{{ 4 + $sesiList->count() }}" style="text-align: center; padding: 5rem 2rem;">
+                                        <div style="font-size:4rem; margin-bottom:1rem;">👥</div>
+                                        <h3 style="color:#002f45; font-weight:700; margin:0;">Tidak ada master data peserta terdaftar.</h3>
+                                    </td>
+                                </tr>
+                            @endforelse
+
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
         </div>
     </div>
+
+    {{-- AJAX MASTER CODES: MENANGKAP INPUT DARI DROPDOWN MANAPUN SECARA REALTIME TANPA RELOAD --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const selects = document.querySelectorAll('.status-select');
+            
+            selects.forEach(select => {
+                select.addEventListener('change', function () {
+                    const status = this.value;
+                    const userId = this.getAttribute('data-user');
+                    const sessionId = this.getAttribute('data-session');
+
+                    // Ganti warna background element select secara realtime di layar mengikuti opsi yang baru dipilih
+                    if (status === 'hadir') {
+                        this.style.backgroundColor = '#2f855a';
+                    } else if (status === 'izin') {
+                        this.style.backgroundColor = '#ecc94b';
+                    } else {
+                        this.style.backgroundColor = '#c53030';
+                    }
+
+                    // Tembak API via Fetch AJAX Laravel ke Database
+                    fetch("{{ route('panitia.absensi.updateStatus') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            user_id: userId,
+                            qr_session_id: sessionId,
+                            status: status
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            alert('Gagal memperbarui status absensi, silakan coba lagi.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Terjadi kesalahan jaringan.');
+                    });
+                });
+            });
+        });
+    </script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,800;1,800&display=swap');
 
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.05);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(0, 47, 69, 0.2);
-            border-radius: 10px;
-        }
+        /* Custom Desain Scrollbar Minimalis di Bagian Bawah Tabel */
+        ::-webkit-scrollbar { width: 6px; height: 7px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.02); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 47, 69, 0.25); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 47, 69, 0.4); }
     </style>
 @endsection

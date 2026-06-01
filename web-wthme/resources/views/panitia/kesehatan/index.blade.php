@@ -3,7 +3,7 @@
 @section('content')
     {{-- Main Background --}}
     <div style="min-height:calc(100vh - 64px); padding:3rem 1.5rem; background: linear-gradient(135deg, #e0decd 0%, #d2c296 100%); font-family: 'Inter', sans-serif;">
-        <div style="max-width:1200px; margin:0 auto;">
+        <div style="max-width:1400px; margin:0 auto;">
 
             {{-- Header & Action Bar --}}
             <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:2.5rem; flex-wrap:wrap; gap:1.5rem;">
@@ -15,7 +15,7 @@
                         <span style="margin-right:8px;">←</span> Kembali
                     </a>
                     <h1 style="font-family:'Playfair Display',serif; color:#002f45; font-size:2.5rem; font-weight:800; margin:0; letter-spacing:-0.02em;">
-                        Data Kesehatan <span style="color:#6b705c; font-style:italic;">Peserta</span>
+                        Data Medis & Kesehatan <span style="color:#6b705c; font-style:italic;">Peserta</span>
                     </h1>
                 </div>
 
@@ -42,7 +42,7 @@
             @if ($semuaRiwayat->isEmpty())
                 <div style="background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(20px); border-radius: 2rem; padding: 5rem 2rem; text-align: center; border: 1px solid rgba(255, 255, 255, 0.3);">
                     <div style="font-size:5rem; margin-bottom:1.5rem;">🩺</div>
-                    <h3 style="color:#002f45;">Data Belum Tersedia</h3>
+                    <h3 style="color:#002f45;">Data Riwayat Medis Belum Tersedia</h3>
                 </div>
             @else
                 @foreach ($semuaRiwayat as $kelompok => $dataKesehatan)
@@ -51,61 +51,80 @@
                         <div style="background: rgba(0, 47, 69, 0.85); padding: 1.25rem 2rem; display: flex; justify-content: space-between; align-items: center;">
                             <span style="color:#d2c296; font-weight:800; letter-spacing: 0.1em; font-size:0.9rem;">KELOMPOK {{ $kelompok }}</span>
                             <span style="color:white; background:rgba(255,255,255,0.15); padding:0.4rem 1rem; border-radius:2rem; font-size:0.8rem;">
-                                {{ $dataKesehatan->count() }} Peserta
+                                {{ $dataKesehatan->count() }} Peserta Mengisi
                             </span>
                         </div>
 
                         <div style="overflow-x: auto;">
-                            <table style="width:100%; border-collapse:collapse; min-width: 1000px;">
+                            <table style="width:100%; border-collapse:collapse; min-width: 1400px;">
                                 <thead>
                                     <tr style="background: rgba(255, 255, 255, 0.1);">
-                                        <th style="padding:1.25rem 1.5rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; border-bottom: 1px solid rgba(0,0,0,0.05);">Nama & NIM</th>
-                                        <th style="padding:1.25rem 1rem; text-align:center; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Status</th>
-                                        <th style="padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Riwayat Penyakit</th>
-                                        <th style="padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Alergi</th>
-                                        <th style="padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Obat Rutin</th>
-                                        <th style="padding:1.25rem 1.5rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Catatan Tambahan</th>
+                                        <th style="width: 13%; padding:1.25rem 1.5rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; border-bottom: 1px solid rgba(0,0,0,0.05);">Nama & NIM</th>
+                                        <th style="width: 17%; padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Kontak & Alamat</th>
+                                        <th style="width: 15%; padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Riwayat Alergi/Penyakit</th>
+                                        <th style="width: 13%; padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Konsumsi Obat</th>
+                                        <th style="width: 13%; padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Riwayat Cedera</th>
+                                        <th style="width: 13%; padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Alergi Makanan</th>
+                                        <th style="width: 11%; padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Info Tambahan</th>
+                                        <th style="width: 5%; padding:1.25rem 1.5rem; text-align:center; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Bukti</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($dataKesehatan as $r)
-                                        @php
-                                            $isWarning = $r->kondisi_kesehatan == 'Perlu Perhatian';
-                                            $statusColor = $isWarning ? '#c53030' : ($r->kondisi_kesehatan == 'Cukup' ? '#975a16' : '#2f855a');
-                                            $statusBg = $isWarning ? 'rgba(254, 215, 215, 0.6)' : ($r->kondisi_kesehatan == 'Cukup' ? 'rgba(254, 252, 191, 0.6)' : 'rgba(198, 246, 213, 0.6)');
-                                        @endphp
                                         <tr style="border-bottom:1px solid rgba(0,0,0,0.03); transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.4)'" onmouseout="this.style.background='transparent'">
                                             
-                                            <td style="padding:1.25rem 1.5rem;">
+                                            {{-- Nama & NIM (Rata Kiri-Atas) --}}
+                                            <td style="padding:1.25rem 1.5rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal;">
                                                 <div style="color:#002f45; font-weight:700; font-size:0.9rem;">{{ $r->nama }}</div>
-                                                <div style="color:#002f45; font-size:0.75rem; opacity:0.6; font-family:monospace;">{{ $r->nim }}</div>
+                                                <div style="color:#002f45; font-size:0.75rem; opacity:0.6; font-family:monospace; margin-top: 4px;">{{ $r->nim }}</div>
                                             </td>
 
-                                            <td style="padding:1.25rem 1rem; text-align:center;">
-                                                <span style="background:{{ $statusBg }}; color:{{ $statusColor }}; padding:0.4rem 0.6rem; border-radius:0.5rem; font-weight:800; font-size:0.65rem; display:inline-block; border: 1px solid {{ $statusColor }}30; backdrop-filter: blur(5px); white-space: nowrap;">
-                                                    {{ strtoupper($r->kondisi_kesehatan) }}
-                                                </span>
+                                            {{-- Kontak & Alamat (Rata Kiri-Atas) --}}
+                                            <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal;">
+                                                <div><strong>HP:</strong> <span style="font-weight: 400;">{{ $r->no_telp ?? '-' }}</span></div>
+                                                <div style="margin-top:3px;"><strong>Ortu:</strong> <span style="font-weight: 400;">{{ $r->no_telp_ortu ?? '-' }}</span></div>
+                                                <div style="margin-top:6px; font-size:0.75rem; opacity:0.8; line-height:1.4; font-weight: 400;">{{ $r->alamat_rumah ?? '-' }}</div>
                                             </td>
 
-                                            <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.85rem;">
+                                            {{-- Riwayat Penyakit (Rata Kiri-Atas) --}}
+                                            <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal; line-height:1.4; font-weight: 400;">
                                                 {{ $r->riwayat_penyakit ?? '-' }}
                                             </td>
 
-                                            <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.85rem;">
-                                                {{ $r->alergi ?? '-' }}
+                                            {{-- Obat Rutin (Rata Kiri-Atas) --}}
+                                            <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal; line-height:1.4; font-weight: 400;">
+                                                {{ $r->obat_rutin ?? '-' }}
                                             </td>
 
-                                            <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.85rem;">
-                                                <span style="font-weight: 600;">{{ $r->obat_rutin ?? '-' }}</span>
+                                            {{-- Riwayat Cedera (Rata Kiri-Atas) --}}
+                                            <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal; line-height:1.4; font-weight: 400;">
+                                                {{ $r->riwayat_cedera ?? '-' }}
                                             </td>
 
-                                            <td style="padding:1.25rem 1.5rem;">
-                                                @if ($r->keterangan_tambahan)
-                                                    <div style="font-size:0.8rem; color:#c53030; padding:0.5rem; background:rgba(197,48,48,0.05); border-left:3px solid #c53030; border-radius: 4px; font-style: italic;">
-                                                        {{ $r->keterangan_tambahan }}
-                                                    </div>
+                                            {{-- Alergi Makanan (Rata Kiri-Atas) --}}
+                                            <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal; line-height:1.4; font-weight: 400;">
+                                                {{ $r->alergi_makanan ?? '-' }}
+                                            </td>
+
+                                            {{-- Catatan Tambahan (Merah-merah dihapus, Rata Kiri-Atas standar) --}}
+                                            <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal; line-height:1.4; font-weight: 400;">
+                                                @if ($r->keterangan_tambahan && $r->keterangan_tambahan != '-')
+                                                    {{ $r->keterangan_tambahan }}
                                                 @else
-                                                    <span style="color:#ccc;">-</span>
+                                                    <span style="color:#aaa;">-</span>
+                                                @endif
+                                            </td>
+
+                                            {{-- Berkas Bukti File (Tetap di Tengah-Atas agar ikon kamera simetris) --}}
+                                            <td style="padding:1.25rem 1.5rem; text-align:center; vertical-align: top;">
+                                                @if($r->bukti_kesehatan)
+                                                    <a href="{{ asset('storage/' . $r->bukti_kesehatan) }}" target="_blank" 
+                                                       style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; background:#002f45; color:#d2c296; border-radius:0.5rem; text-decoration:none; font-weight:bold; box-shadow:0 4px 10px rgba(0,47,69,0.2); transition:0.2s;"
+                                                       title="Lihat Berkas Bukti" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                                        📷
+                                                    </a>
+                                                @else
+                                                    <span style="color:#ccc; font-size:0.85rem; font-weight: 400;">Tidak Ada</span>
                                                 @endif
                                             </td>
                                         </tr>

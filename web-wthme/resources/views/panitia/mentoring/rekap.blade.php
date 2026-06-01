@@ -2,7 +2,7 @@
 
 @section('content')
     {{-- Background Wrapper dengan Gradient Lembut --}}
-    <div style="min-height:calc(100vh - 64px); padding:3rem 1.5rem; background: linear-gradient(135deg, #f4f3ee 0%, #e0decd 100%);">
+    <div style="min-height:calc(100vh - 64px); padding:3rem 1.5rem; background: linear-gradient(135deg, #f4f3ee 0%, #e0decd 100%); font-family: 'Inter', sans-serif;">
         <div style="max-width:1400px; margin:0 auto;">
 
             {{-- Header Section (Glass Card) --}}
@@ -53,8 +53,16 @@
                                     </span>
                                 </div>
 
+                                {{-- Menampilkan Catatan/Poin Pembahasan di Rekapitulasi (Jika Ada) --}}
+                                @if(!empty($details->first()->mentoring->catatan_pertemuan))
+                                    <div class="meeting-notes-rekap">
+                                        <div class="notes-title">📝 Rangkuman & Poin Pembahasan Mentoring:</div>
+                                        <div class="notes-content">{!! nl2br(e($details->first()->mentoring->catatan_pertemuan)) !!}</div>
+                                    </div>
+                                @endif
+
                                 {{-- Table Area --}}
-                                <div style="overflow-x: auto; padding: 0.5rem;">
+                                <div style="overflow-x: auto; padding: 0.5rem 1.5rem;">
                                     <table style="width:100%; border-collapse:separate; border-spacing: 0 0.5rem;">
                                         <thead>
                                             <tr>
@@ -103,4 +111,30 @@
 
         </div>
     </div>
+
+    {{-- Styling Khusus untuk Blok Catatan di Halaman Rekap --}}
+    <style>
+        .meeting-notes-rekap { 
+            background: rgba(0, 47, 69, 0.04); 
+            border-left: 4px solid #6b705c; 
+            border-radius: 1rem; 
+            padding: 1.25rem 1.5rem; 
+            margin: 1.5rem 1.5rem 0.5rem 1.5rem; 
+        }
+        .notes-title { 
+            font-size: 0.75rem; 
+            font-weight: 800; 
+            color: #002f45; 
+            text-transform: uppercase; 
+            margin-bottom: 0.6rem; 
+            letter-spacing: 0.05em; 
+        }
+        .notes-content { 
+            font-size: 0.9rem; 
+            color: #002f45; 
+            line-height: 0.8; 
+            opacity: 0.9; 
+            white-space: pre-wrap; /* Menjaga struktur spasi, enter, dan bullet point tetap presisi */
+        }
+    </style>
 @endsection

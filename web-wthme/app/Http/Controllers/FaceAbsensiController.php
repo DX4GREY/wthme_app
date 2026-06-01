@@ -16,12 +16,13 @@ class FaceAbsensiController extends Controller
     // ─── Halaman gate ───
     public function gate(Request $request)
     {
-        $activeSessions = QrSession::where('aktif', true)
+        // Mengambil sesi yang aktif untuk peserta
+        $sesiList = QrSession::where('aktif', true)
             ->where('untuk', 'peserta')
             ->latest()
             ->get();
 
-        return view('panitia.face-gate', compact('activeSessions'));
+        return view('panitia.face-gate', compact('sesiList'));
     }
 
     // ─── Proses identifikasi + simpan absen ───

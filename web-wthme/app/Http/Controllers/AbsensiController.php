@@ -195,19 +195,77 @@ class AbsensiController extends Controller
     }
 
 
-    // ===== DATA ABSENSI (untuk panitia lihat) =====
+    // ===== DATA ABSENSI (Tampilan Matriks Global Mirip Excel) =====
 
-    public function dataPeserta()
+    public function dataPeserta(Request $request)
     {
-        $absensi = AbsensiPeserta::with('user', 'qrSession')
-            ->orderBy('kelompok')
-            ->orderBy('nama')
+        // 1. Ambil semua list sesi khusus peserta, diurutkan dari yang paling lama/awal (agar urutan kolom rapi ke kanan)
+        $sesiList = QrSession::where('untuk', 'peserta')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        // 2. Ambil master data user peserta (yang memiliki kelompok) & dikelompokkan langsung berdasarkan nomor kelompoknya
+        $matrixData = User::whereNotNull('kelompok')
+            ->orderBy('kelompok', 'asc')
+            ->orderBy('name', 'asc')
             ->get()
             ->groupBy('kelompok');
 
-        $sesiList = QrSession::where('untuk', 'peserta')->get();
+        // 3. Ambil log riwayat absensi mentah, kemudian di-grouping bertingkat berdasarkan user_id dan qr_session_id
+        // Trik ini untuk optimasi RAM agar pencarian status di dalam perulangan tabel silang secepat kilat (bebas N+1 query issue)
+        $logAbsensi = AbsensiPeserta::get()->groupBy(['user_id', 'qr_session_id']);
 
-        return view('panitia.data-absensi-peserta', compact('absensi', 'sesiList'));
+        // 4. Kirim data matriks global ke view rekap utama
+        return view('panitia.data-absensi-peserta', compact('sesiList', 'matrixData', 'logAbsensi'));
+    }
+
+    // ===== AJAX UPDATE STATUS ABSENSI PESERTA =====
+    
+    public function updateStatusPeserta(Request $request)
+    {
+        $request->validate([
+            'user_id'        => 'required|exists:users,id',
+            'qr_session_id'  => 'required|exists:qr_sessions,id',
+            'status'         => 'required|in:hadir,izin,tidak_hadir'
+        ]);
+
+        // Sesuaikan dengan tipe kolom status di database Anda (hadir / tidak_hadir)
+        $statusDb = ($request->status === 'hadir') ? 'hadir' : 'tidak_hadir';
+
+        // Cari log absensi yang sudah ada berdasarkan user dan sesi terkait
+        $absensi = AbsensiPeserta::where('user_id', $request->user_id)
+            ->where('qr_session_id', $request->qr_session_id)
+            ->first();
+
+        if ($request->status === 'tidak_hadir') {
+            // Jika panitia merubah menjadi Tidak Hadir (Alfa), hapus log record dari database jika ada
+            if ($absensi) {
+                $absensi->delete();
+            }
+        } else {
+            // Jika status adalah 'hadir' atau 'izin', buat record baru jika belum ada
+            if (!$absensi) {
+                $user = User::find($request->user_id);
+                $absensi = new AbsensiPeserta();
+                $absensi->user_id       = $user->id;
+                $absensi->qr_session_id = $request->qr_session_id;
+                $absensi->nama          = $user->name;
+                $absensi->nim           = $user->nim;
+                $absensi->angkatan      = $user->angkatan;
+                $absensi->kelompok      = $user->kelompok;
+                $absensi->ip_address    = $request->ip();
+            }
+
+            $absensi->status      = $statusDb;
+            // Jika statusnya izin, waktu_absen di-set null. Jika hadir, di-set waktu saat ini.
+            $absensi->waktu_absen = ($request->status === 'hadir') ? now() : null;
+            $absensi->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Status berhasil diperbarui!'
+        ]);
     }
 
     public function dataPanitia()

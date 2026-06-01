@@ -16,8 +16,11 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center gap-3">
-                    <img src="{{ asset('images/logo-logo.png') }}" alt="Logo" class="h-20 w-20 object-contain">
-                    <span class="font-display text-sand text-lg font-semibold hidden sm:block">WTHME 2025</span>
+                    {{-- <img src="{{ asset('images/logo-logo.png') }}" alt="Logo" class="h-20 w-20 object-contain"> --}}
+                    <h1 class="hidden sm:block"
+                        style="font-nunito:'Playfair Display', serif; color:#ffffff; font-size:2rem; font-weight:800; margin:0; letter-spacing:-0.02em;">
+                        WTHME <span style="color:#d2c296; font-style:italic;">2025</span>
+                    </h1>
                 </div>
                 <div class="flex items-center gap-4">
                     {{-- Bagian Teks Pengguna: Tetap Sama Persis --}}

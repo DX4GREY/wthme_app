@@ -35,10 +35,6 @@
                     <span class="stat-label">Panitia Hadir</span>
                     <span class="stat-value">{{ $totalPanitiaHadir }}</span>
                 </div>
-                {{-- <div class="stat-glass" style="background: rgba(0,47,69,0.9); border: none;">
-                    <span class="stat-label" style="color: #bdd1d3;">QR Aktif</span>
-                    <span class="stat-value" style="color: #d2c296;">{{ $qrSessions->where('aktif', true)->count() }}</span>
-                </div> --}}
             </div>
 
             <div class="main-layout-grid">
@@ -70,7 +66,7 @@
                                 'icon' => '🔲',
                                 'title' => 'Generate QR Absensi',
                                 'desc' => 'Buat QR sesi kegiatan baru',
-                                'only_admin' => true, // HANYA ADMIN
+                                'only_admin' => true,
                             ],
                             [
                                 'route' => 'panitia.absensi.peserta',
@@ -83,6 +79,21 @@
                                 'icon' => '📊',
                                 'title' => 'Data Absensi Panitia',
                                 'desc' => 'Rekap & export kehadiran panitia',
+                            ],
+                            [
+                                'route' => 'panitia.leaderboard.input',
+                                'icon' => '✨',
+                                'title' => 'Input Poin Peserta',
+                                'desc' => 'Input poin absensi, tugas, dan keaktifan leaderboard',
+                                'restricted_to' => 'acara_and_admin',
+                            ],
+                            // 🟢 MENU BARU: VALIDASI QUEST LAB ELEKTRO
+                            [
+                                'route' => 'panitia.quest.index',
+                                'icon' => '🧪',
+                                'title' => 'Validasi Quest Lab',
+                                'desc' => 'Cek dan setujui bukti selfie laboratorium peserta',
+                                'restricted_to' => 'acara_and_admin',
                             ],
                             [
                                 'route' => 'panitia.kesehatan.index',
@@ -101,7 +112,6 @@
                                 'icon' => '📢',
                                 'title' => 'Broadcast Peserta',
                                 'desc' => 'Kirim pengumuman/link ke portal peserta',
-                                // 'only_admin' => true, //
                             ],
                             [
                                 'route' => 'panitia.barang.index',
@@ -115,15 +125,12 @@
                                 'title' => 'Notulensi Rapat',
                                 'desc' => 'Catat hasil & poin pembahasan',
                             ],
-                            // ... menu-menu sebelumnya
                             [
-                                'route' => 'panitia.mentoring.index', // Pastikan nama route ini sesuai di web.php
+                                'route' => 'panitia.mentoring.index',
                                 'icon' => '🤝',
                                 'title' => 'Sesi Mentoring',
                                 'desc' => 'Kelola jadwal & progres mentoring',
                             ],
-
-                            // ... menu-menu setelahnya
                         ];
                     @endphp
 
@@ -133,19 +140,25 @@
                             $userRole = strtolower(trim($user->role ?? ''));
                             $userDivisi = strtolower(trim($user->divisi ?? ''));
 
-                            // Default: Kita izinkan dulu
                             $isAllowed = true;
 
-                            // --- PINTU 1: CEK MENU KHUSUS BROADCAST ---
+                            // --- PINTU 1: CEK MENU BROADCAST ---
                             if ($menu['route'] === 'panitia.info.peserta.index') {
-                                // Hanya Admin atau Divisi Acara yang boleh lewat
                                 if ($userRole === 'admin' || $userDivisi === 'acara') {
                                     $isAllowed = true;
                                 } else {
                                     $isAllowed = false;
                                 }
                             }
-                            // --- PINTU 2: CEK MENU KHUSUS ADMIN LAINNYA ---
+                            // --- PINTU 2: CEK MENU INPUT POIN & QUEST LAB (TERMASUK MENU BARU) ---
+                            elseif (isset($menu['restricted_to']) && $menu['restricted_to'] === 'acara_and_admin') {
+                                if ($userRole === 'admin' || $userDivisi === 'acara') {
+                                    $isAllowed = true;
+                                } else {
+                                    $isAllowed = false;
+                                }
+                            }
+                            // --- PINTU 3: CEK MENU KHUSUS ADMIN LAINNYA ---
                             elseif (isset($menu['only_admin']) && $menu['only_admin'] === true) {
                                 if ($userRole !== 'admin') {
                                     $isAllowed = false;
@@ -158,23 +171,12 @@
                             @continue
                         @endif
 
-                        {{-- SISA KODE VIEW (action-card) TETAP SAMA --}}
                         <a href="{{ route($menu['route']) }}" class="action-card">
                             <div class="icon-box">{{ $menu['icon'] }}</div>
                             <div style="flex-grow: 1;">
                                 <h4 class="card-title">{{ $menu['title'] }}</h4>
                                 <p class="card-desc">{{ $menu['desc'] }}</p>
                             </div>
-
-                            {{-- Badge Label --}}
-                            {{-- @if ($menu['route'] === 'panitia.info.peserta.index')
-                                <span class="role-badge"
-                                    style="background:rgba(16,185,129,0.1); color:#10b981; border-color:rgba(16,185,129,0.2);">ACARA
-                                    & ADMIN</span>
-                            @elseif (isset($menu['only_admin']))
-                                <span class="role-badge" style="background:rgba(239,68,68,0.1); color:#ef4444;">ADMIN
-                                    ONLY</span>
-                            @endif --}}
                         </a>
                     @endforeach
 
@@ -200,7 +202,6 @@
                         <div
                             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                             <h5 class="sidebar-title" style="margin:0;">DOKUMEN EVENT</h5>
-                            {{-- Tombol Tambah (Hanya tampil jika perlu input) --}}
                             <button onclick="document.getElementById('modalLink').style.display='flex'"
                                 style="background: #002f45; color: white; border: none; border-radius: 5px; font-size: 0.6rem; padding: 2px 8px; cursor: pointer;">
                                 + TAMBAH
@@ -479,6 +480,7 @@
             }
         }
     </style>
+
     {{-- Floating Back Button --}}
     <a href="/dashboard"
         style="position: fixed; bottom: 2rem; left: 2rem; z-index: 100; text-decoration: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); padding: 0.75rem 1.25rem; border-radius: 999px; border: 1px solid rgba(0, 47, 69, 0.1); color: #002f45; font-size: 0.85rem; font-weight: 700; box-shadow: 0 10px 25px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 0.5rem; transition: 0.3s;"

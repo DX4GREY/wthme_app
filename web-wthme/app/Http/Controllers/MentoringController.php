@@ -9,7 +9,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\MentoringExport;
-use App\Exports\MentoringSeluruhExport; // <--- Tambahkan ini
+use App\Exports\MentoringSeluruhExport;
 
 class MentoringController extends Controller
 {
@@ -18,7 +18,8 @@ class MentoringController extends Controller
         $listKelompok = User::where('role', 'peserta')
             ->whereNotNull('kelompok')
             ->distinct()
-            ->orderBy('kelompok', 'asc')
+            // FIX: Ubah string kelompok jadi Integer sebelum di-order agar urutannya pas (1, 2, 3... 10)
+            ->orderByRaw('CAST(kelompok AS UNSIGNED) ASC')
             ->pluck('kelompok')
             ->toArray();
 
@@ -43,16 +44,19 @@ class MentoringController extends Controller
     public function store(Request $request, $kelompok)
     {
         $request->validate([
-            'nama_kegiatan' => 'required|string|max:255',
-            'tanggal'       => 'required|date',
-            'kehadiran'     => 'required|array',
+            'nama_kegiatan'     => 'required|string|max:255',
+            'tanggal'           => 'required|date',
+            'kehadiran'         => 'required|array',
+            'catatan_pertemuan' => 'nullable|string',
         ]);
 
+        // MENYIMPAN 'catatan_pertemuan' dari inputan mentor
         $mentoring = Mentoring::create([
-            'mentor_id'     => Auth::id(),
-            'nama_kegiatan' => $request->nama_kegiatan,
-            'kelompok'      => $kelompok,
-            'tanggal'       => $request->tanggal,
+            'mentor_id'         => Auth::id(),
+            'nama_kegiatan'     => $request->nama_kegiatan,
+            'kelompok'          => $kelompok,
+            'tanggal'           => $request->tanggal,
+            'catatan_pertemuan' => $request->catatan_pertemuan,
         ]);
 
         foreach ($request->kehadiran as $peserta_id => $status) {
@@ -71,13 +75,13 @@ class MentoringController extends Controller
     public function updateDetail(Request $request, $id)
     {
         $request->validate([
-            'kehadiran' => 'required|in:Hadir,Izin,Alpha',
+            'kehadiran'  => 'required|in:Hadir,Izin,Alpha',
             'keterangan' => 'nullable|string|max:255',
         ]);
 
         $detail = MentoringDetail::findOrFail($id);
         $detail->update([
-            'kehadiran' => $request->kehadiran,
+            'kehadiran'  => $request->kehadiran,
             'keterangan' => $request->keterangan,
         ]);
 
@@ -96,33 +100,39 @@ class MentoringController extends Controller
         return back()->with('success', 'Riwayat kegiatan berhasil dihapus!');
     }
 
-    // --- FITUR EXPORT (SOLUSI ERROR TADI) ---
+    // --- FITUR EXPORT ---
     public function export($kelompok)
     {
-        // Pastikan kamu sudah membuat file App\Exports\MentoringExport
         return Excel::download(new MentoringExport($kelompok), 'mentoring_kelompok_' . $kelompok . '.xlsx');
     }
 
+    // FIX: Menggunakan nama rekapGlobal() agar singkron dengan route, 
+    // serta diproteksi agar data kosong/null tidak bikin sistem crash.
     public function rekapGlobal()
     {
         $rekapDetail = MentoringDetail::with(['mentoring', 'peserta'])
+            ->whereHas('peserta', function ($query) {
+                $query->whereNotNull('kelompok');
+            })
+            ->whereHas('mentoring', function ($query) {
+                $query->whereNotNull('nama_kegiatan');
+            })
             ->get()
             ->groupBy([
                 function ($item) {
-                    return $item->peserta->kelompok;
-                }, // Kelompokkan berdasarkan Kelompok
+                    return $item->peserta->kelompok ?? 'Tanpa Kelompok';
+                },
                 function ($item) {
-                    return $item->mentoring->nama_kegiatan;
-                } // Lalu kelompokkan berdasarkan Kegiatan
+                    return $item->mentoring->nama_kegiatan ?? 'Kegiatan Tanpa Nama';
+                }
             ])
-            ->sortKeys(); // Urutkan Kelompok 1, 2, 3...
+            ->sortKeys();
 
         return view('panitia.mentoring.rekap', compact('rekapDetail'));
     }
 
     public function exportSeluruh()
     {
-        // Ini akan memanggil class Export yang mendownload SEMUA kelompok
         return Excel::download(new MentoringSeluruhExport, 'Master_Rekap_Mentoring.xlsx');
     }
 }

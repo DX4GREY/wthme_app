@@ -23,11 +23,10 @@ class KesehatanController extends Controller
             $query->where('kelompok', $request->kelompok);
         }
 
-        // Ambil data dan kelompokkan berdasarkan kolom 'kelompok'
-        $semuaRiwayat = $query->orderByRaw("FIELD(kondisi_kesehatan, 'Perlu Perhatian', 'Cukup', 'Baik')")
-                            ->orderBy('nama')
+        // Urutan langsung dirapikan berdasarkan nama alfabetis
+        $semuaRiwayat = $query->orderBy('nama')
                             ->get()
-                            ->groupBy('kelompok'); // <--- PENTING: Mengelompokkan koleksi
+                            ->groupBy('kelompok'); // Mengelompokkan koleksi berdasarkan kelompok masing-masing
 
         return view('panitia.kesehatan.index', compact('semuaRiwayat', 'kelompokList'));
     }

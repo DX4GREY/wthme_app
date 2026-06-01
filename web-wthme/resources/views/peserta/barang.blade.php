@@ -27,7 +27,13 @@
         </div>
         @endif
 
-        @if($data->isEmpty())
+        @if($errors->any())
+        <div style="background: rgba(239, 68, 68, 0.2); backdrop-filter: blur(10px); border: 1px solid rgba(239, 68, 68, 0.3); color:#991b1b; padding:1rem 1.5rem; border-radius:1.25rem; margin-bottom:1.5rem; font-size:0.9rem; font-weight:600;">
+            ⚠️ {{ $errors->first() }}
+        </div>
+        @endif
+
+        @if(count($data) == 0)
         <div style="background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(15px); border-radius:2rem; padding:4rem 2rem; text-align:center; border:2px dashed rgba(0, 47, 69, 0.2);">
             <div style="font-size:4rem; margin-bottom:1.5rem;">📦</div>
             <p style="color:#002f45; opacity:0.6; font-weight:600;">Belum ada daftar barang yang ditambahkan oleh panitia.</p>
@@ -36,8 +42,8 @@
 
         {{-- Summary Card --}}
         @php
-            $totalBarang  = $data->count();
-            $barangLengkap = $data->where('is_lengkap', true)->count();
+            $totalBarang  = count($data);
+            $barangLengkap = collect($data)->where('is_lengkap', true)->count();
             $persen = $totalBarang > 0 ? round($barangLengkap / $totalBarang * 100) : 0;
         @endphp
         <div style="background: rgba(0, 47, 69, 0.85); backdrop-filter: blur(10px); border-radius:1.5rem; padding:1.75rem 2rem; margin-bottom:2rem; display:flex; align-items:center; gap:2.5rem; flex-wrap:wrap; box-shadow: 0 15px 35px rgba(0, 47, 69, 0.2); border: 1px solid rgba(255, 255, 255, 0.1);">
@@ -65,7 +71,7 @@
                         <th style="padding:1.25rem 1.5rem; text-align:left; color:#002f45;">Nama Barang</th>
                         <th style="padding:1.25rem; text-align:center; color:#002f45;">Kebutuhan</th>
                         <th style="padding:1.25rem; text-align:center; color:#002f45;">Progress</th>
-                        <th style="padding:1.25rem; text-align:center; color:#002f45;">Input Data</th>
+                        <th style="padding:1.25rem; text-align:center; color:#002f45; min-width:190px;">Input Data & Penerima</th>
                         <th style="padding:1.25rem; text-align:center; color:#002f45;">Bukti Foto</th>
                         <th style="padding:1.25rem; text-align:center; color:#002f45;">Aksi</th>
                     </tr>
@@ -77,7 +83,13 @@
                     $terkumpul = $item['jumlah_terkumpul'];
                     $lengkap = $item['is_lengkap'];
                     $fotoUrl = $item['foto_url'];
-                    $bgRow = $lengkap ? 'rgba(34, 197, 94, 0.05)' : ($terkumpul > 0 ? 'rgba(217, 119, 6, 0.03)' : 'transparent');
+                    $isValidated = $item['is_validated'];
+                    
+                    // Kunci baris input HANYA jika sudah di-ACC DAN jumlahnya sudah pas/penuh memenuhi target kebutuhan
+                    $isLocked = $isValidated && $lengkap;
+
+                    $bgRow = $isLocked ? 'rgba(34, 197, 94, 0.08)' : ($isValidated ? 'rgba(217, 119, 6, 0.08)' : 'transparent');
+                    $currentPenerimaId = $item['pengumpulan'] ? $item['pengumpulan']->panitia_penerima_id : null;
                 @endphp
                 <tr style="background:{{ $bgRow }}; border-bottom:1px solid rgba(0, 47, 69, 0.05);">
                     
@@ -86,7 +98,7 @@
                         <div style="color:#002f45; font-weight:700;">{{ $b->nama_barang }}</div>
                         <div style="color:#002f45; opacity:0.5; font-size:0.75rem;">{{ $b->keterangan ?? '-' }}</div>
                         @if($item['updated_by_name'])
-                            <div style="color:#002f45; opacity:0.4; font-size:0.65rem; margin-top:0.4rem;">👤 {{ $item['updated_by_name'] }}</div>
+                            <div style="color:#002f45; opacity:0.4; font-size:0.65rem; margin-top:0.4rem;">👤 Terakhir diubah: {{ $item['updated_by_name'] }}</div>
                         @endif
                     </td>
 
@@ -102,50 +114,89 @@
                         </span>
                     </td>
 
-                    {{-- Input & Foto (Satu Form agar sinkron) --}}
+                    {{-- Input Data & Dropdown Penerima --}}
                     <td style="padding:1.25rem; text-align:center;">
                         <form method="POST" action="{{ route('peserta.barang.update', $b->id) }}" enctype="multipart/form-data" id="form-{{ $b->id }}">
                             @csrf @method('PATCH')
-                            <input type="number" name="jumlah_terkumpul" value="{{ $terkumpul }}" min="0" 
-                                   style="width:65px; padding:0.5rem; background:rgba(255,255,255,0.5); border:1px solid rgba(0,47,69,0.2); border-radius:0.75rem; text-align:center; font-weight:700;">
-                            {{-- Input file hidden, ditaruh di sini supaya masuk ke request form --}}
-                            <input type="file" name="foto_bukti" id="file-{{ $b->id }}" accept="image/*" style="display:none;" onchange="document.getElementById('form-{{ $b->id }}').submit()">
+                            
+                            <div style="margin-bottom: 0.6rem;">
+                                <label style="display:block; font-size:0.7rem; color:#002f45; font-weight:700; margin-bottom:0.25rem; opacity:0.7;">Jumlah Bawa:</label>
+                                <input type="number" name="jumlah_terkumpul" value="{{ $terkumpul }}" min="{{ $isValidated ? $terkumpul : 0 }}" 
+                                       {{ $isLocked ? 'disabled' : '' }}
+                                       style="width:75px; padding:0.4rem; background:{{ $isLocked ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.7)' }}; border:1px solid rgba(0,47,69,0.2); border-radius:0.5rem; text-align:center; font-weight:700;">
+                            </div>
+
+                            <div>
+                                <label style="display:block; font-size:0.7rem; color:#002f45; font-weight:700; margin-bottom:0.25rem; opacity:0.7;">Diserahkan Ke:</label>
+                                <select name="panitia_penerima_id" required {{ $isLocked ? 'disabled' : '' }}
+                                        style="width: 100%; max-width: 160px; padding: 0.4rem; background: {{ $isLocked ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.7)' }}; border: 1px solid rgba(0,47,69,0.2); border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; color: #002f45; outline: none; cursor:pointer;">
+                                    <option value="" disabled {{ is_null($currentPenerimaId) ? 'selected' : '' }}>-- Pilih Panitia --</option>
+                                    @foreach($panitiaLogistik as $panitia)
+                                        <option value="{{ $panitia->id }}" {{ $currentPenerimaId == $panitia->id ? 'selected' : '' }}>
+                                            {{ $panitia->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <input type="file" name="foto_bukti" id="file-{{ $b->id }}" accept="image/*" style="display:none;" onchange="if(document.getElementsByName('panitia_penerima_id')[0].value === '') { alert('Pilih panitia penerima dulu sebelum upload foto!'); this.value=''; } else { document.getElementById('form-{{ $b->id }}').submit(); }">
                         </form>
                     </td>
 
+                    {{-- Bukti Foto --}}
                     <td style="padding:1.25rem; text-align:center;">
                         @if($fotoUrl)
                             <div style="position:relative; display:inline-block;">
                                 <a href="{{ $fotoUrl }}" target="_blank">
                                     <img src="{{ $fotoUrl }}" style="width:50px; height:50px; object-fit:cover; border-radius:0.75rem; border:2px solid white;">
                                 </a>
-                                {{-- Tombol Hapus Foto menggunakan FORM DELETE --}}
-                                <form action="{{ route('peserta.barang.hapus-foto', $b->id) }}" method="POST" style="position:absolute; top:-8px; right:-8px;">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" onclick="return confirm('Hapus foto?')" style="background:#ef4444; color:white; border-radius:50%; width:20px; height:20px; border:none; cursor:pointer; font-size:10px;">✕</button>
-                                </form>
+                                @if(!$isLocked)
+                                    <form action="{{ route('peserta.barang.hapus-foto', $b->id) }}" method="POST" style="position:absolute; top:-8px; right:-8px;">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" onclick="return confirm('Hapus foto?')" style="background:#ef4444; color:white; border-radius:50%; width:20px; height:20px; border:none; cursor:pointer; font-size:10px;">✕</button>
+                                    </form>
+                                @endif
                             </div>
-                            <label for="file-{{ $b->id }}" style="display:block; margin-top:0.5rem; cursor:pointer; font-size:0.7rem; color:#002f45; font-weight:700; opacity:0.6;">Ganti Foto</label>
+                            @if(!$isLocked)
+                                <label for="file-{{ $b->id }}" style="display:block; margin-top:0.5rem; cursor:pointer; font-size:0.7rem; color:#002f45; font-weight:700; opacity:0.6;">Ganti Foto</label>
+                            @endif
                         @else
-                            <label for="file-{{ $b->id }}" style="cursor:pointer; display:inline-flex; flex-direction:column; align-items:center; gap:0.25rem; font-size:0.7rem; color:#002f45; background:rgba(255,255,255,0.4); padding:0.5rem 0.75rem; border-radius:0.75rem; border:1px dashed rgba(0,47,69,0.3);">
-                                <span>📷 Upload</span>
-                            </label>
+                            @if(!$isLocked)
+                                <label for="file-{{ $b->id }}" style="cursor:pointer; display:inline-flex; flex-direction:column; align-items:center; gap:0.25rem; font-size:0.7rem; color:#002f45; background:rgba(255,255,255,0.4); padding:0.5rem 0.75rem; border-radius:0.75rem; border:1px dashed rgba(0,47,69,0.3);">
+                                    <span>📷 Upload</span>
+                                </label>
+                            @else
+                                <div style="font-size: 1.25rem; opacity: 0.3;">🔒</div>
+                            @endif
                         @endif
                     </td>
 
-                    {{-- Tombol Aksi --}}
+                    {{-- Tombol Aksi Peserta / Indikator ACC --}}
                     <td style="padding:1.25rem; text-align:center;">
-                        <div style="display:flex; flex-direction:column; gap:0.5rem;">
-                            <button type="submit" form="form-{{ $b->id }}" style="background:#002f45; color:#d2c296; border:none; padding:0.5rem; border-radius:0.75rem; font-size:0.75rem; font-weight:700; cursor:pointer;">
-                                Simpan
-                            </button>
-                            @if($item['pengumpulan'])
-                            <form method="POST" action="{{ route('peserta.barang.reset', $b->id) }}" onsubmit="return confirm('Reset data barang ini?')">
-                                @csrf @method('DELETE')
-                                <button type="submit" style="background:transparent; color:#dc2626; border:1px solid rgba(220, 38, 38, 0.3); padding:0.3rem; border-radius:0.75rem; font-size:0.7rem; width:100%;">Reset</button>
-                            </form>
-                            @endif
-                        </div>
+                        @if($isLocked)
+                            <div style="background: rgba(34, 197, 94, 0.15); color: #16a34a; padding: 0.5rem; border-radius: 0.75rem; font-size: 0.75rem; font-weight: 800; display: inline-flex; align-items: center; gap: 0.25rem; border: 1px solid rgba(34, 197, 94, 0.2);">
+                                🛡️ Selesai (ACC)
+                            </div>
+                        @else
+                            <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                                <button type="submit" form="form-{{ $b->id }}" style="background:#002f45; color:#d2c296; border:none; padding:0.5rem; border-radius:0.75rem; font-size:0.75rem; font-weight:700; cursor:pointer;">
+                                    Simpan
+                                </button>
+                                
+                                @if($isValidated && !$lengkap)
+                                    <div style="color: #b45309; font-size: 0.65rem; font-weight: 800; margin-top: 0.2rem;">
+                                        ⚠️ ACC Cicilan (Ketik Sisa)
+                                    </div>
+                                @endif
+
+                                @if($item['pengumpulan'])
+                                <form method="POST" action="{{ route('peserta.barang.reset', $b->id) }}" onsubmit="return confirm('Reset data barang ini?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" style="background:transparent; color:#dc2626; border:1px solid rgba(220, 38, 38, 0.3); padding:0.3rem; border-radius:0.75rem; font-size:0.7rem; width:100%;">Reset</button>
+                                </form>
+                                @endif
+                            </div>
+                        @endif
                     </td>
                 </tr>
                 @endforeach

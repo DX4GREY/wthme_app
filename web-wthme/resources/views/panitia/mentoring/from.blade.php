@@ -50,13 +50,13 @@
             {{-- KONDISI 1: JIKA KELOMPOK SUDAH DIPILIH --}}
             @if (isset($kelompok))
                 
-                {{-- Form Input (Admin/Bendahara Only) --}}
+                {{-- Form Input (Admin/Bendahara/Mentor Only) --}}
                 @if (auth()->user()->isMentor())
                     <div class="glass-card main-form">
                         <h3 class="card-subtitle">📝 Catat Pertemuan Baru</h3>
                         <form method="POST" action="{{ route('panitia.mentoring.store', $kelompok) }}">
                             @csrf
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
                                 <div>
                                     <label class="input-label">Nama Kegiatan / Materi *</label>
                                     <input type="text" name="nama_kegiatan" required placeholder="Misal: Adab Penuntut Ilmu" class="glass-input">
@@ -65,6 +65,12 @@
                                     <label class="input-label">Tanggal *</label>
                                     <input type="date" name="tanggal" value="{{ date('Y-m-d') }}" required class="glass-input">
                                 </div>
+                            </div>
+
+                            {{-- Tambahan Form Catatan Keseluruhan Mentoring --}}
+                            <div style="margin-bottom: 2rem;">
+                                <label class="input-label">Catatan Keseluruhan Mentoring / Poin-Poin Pembahasan</label>
+                                <textarea name="catatan_pertemuan" id="catatan_pertemuan" rows="6" placeholder="• Tuliskan poin pembahasan...&#10;• Tekan Enter untuk membuat poin baru secara otomatis." class="glass-textarea"></textarea>
                             </div>
 
                             <div class="glass-table-container">
@@ -131,6 +137,14 @@
                                 </form>
                             @endif
                         </div>
+
+                        {{-- Tampilan Box Kembali Normal Vertikal, Namun Isinya Dioptimasi Jaraknya --}}
+                        @if(!empty($men->catatan_pertemuan))
+                            <div class="meeting-notes-box">
+                                <div class="notes-title">📝 Poin & Catatan Mentoring:</div>
+                                <div class="notes-content">{!! nl2br(e($men->catatan_pertemuan)) !!}</div>
+                            </div>
+                        @endif
 
                         <div class="glass-table-container no-bg">
                             <table class="glass-table">
@@ -236,8 +250,38 @@
         
         /* Form Elements */
         .input-label { display: block; font-size: 0.7rem; font-weight: 700; color: #002f45; opacity: 0.6; margin-bottom: 0.5rem; text-transform: uppercase; }
-        .glass-input { width: 100%; background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(0, 47, 69, 0.1); padding: 0.75rem 1rem; border-radius: 1rem; color: #002f45; outline: none; }
+        .glass-input { width: 100%; background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(0, 47, 69, 0.1); padding: 0.75rem 1rem; border-radius: 1rem; color: #002f45; outline: none; box-sizing: border-box; }
         .glass-input:focus { border-color: #002f45; background: white; }
+        
+        /* Style Textarea Catatan dengan Optimasi Line-Height */
+        .glass-textarea { width: 100%; background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(0, 47, 69, 0.1); padding: 1rem; border-radius: 1rem; color: #002f45; outline: none; font-family: 'Inter', sans-serif; font-size: 0.95rem; resize: vertical; box-sizing: border-box; line-height: 1.6; }
+        .glass-textarea:focus { border-color: #002f45; background: white; }
+        
+        /* Box Tampilan Catatan Pertemuan di Riwayat (Elegan & Proporsional) */
+        .meeting-notes-box { 
+            background: rgba(0, 47, 69, 0.04); 
+            border-left: 4px solid #6b705c; 
+            border-radius: 1rem; 
+            padding: 1.25rem 1.5rem; 
+            margin-bottom: 1.5rem; 
+        }
+        .notes-title { 
+            font-size: 0.75rem; 
+            font-weight: 800; 
+            color: #002f45; 
+            text-transform: uppercase; 
+            margin-bottom: 0.6rem; 
+            letter-spacing: 0.05em; 
+        }
+        /* FIX: Mengunci jarak antar kalimat/baris agar rapat, padat dan hemat space */
+        .notes-content { 
+            font-size: 0.9rem; 
+            color: #002f45; 
+            line-height: 0.8 !important; 
+            opacity: 0.9; 
+            white-space: pre-wrap; 
+        }
+
         .glass-input-sm { width: 100%; background: transparent; border: none; border-bottom: 1px solid rgba(0, 47, 69, 0.1); font-size: 0.8rem; padding: 0.25rem; outline: none; }
         .glass-select { background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(0, 47, 69, 0.1); padding: 0.4rem; border-radius: 0.75rem; font-size: 0.8rem; font-weight: 700; color: #002f45; }
 
@@ -293,7 +337,7 @@
         function openEditModal(id, kehadiran, keterangan) {
             const modal = document.getElementById('editModal');
             const form = document.getElementById('editForm');
-            form.action = `/panitia/mentoring/detail/${id}`; // Sesuaikan URL Route
+            form.action = `/panitia/mentoring/detail/${id}`;
             document.getElementById('modalKehadiran').value = kehadiran;
             document.getElementById('modalKeterangan').value = keterangan === '—' ? '' : keterangan;
             modal.style.display = 'flex';
@@ -302,5 +346,36 @@
         function closeEditModal() {
             document.getElementById('editModal').style.display = 'none';
         }
+
+        // --- FITUR AUTOMATIC BULLET POINT ON ENTER ---
+        document.getElementById('catatan_pertemuan')?.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const bullet = "• ";
+                const cursorPosition = this.selectionStart;
+                const textBeforeCursor = this.value.substring(0, cursorPosition);
+                const textAfterCursor = this.value.substring(cursorPosition);
+
+                const lines = textBeforeCursor.split('\n');
+                const currentLine = lines[lines.length - 1];
+
+                if (currentLine.trim() === '•') {
+                    e.preventDefault();
+                    lines[lines.length - 1] = '';
+                    this.value = lines.join('\n') + textAfterCursor;
+                    this.selectionStart = this.selectionEnd = cursorPosition - currentLine.length;
+                    return;
+                }
+
+                e.preventDefault();
+                this.value = textBeforeCursor + '\n' + bullet + textAfterCursor;
+                this.selectionStart = this.selectionEnd = cursorPosition + 1 + bullet.length;
+            }
+        });
+
+        document.getElementById('catatan_pertemuan')?.addEventListener('focus', function() {
+            if (this.value.trim() === "") {
+                this.value = "• ";
+            }
+        });
     </script>
 @endsection

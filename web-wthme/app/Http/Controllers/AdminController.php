@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Imports\PanitiaImport;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Imports\PanitiaImport;
+use App\Imports\PesertaImport;
+use App\Exports\TemplatePesertaExport; // Pastikan kelas export ini sudah dibuat
 use Maatwebsite\Excel\Facades\Excel;
 
 class AdminController extends Controller
 {
-    // Halaman utama panel admin
+    /**
+     * Halaman Utama Panel Admin
+     */
     public function index(Request $request)
     {
         $search = $request->query('search');
@@ -41,13 +45,17 @@ class AdminController extends Controller
         return view('admin.index', compact('totalPeserta', 'totalPanitia', 'panitiaList', 'pesertaList'));
     }
 
-    // Tampilkan form import
+    /**
+     * Tampilkan Form Import Panitia
+     */
     public function importForm()
     {
         return view('admin.import-panitia');
     }
 
-    // Proses upload & import
+    /**
+     * Proses Upload & Import Panitia
+     */
     public function importStore(Request $request)
     {
         set_time_limit(0);
@@ -76,7 +84,9 @@ class AdminController extends Controller
             ->with('skipped', $skipped);
     }
 
-    // Hapus akun panitia
+    /**
+     * Hapus Akun Panitia
+     */
     public function deletePanitia($id)
     {
         $user = User::where('id', $id)->where('role', 'panitia')->firstOrFail();
@@ -85,7 +95,9 @@ class AdminController extends Controller
         return back()->with('success', 'Akun panitia ' . $user->name . ' berhasil dihapus.');
     }
 
-    // Reset password panitia ke NIM
+    /**
+     * Reset Password Panitia ke NIM
+     */
     public function resetPassword($id)
     {
         $user = User::where('id', $id)->where('role', 'panitia')->firstOrFail();
@@ -97,7 +109,9 @@ class AdminController extends Controller
         return back()->with('success', 'Password ' . $user->name . ' berhasil direset ke NIM.');
     }
 
-    // Edit data panitia
+    /**
+     * Edit Data Panitia
+     */
     public function editPanitia($id)
     {
         $panitia = User::where('id', $id)->where('role', 'panitia')->firstOrFail();
@@ -122,49 +136,75 @@ class AdminController extends Controller
             ->with('success', 'Data panitia ' . $panitia->name . ' berhasil diperbarui.');
     }
 
-    // Download template Excel
+    /**
+     * Download Template Excel Panitia (Statis via Folder Public)
+     */
     public function downloadTemplate()
     {
         $path = public_path('templates/template-import-panitia.xlsx');
+        
+        if (!file_exists($path)) {
+            return back()->with('error', 'File template panitia belum tersedia di server.');
+        }
+
         return response()->download($path, 'template-import-panitia.xlsx');
     }
 
-    // Tampilkan form import peserta
+    /**
+     * Tampilkan Form Import Peserta
+     */
     public function importPesertaForm()
     {
         return view('admin.import-peserta');
     }
 
-    // Proses upload & import peserta
+    /**
+     * Proses Upload & Import Peserta
+     */
     public function importPesertaStore(Request $request)
     {
         set_time_limit(0);
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls', 'max:5120'],
+        ], [
+            'file.required' => 'File Excel peserta wajib dipilih.',
+            'file.mimes'    => 'File harus berformat .xlsx atau .xls.',
+            'file.max'      => 'Ukuran file maksimal 5MB.',
         ]);
 
-        // Kamu perlu membuat file PesertaImport di App\Imports
-        $import = new \App\Imports\PesertaImport();
-        \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
+        $import = new PesertaImport();
+        Excel::import($import, $request->file('file'));
 
-        return redirect()->route('admin.index') // Balik ke dashboard
-            ->with('success', count($import->getImported()) . ' data peserta berhasil diimport.');
+        $message = count($import->getImported()) . ' data peserta berhasil diimport.';
+        if (count($import->getSkipped()) > 0) {
+            $message .= ' ' . count($import->getSkipped()) . ' data dilewati.';
+        }
+
+        return redirect()->route('admin.index')
+            ->with('success', $message)
+            ->with('imported', $import->getImported())
+            ->with('skipped', $import->getSkipped());
     }
 
+    /**
+     * Download Template Excel Peserta (On-The-Fly Tanpa File Fisik / Anti-Error)
+     */
     public function downloadTemplatePeserta()
     {
-        $path = public_path('templates/template-import-peserta.xlsx');
-        return response()->download($path, 'template-import-peserta.xlsx');
+        // Mengunduh instan lewat class Export agar terhindar dari FileNotFoundException
+        return Excel::download(new TemplatePesertaExport, 'template-import-peserta.xlsx');
     }
 
+    /**
+     * Reset Password Peserta ke NIM
+     */
     public function resetPasswordPeserta($id)
     {
-        // Cari user yang rolenya peserta
         $user = User::where('id', $id)->where('role', 'peserta')->firstOrFail();
 
         $user->update([
-            'password' => bcrypt($user->nim), // Reset ke NIM
-            'must_change_password' => true,   // Paksa ganti PW lagi
+            'password'             => bcrypt($user->nim),
+            'must_change_password' => true,
         ]);
 
         return back()->with('success', 'Password peserta ' . $user->name . ' berhasil direset ke NIM.');

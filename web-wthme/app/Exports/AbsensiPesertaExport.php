@@ -4,62 +4,158 @@ namespace App\Exports;
 
 use App\Models\AbsensiPeserta;
 use App\Models\QrSession;
+use App\Models\User;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+use PhpOffice\PhpSpreadsheet\Style\Conditional;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class AbsensiPesertaExport implements WithMultipleSheets
 {
-    protected $sessionId;
-
     public function __construct($sessionId = null)
     {
-        $this->sessionId = $sessionId;
+        // Diabaikan karena kita memaksakan rekap Global Matriks Keseluruhan Sesi
     }
 
     public function sheets(): array
     {
-        $sheets = [];
-        
-        if ($this->sessionId) {
-            $kelompoks = AbsensiPeserta::where('qr_session_id', $this->sessionId)
-                ->distinct()->pluck('kelompok')->sort();
-            
-            foreach ($kelompoks as $kelompok) {
-                $sheets[] = new AbsensiPerKelompokSheet($kelompok, $this->sessionId);
-            }
-            $sheets[] = new AbsensiRingkasanSheet($this->sessionId);
-        } else {
-            $sesis = QrSession::where('untuk', 'peserta')->orderBy('created_at', 'asc')->get();
-            foreach ($sesis as $sesi) {
-                $sheets[] = new AbsensiPerSesiSheet($sesi);
-            }
-            $sheets[] = new AbsensiRingkasanSheet(null);
-        }
-        
-        return $sheets;
+        return [
+            new AbsensiMatrixGrupKelompokSheet()
+        ];
     }
 }
 
-/**
- * Trait Helper untuk Styling Tabel agar kode tidak berulang
- */
-trait ExportStylingHelper {
-    public function applyCommonStyles(Worksheet $sheet) {
+class AbsensiMatrixGrupKelompokSheet implements FromCollection, WithHeadings, WithTitle, WithStyles, ShouldAutoSize, WithEvents
+{
+    private $listSesi;
+    private $jumlahSesi = 0;
+    private $barisPembatas = [];  // Menyimpan indeks baris judul kelompok (misal: KELOMPOK 1)
+    private $barisData = [];      // Menyimpan indeks baris data peserta (untuk dropdown & border)
+
+    public function __construct()
+    {
+        // Ambil semua sesi peserta diurutkan dari yang paling awal
+        $this->listSesi = QrSession::where('untuk', 'peserta')->orderBy('created_at', 'asc')->get();
+        $this->jumlahSesi = $this->listSesi->count();
+    }
+
+    public function collection()
+    {
+        $output = collect();
+
+        // 1. Ambil semua kelompok unik dari master user
+        $listKelompok = User::whereNotNull('kelompok')->distinct()->pluck('kelompok')->sort();
+
+        // 2. Ambil seluruh log absensi, dikelompokkan berdasarkan user_id dan qr_session_id
+        $logAbsensi = AbsensiPeserta::get()->groupBy(['user_id', 'qr_session_id']);
+
+        // Baris data pertama dimulai pada Baris 3 (karena baris 1 & 2 dipakai untuk Header Sesi & Header Kolom)
+        $currentLine = 3; 
+
+        foreach ($listKelompok as $kelompok) {
+            
+            // A. Sisipkan Baris Sekat Pembatas Kelompok (Sama seperti gaya sekat Divisi di filemu)
+            // Buat array kosong sepanjang jumlah kolom yang ada agar tidak merusak baris
+            $sekatData = ['KELOMPOK ' . $kelompok];
+            for ($i = 0; $i < (4 + $this->jumlahSesi); $i++) {
+                $sekatData[] = '';
+            }
+            $output->push($sekatData);
+            $this->barisPembatas[] = $currentLine;
+            $currentLine++;
+
+            // B. Ambil Peserta di Kelompok Terkait
+            $masterPeserta = User::where('kelompok', $kelompok)->orderBy('name', 'asc')->get();
+            
+            foreach ($masterPeserta as $index => $user) {
+                // Kolom identitas dasar peserta
+                $rowData = [
+                    $index + 1, // Reset nomor urut dari 1 di setiap kelompok baru
+                    $user->name,
+                    $user->nim,
+                    $user->angkatan,
+                    'Kelompok ' . $user->kelompok
+                ];
+
+                // Kolom dinamis ke kanan: Isi status kehadiran di tiap sesi
+                foreach ($this->listSesi as $sesi) {
+                    $log = $logAbsensi->get($user->id)?->get($sesi->id)?->first();
+
+                    $status = 'TANPA KETERANGAN';
+                    if ($log) {
+                        if ($log->status === 'hadir') {
+                            $status = $log->waktu_absen ? 'HADIR' : 'IZIN';
+                        } else {
+                            $status = 'TANPA KETERANGAN';
+                        }
+                    }
+                    $rowData[] = $status;
+                }
+
+                $output->push($rowData);
+                $this->barisData[] = $currentLine;
+                $currentLine++;
+            }
+
+            // C. Beri jarak 1 baris kosong antar kelompok sebelum masuk kelompok berikutnya
+            $jarakData = [];
+            for ($i = 0; $i < (5 + $this->jumlahSesi); $i++) {
+                $jarakData[] = '';
+            }
+            $output->push($jarakData);
+            $currentLine++;
+        }
+
+        return $output;
+    }
+
+    public function headings(): array
+    {
+        // Membuat struktur header dua baris. 
+        // Baris pertama diisi judul utama, Baris kedua diisi sub-judul kolom.
+        $rowHeader = ['NO', 'NAMA LENGKAP', 'NIM', 'ANGKATAN', 'KELOMPOK'];
+        foreach ($this->listSesi as $sesi) {
+            $rowHeader[] = strtoupper($sesi->nama_sesi);
+        }
+
+        return [
+            ['REKAPITULASI KEHADIRAN PESERETA GLOBAL'], // Baris 1: Judul lembar
+            $rowHeader                                  // Baris 2: Judul kolom matriks
+        ];
+    }
+
+    public function title(): string
+    {
+        return 'REKAP GLOBAL MATRIKS';
+    }
+
+    public function styles(Worksheet $sheet)
+    {
         $highestRow = $sheet->getHighestRow();
         $highestColumn = $sheet->getHighestColumn();
-        $range = 'A1:' . $highestColumn . $highestRow;
 
-        // 1. Header Style
-        $sheet->getStyle('A1:' . $highestColumn . '1')->applyFromArray([
-            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 12],
+        // Merge Judul Utama di Baris 1
+        $sheet->mergeCells('A1:' . $highestColumn . '1');
+        $sheet->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 14, 'color' => ['rgb' => '002f45']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(30);
+
+        // Styling Baris 2 (Header Kolom Matriks) -> Navy Gelap Premium
+        $sheet->getStyle('A2:' . $highestColumn . '2')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => '002f45'],
@@ -67,98 +163,102 @@ trait ExportStylingHelper {
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
                 'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true
             ],
-        ]);
-
-        // 2. Garis Tabel (Borders)
-        $sheet->getStyle($range)->applyFromArray([
             'borders' => [
-                'allBorders' => [
-                    'borderStyle' => Border::BORDER_THIN,
-                    'color' => ['rgb' => '000000'],
-                ],
-            ],
-            'alignment' => [
-                'vertical' => Alignment::VERTICAL_CENTER,
-            ],
+                'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
+            ]
         ]);
+        $sheet->getRowDimension(2)->setRowHeight(28);
 
-        // 3. Center Alignment untuk Kolom Tertentu (No, NIM, Kelompok, Status)
-        $sheet->getStyle('A2:A' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('C2:E' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('F2:F' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-        // Tinggi baris header
-        $sheet->getRowDimension(1)->setRowHeight(25);
-    }
-}
-
-class AbsensiPerKelompokSheet implements FromCollection, WithHeadings, WithTitle, WithStyles, ShouldAutoSize
-{
-    use ExportStylingHelper;
-    private $kelompok;
-    private $sessionId;
-    
-    public function __construct($kelompok, $sessionId) {
-        $this->kelompok = $kelompok;
-        $this->sessionId = $sessionId;
-    }
-    
-    public function collection() {
-        return AbsensiPeserta::where('qr_session_id', $this->sessionId)
-            ->where('kelompok', $this->kelompok)->orderBy('nama')->get()
-            ->map(fn($row, $index) => [
-                $index + 1, $row->nama, $row->nim, $row->angkatan, $row->kelompok, 
-                strtoupper($row->status), \Carbon\Carbon::parse($row->waktu_absen)->format('H:i:s'), $row->qrSession->nama_sesi ?? '-'
+        // Styling Baris Sekat Pembatas Kelompok (Gabung kolom & cetak tebal)
+        foreach ($this->barisPembatas as $row) {
+            $sheet->mergeCells("A{$row}:" . $highestColumn . $row);
+            $sheet->getStyle("A{$row}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => '000000']],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT]
             ]);
-    }
-    
-    public function headings(): array { return ['NO', 'NAMA LENGKAP', 'NIM', 'ANGKATAN', 'KELOMPOK', 'STATUS', 'JAM ABSEN', 'SESI']; }
-    public function title(): string { return 'Kelompok ' . ($this->kelompok ?? 'N-A'); }
-    public function styles(Worksheet $sheet) { $this->applyCommonStyles($sheet); }
-}
+            $sheet->getRowDimension($row)->setRowHeight(26);
+        }
 
-class AbsensiPerSesiSheet implements FromCollection, WithHeadings, WithTitle, WithStyles, ShouldAutoSize
-{
-    use ExportStylingHelper;
-    private $sesi;
-    
-    public function __construct($sesi) { $this->sesi = $sesi; }
-    
-    public function collection() {
-        return AbsensiPeserta::where('qr_session_id', $this->sesi->id)
-            ->orderBy('kelompok')->orderBy('nama')->get()
-            ->map(fn($row, $index) => [
-                $index + 1, $row->nama, $row->nim, $row->angkatan, $row->kelompok, 
-                strtoupper($row->status), \Carbon\Carbon::parse($row->waktu_absen)->format('d/m/Y H:i')
+        // Styling Baris Data Utama (Borders tipis & Alignment Tengah)
+        foreach ($this->barisData as $row) {
+            $sheet->getStyle("A{$row}:" . $highestColumn . $row)->applyFromArray([
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D3D3D3']]
+                ],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]
             ]);
+
+            // Set Center untuk data identitas (Kecuali Nama Lengkap di kolom B)
+            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("C{$row}:E{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            
+            // Set Center untuk seluruh kolom status ke kanan (Mulai kolom F)
+            $sheet->getStyle("F{$row}:" . $highestColumn . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $sheet->getRowDimension($row)->setRowHeight(22);
+        }
     }
-    
-    public function headings(): array { return ['NO', 'NAMA LENGKAP', 'NIM', 'ANGKATAN', 'KELOMPOK', 'STATUS', 'WAKTU PRESENSI']; }
-    public function title(): string { return substr($this->sesi->nama_sesi, 0, 30); }
-    public function styles(Worksheet $sheet) { $this->applyCommonStyles($sheet); }
-}
 
-class AbsensiRingkasanSheet implements FromCollection, WithHeadings, WithTitle, WithStyles, ShouldAutoSize
-{
-    use ExportStylingHelper;
-    private $sessionId;
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                $highestRow = $sheet->getHighestRow();
 
-    public function __construct($sessionId = null) { $this->sessionId = $sessionId; }
+                if (empty($this->barisData) || $this->jumlahSesi == 0) return;
 
-    public function collection() {
-        $query = AbsensiPeserta::selectRaw('kelompok, COUNT(*) as total_hadir')->where('status', 'hadir');
-        if ($this->sessionId) $query->where('qr_session_id', $this->sessionId);
+                $kolomMulaiIndex = 6; // Kolom F
+                $kolomAkhirIndex = 5 + $this->jumlahSesi;
 
-        return $query->groupBy('kelompok')->orderBy('kelompok')->get()
-            ->map(fn($row) => [$row->kelompok, $row->total_hadir . ' Orang']);
-    }
-    
-    public function headings(): array { return ['NOMOR KELOMPOK', 'TOTAL KEHADIRAN']; }
-    public function title(): string { return $this->sessionId ? 'Ringkasan' : 'Global Rekap'; }
-    public function styles(Worksheet $sheet) {
-        $this->applyCommonStyles($sheet);
-        // Custom: buat kolom Ringkasan jadi Center semua
-        $sheet->getStyle('A1:B'.$sheet->getHighestRow())->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                // 1. BUAT FORMATTING PILLS WARNA
+                $formatHadir = new Conditional();
+                $formatHadir->setConditionType(Conditional::CONDITION_CELLIS)
+                    ->setOperatorType(Conditional::OPERATOR_EQUAL)
+                    ->addCondition('"HADIR"');
+                $formatHadir->getStyle()->getFont()->setBold(true)->getColor()->setRGB('1E4620');
+                $formatHadir->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D1E7DD');
+
+                $formatIzin = new Conditional();
+                $formatIzin->setConditionType(Conditional::CONDITION_CELLIS)
+                    ->setOperatorType(Conditional::OPERATOR_EQUAL)
+                    ->addCondition('"IZIN"');
+                $formatIzin->getStyle()->getFont()->setBold(true)->getColor()->setRGB('664D03');
+                $formatIzin->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF3CD');
+
+                $formatAlfa = new Conditional();
+                $formatAlfa->setConditionType(Conditional::CONDITION_CELLIS)
+                    ->setOperatorType(Conditional::OPERATOR_EQUAL)
+                    ->addCondition('"TANPA KETERANGAN"');
+                $formatAlfa->getStyle()->getFont()->setBold(true)->getColor()->setRGB('842029');
+                $formatAlfa->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8D7DA');
+
+                $stylesCollection = [$formatHadir, $formatIzin, $formatAlfa];
+
+                // 2. LOOP TERTARGET: Hanya inject dropdown & warna di cell data absensi nyata
+                for ($col = $kolomMulaiIndex; $col <= $kolomAkhirIndex; $col++) {
+                    $colString = Coordinate::stringFromColumnIndex($col);
+                    
+                    foreach ($this->barisData as $row) {
+                        $cellCoordinate = $colString . $row;
+                        
+                        // Pasang Dropdown
+                        $validation = $sheet->getCell($cellCoordinate)->getDataValidation();
+                        $validation->setType(DataValidation::TYPE_LIST);
+                        $validation->setErrorStyle(DataValidation::STYLE_STOP);
+                        $validation->setAllowBlank(false);
+                        $validation->setShowDropDown(true);
+                        $validation->setErrorTitle('Input Salah');
+                        $validation->setError('Pilih status dari dropdown yang valid.');
+                        $validation->setFormula1('"HADIR,IZIN,TANPA KETERANGAN"');
+
+                        // Pasang Warna Pill
+                        $sheet->getStyle($cellCoordinate)->setConditionalStyles($stylesCollection);
+                    }
+                }
+            },
+        ];
     }
 }

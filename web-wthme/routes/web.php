@@ -18,6 +18,11 @@ use App\Http\Controllers\GanttController;
 use App\Http\Controllers\BarangController;
 use App\Http\Controllers\FaceController;
 use App\Http\Controllers\FaceAbsensiController;
+use App\Http\Controllers\LeaderboardController;
+use App\Http\Controllers\KeaktifanController;
+// 🟢 IMPORT CONTROLLER BARU
+use App\Http\Controllers\QuestLabController;
+use App\Http\Controllers\FotoKekeluargaanController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -32,6 +37,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/ganti-password', [ChangePasswordController::class, 'show'])->name('password.change');
     Route::put('/ganti-password', [ChangePasswordController::class, 'update'])->name('password.change.update');
+    Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
 
     // --- ADMIN ---
     Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
@@ -54,18 +60,29 @@ Route::middleware(['auth'])->group(function () {
     // --- PANITIA ---
     Route::prefix('panitia')->name('panitia.')->middleware('panitia')->group(function () {
         Route::get('/', [PanitiaController::class, 'index'])->name('index');
-        // Di dalam Route::prefix('panitia')->name('panitia.')...
         Route::post('/links', [PanitiaController::class, 'storeLink'])->name('links.store');
         Route::delete('/links/{id}', [PanitiaController::class, 'destroyLink'])->name('links.destroy');
         Route::post('/broadcast-peserta', [PanitiaController::class, 'storeInfoPeserta'])->name('info.peserta.store');
         Route::delete('/broadcast-peserta/{id}', [PanitiaController::class, 'destroyInfoPeserta'])->name('info.peserta.destroy');
-        // Di dalam Route::prefix('panitia')...
         Route::get('/informasi-peserta', [PanitiaController::class, 'indexInfoPeserta'])->name('info.peserta.index');
         Route::post('/informasi-peserta', [PanitiaController::class, 'storeInfoPeserta'])->name('info.peserta.store');
         Route::delete('/informasi-peserta/{id}', [PanitiaController::class, 'destroyInfoPeserta'])->name('info.peserta.destroy');
-        // Di dalam Route::prefix('panitia')->name('panitia.')->middleware('panitia')
         Route::get('/absensi/face-gate',     [FaceAbsensiController::class, 'gate'])->name('absen.face.gate');
         Route::post('/absensi/face-gate',    [FaceAbsensiController::class, 'gateProcess'])->name('absen.face.process');
+
+        // KEAKTIFAN
+        Route::prefix('keaktifan')->name('keaktifan.')->group(function () {
+            Route::get('/', [KeaktifanController::class, 'index'])->name('index');
+            Route::post('/store', [KeaktifanController::class, 'store'])->name('store');
+            Route::delete('/{id}', [KeaktifanController::class, 'destroy'])->name('destroy');
+        });
+
+        // LEADERBOARD INPUT (Perbaikan Error RouteNotFoundException)
+        Route::prefix('leaderboard')->name('leaderboard.')->group(function () {
+            Route::get('/input', [LeaderboardController::class, 'inputPoint'])->name('input');
+            // Jika butuh proses simpan point nanti tinggal uncomment baris di bawah ini:
+            // Route::post('/input', [LeaderboardController::class, 'storePoint'])->name('input.store');
+        });
 
         // QR & ABSENSI
         Route::get('/qr/buat',                 [QrController::class, 'create'])->name('qr.create');
@@ -77,14 +94,27 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/absensi/panitia', [AbsensiController::class, 'dataPanitia'])->name('absensi.panitia');
         Route::get('/absen',  [AbsensiController::class, 'formPanitia'])->name('absen');
         Route::post('/absen', [AbsensiController::class, 'storePanitia'])->name('absen.store');
+        Route::post('/absensi/peserta/update-status', [AbsensiController::class, 'updateStatusPeserta'])->name('absensi.updateStatus');
 
-        // MENTORING (LOGBOOK) - Tambahkan di sini
+        // MENTORING (LOGBOOK)
         Route::prefix('mentoring')->name('mentoring.')->group(function () {
             Route::get('/', [MentoringController::class, 'index'])->name('index');
             Route::post('/sesi', [MentoringController::class, 'storeSesi'])->name('storeSesi');
             Route::get('/catatan/{sesiId}', [MentoringController::class, 'formCatatan'])->name('catatan');
             Route::post('/catatan/{sesiId}', [MentoringController::class, 'simpanCatatan'])->name('catatan.simpan');
             Route::post('/assign-mentor', [MentoringController::class, 'assignMentor'])->name('assignMentor');
+
+            // Hak akses extra mentoring (Read/Write)
+            Route::get('/rekap-global', [MentoringController::class, 'rekapGlobal'])->name('rekap');
+            Route::get('/kelompok/{kelompok}', [MentoringController::class, 'kelompok'])->name('kelompok');
+
+            Route::middleware('mentor')->group(function () {
+                Route::post('/kelompok/{kelompok}', [MentoringController::class, 'store'])->name('store');
+                Route::put('/detail/{id}', [MentoringController::class, 'updateDetail'])->name('updateDetail');
+                Route::delete('/{id}', [MentoringController::class, 'destroy'])->name('destroy');
+                Route::get('/kelompok/{kelompok}/export', [MentoringController::class, 'export'])->name('export');
+                Route::get('/export-seluruh-kelompok', [MentoringController::class, 'exportSeluruh'])->name('export_seluruh');
+            });
         });
 
         // EXPORT
@@ -98,13 +128,9 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // KAS
-        // --- KAS (Akses Terbuka untuk semua Panitia) ---
         Route::prefix('kas')->name('kas.')->group(function () {
-            // 🔓 PINDAHKAN KE SINI (Di luar middleware bendahara)
-            // Sekarang Panitia biasa bisa melihat halamannya
             Route::get('/', [KasController::class, 'index'])->name('index');
 
-            // 🔒 HANYA Bendahara yang bisa eksekusi (Input, Hapus, Export)
             Route::middleware('bendahara')->group(function () {
                 Route::post('/',       [KasController::class, 'store'])->name('store');
                 Route::delete('/{id}', [KasController::class, 'destroy'])->name('destroy');
@@ -130,25 +156,8 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/download/{id}', [NotulensiController::class, 'downloadDoc'])->name('download');
             Route::get('/export/{id}', [ExportController::class, 'exportNotulensi'])->name('export');
         });
-        // --- MENTORING ---
-        // --- MENTORING ---
-        Route::prefix('mentoring')->name('mentoring.')->group(function () {
-            // SEMUA PANITIA bisa akses ini (Read-Only)
-            Route::get('/', [MentoringController::class, 'index'])->name('index');
-            Route::get('/rekap-global', [MentoringController::class, 'rekapGlobal'])->name('rekap');
-            Route::get('/kelompok/{kelompok}', [MentoringController::class, 'kelompok'])->name('kelompok');
 
-            // HANYA ROLE TERTENTU (Misal: Admin/Sekretaris/Bendahara/Mentor) yang bisa Edit/Input
-            // Jika ingin semua panitia bisa lihat tapi hanya 'mentor' yang bisa isi, ganti middlewarenya
-            Route::middleware('mentor')->group(function () {
-                Route::post('/kelompok/{kelompok}', [MentoringController::class, 'store'])->name('store');
-                Route::put('/detail/{id}', [MentoringController::class, 'updateDetail'])->name('updateDetail');
-                Route::delete('/{id}', [MentoringController::class, 'destroy'])->name('destroy');
-                Route::get('/kelompok/{kelompok}/export', [MentoringController::class, 'export'])->name('export');
-                Route::get('/export-seluruh-kelompok', [MentoringController::class, 'exportSeluruh'])->name('export_seluruh');
-            });
-        });
-
+        // GANTT CHART
         Route::prefix('gantt')->name('gantt.')->group(function () {
             Route::get('/', [GanttController::class, 'index'])->name('index');
             Route::post('/', [GanttController::class, 'store'])->name('store');
@@ -156,39 +165,69 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/{id}', [GanttController::class, 'destroy'])->name('destroy');
         });
 
+        // LOGISTIK BARANG (PANITIA)
         Route::prefix('barang')->name('barang.')->group(function () {
-            // List kelompok (semua panitia bisa lihat)
-            Route::get('/', [\App\Http\Controllers\BarangController::class, 'panitiaIndex'])->name('index');
-            Route::get('/kelompok/{kelompok}', [\App\Http\Controllers\BarangController::class, 'panitiaKelompok'])->name('kelompok');
-            Route::get('/rekap', [\App\Http\Controllers\BarangController::class, 'panitiaRekap'])->name('rekap');
-            Route::get('/export', [\App\Http\Controllers\BarangController::class, 'exportRekap'])->name('export');
+            Route::get('/', [BarangController::class, 'panitiaIndex'])->name('index');
+            Route::get('/kelompok/{kelompok}', [BarangController::class, 'panitiaKelompok'])->name('kelompok');
+            Route::get('/rekap', [BarangController::class, 'panitiaRekap'])->name('rekap');
+            Route::get('/export', [BarangController::class, 'exportRekap'])->name('export');
 
-            // Manage barang (hanya divisi Logistik, dicek di controller)
-            Route::get('/manage', [\App\Http\Controllers\BarangController::class, 'manageIndex'])->name('manage');
-            Route::post('/manage', [\App\Http\Controllers\BarangController::class, 'manageStore'])->name('manage.store');
-            Route::put('/manage/{id}', [\App\Http\Controllers\BarangController::class, 'manageUpdate'])->name('manage.update');
-            Route::delete('/manage/{id}', [\App\Http\Controllers\BarangController::class, 'manageDestroy'])->name('manage.destroy');
+            // ROUTE VALIDASI INTERAKTIF
+            Route::post('/validasi/{barangId}/{kelompok}', [BarangController::class, 'toggleValidasi'])->name('validasi');
+
+            // Manage barang (Hanya divisi Logistik / Admin)
+            Route::get('/manage', [BarangController::class, 'manageIndex'])->name('manage');
+            Route::post('/manage', [BarangController::class, 'manageStore'])->name('manage.store');
+            Route::put('/manage/{id}', [BarangController::class, 'manageUpdate'])->name('manage.update');
+            Route::delete('/manage/{id}', [BarangController::class, 'manageDestroy'])->name('manage.destroy');
         });
-    }); // <--- PENUTUP PANITIA (Tadi kamu lupa ini)
+
+        // 🔴 FITUR BARU PANITIA (Diselipkan di sini)
+        Route::prefix('quest-lab')->name('quest.')->group(function () {
+            Route::get('/', [QuestLabController::class, 'indexPanitia'])->name('index');
+            Route::post('/approve/{id}', [QuestLabController::class, 'approveQuest'])->name('approve');
+            Route::post('/reject/{id}', [QuestLabController::class, 'rejectQuest'])->name('reject');
+        });
+    });
 
     // --- PESERTA ---
     Route::prefix('peserta')->name('peserta.')->middleware('peserta')->group(function () {
-        Route::get('/',                  [PesertaController::class, 'index'])->name('index');
-        Route::get('/absen',             [AbsensiController::class, 'formPeserta'])->name('absen');
-        Route::post('/absen',            [AbsensiController::class, 'storePeserta'])->name('absen.store');
+        Route::get('/',                   [PesertaController::class, 'index'])->name('index');
+        Route::get('/absen',              [AbsensiController::class, 'formPeserta'])->name('absen');
+        Route::post('/absen',             [AbsensiController::class, 'storePeserta'])->name('absen.store');
         Route::get('/riwayat-penyakit',  [PesertaController::class, 'riwayatPenyakit'])->name('riwayat');
         Route::post('/riwayat-penyakit', [PesertaController::class, 'simpanRiwayat'])->name('riwayat.store');
         Route::get('/tugas',             [TugasController::class, 'indexPeserta'])->name('tugas');
         Route::post('/tugas/upload',     [TugasController::class, 'uploadTugas'])->name('tugas.upload');
-        Route::get('/barang', [\App\Http\Controllers\BarangController::class, 'pesertaIndex'])->name('barang');
-        Route::patch('/barang/{barangId}', [\App\Http\Controllers\BarangController::class, 'pesertaUpdate'])->name('barang.update');
-        Route::delete('/barang/{barangId}/foto', [\App\Http\Controllers\BarangController::class, 'pesertaHapusFoto'])->name('barang.hapus-foto');
-        Route::delete('/barang/{barangId}', [\App\Http\Controllers\BarangController::class, 'pesertaReset'])->name('barang.reset');
-        // Pastikan pakai Route::delete, bukan Route::get
+
+        // Logistik Barang (Peserta)
+        Route::get('/barang', [BarangController::class, 'pesertaIndex'])->name('barang');
+        Route::patch('/barang/{barangId}', [BarangController::class, 'pesertaUpdate'])->name('barang.update');
+        Route::delete('/barang/{barangId}/foto', [BarangController::class, 'pesertaHapusFoto'])->name('barang.hapus-foto');
+        Route::delete('/barang/{barangId}', [BarangController::class, 'pesertaReset'])->name('barang.reset');
         Route::delete('/peserta/barang/{id}/foto', [BarangController::class, 'deleteFoto'])->name('barang.foto.destroy');
+
+        // Face Recognition
         Route::get('/daftar-wajah',  [FaceController::class, 'registerForm'])->name('face.register');
         Route::post('/daftar-wajah', [FaceController::class, 'registerStore'])->name('face.register.store');
+
+        // 🟢 FITUR BARU PESERTA (Diselipkan di sini)
+        // Quest 4 Lab Elektro
+        Route::prefix('quest-lab')->name('quest.')->group(function () {
+            Route::get('/', [QuestLabController::class, 'indexPeserta'])->name('index');
+            Route::post('/upload/{labName}', [QuestLabController::class, 'uploadSelfie'])->name('upload');
+            Route::delete('/delete/{lab}', [QuestLabController::class, 'delete'])->name('delete');
+        });
+
+
+        // Misi Kekeluargaan Angkatan
+        Route::prefix('kekeluargaan')->name('kekeluargaan.')->group(function () {
+            Route::get('/', [FotoKekeluargaanController::class, 'index'])->name('index');
+            Route::post('/store', [FotoKekeluargaanController::class, 'store'])->name('store');
+            Route::post('/approve/{id}', [FotoKekeluargaanController::class, 'approve'])->name('approve');
+            Route::post('/reject/{id}', [FotoKekeluargaanController::class, 'reject'])->name('reject');
+        });
     });
-}); // <--- PENUTUP AUTH
+});
 
 require __DIR__ . '/auth.php';
