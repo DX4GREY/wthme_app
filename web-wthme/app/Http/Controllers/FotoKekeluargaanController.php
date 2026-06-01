@@ -97,6 +97,9 @@ class FotoKekeluargaanController extends Controller
     /**
      * Konfirmasi Silang Oleh Teman (Tanpa Panitia)
      */
+    /**
+     * Konfirmasi Silang Oleh Teman (Tanpa Panitia)
+     */
     public function approve($id)
     {
         $foto = FotoKekeluargaan::findOrFail($id);
@@ -113,18 +116,27 @@ class FotoKekeluargaanController extends Controller
         $foto->status = 'approved';
         $foto->save();
 
-        // Cari nama teman untuk dimasukkan ke string deskripsi log
-        $namaTeman = User::find($foto->teman_id)?->name ?? 'Teman';
+        // Ambil nama masing-masing untuk keterangan log poin
+        $namaPengirim = User::find($foto->pengirim_id)?->name ?? 'Teman';
+        $namaTeman    = $user->name; // Si B yang sedang login
 
-        // Berikan penghargaan +5 poin keaktifan bagi pengirim foto asli (Si A)
+        // 1. Berikan penghargaan +5 poin bagi PENGIRIM FOTO (Si A)
         PoinKeaktifan::create([
             'peserta_id' => $foto->pengirim_id,
-            'panitia_id' => null, // Sistem Otomatis Verifikasi Silang
-            'poin' => 5,
+            'panitia_id' => null,
+            'poin'       => 5,
             'keterangan' => 'Foto Kekeluargaan Angkatan dengan ' . $namaTeman
         ]);
 
-        return back()->with('success', 'Terima kasih atas konfirmasi Anda! Teman Anda berhasil mendapatkan 5 poin.');
+        // 2. Berikan penghargaan +5 poin juga untuk YANG MENYETUJUI FOTO (Si B)
+        PoinKeaktifan::create([
+            'peserta_id' => $foto->teman_id, // <--- Diarahkan ke ID Si B
+            'panitia_id' => null,
+            'poin'       => 5,
+            'keterangan' => 'Dikonfirmasi dalam Foto Kekeluargaan oleh ' . $namaPengirim
+        ]);
+
+        return back()->with('success', 'Terima kasih atas konfirmasi Anda! Anda dan teman Anda masing-masing berhasil mendapatkan 5 poin. 🎉');
     }
 
     /**
