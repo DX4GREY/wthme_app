@@ -252,7 +252,7 @@ function openDetailModal(namaPeserta, namaTugas, pengumpulanId) {
                 return;
             }
             
-            // 4. Render berkas tunggal lengkap dengan 2 parameter (pengumpulanId dan fileIndex)
+            // 4. Render berkas tunggal lengkap dengan target="_blank" untuk membuka di tab baru
             data.files.forEach(file => {
                 container.innerHTML += `
                     <div style="display:flex; align-items:center; justify-content:space-between; background:#f8fafc; padding:0.75rem 1rem; border-radius:12px; border:1px solid #e2e8f0; gap:1rem;">
@@ -265,9 +265,10 @@ function openDetailModal(namaPeserta, namaTugas, pengumpulanId) {
                             </div>
                         </div>
                         <a href="${baseUrl}/panitia/tugas/file/download/${pengumpulanId}/${file.id}" 
+                           target="_blank" 
                            style="background:#002f45; color:white; padding:0.35rem 0.6rem; border-radius:8px; text-decoration:none; font-size:0.75rem; font-weight:bold; transition: background 0.2s;"
                            onmouseover="this.style.background='#004e72'" onmouseout="this.style.background='#002f45'">
-                            ⬇
+                            👁️
                         </a>
                     </div>
                 `;

@@ -101,7 +101,7 @@ class TugasController extends Controller
         // 2. Filter & Ambil data peserta
         $filterKelompok = $request->kelompok;
         $pesertaQuery = User::where('role', 'peserta');
-        
+
         if ($filterKelompok) {
             $pesertaQuery->where('kelompok', $filterKelompok);
         }
@@ -110,7 +110,7 @@ class TugasController extends Controller
         $pesertaData = $pesertaQuery->orderByRaw('CAST(kelompok AS UNSIGNED) ASC')
             ->orderBy('name')
             ->get();
-            
+
         $pesertaPerKelompok = $pesertaData->groupBy('kelompok');
 
         // 3. Eager loading peta pengumpulan agar tidak query berulang di baris tabel
@@ -164,9 +164,9 @@ class TugasController extends Controller
     {
         $p = TugasPengumpulan::findOrFail($id);
         $files = json_decode($p->file_path, true);
-        
+
         $formattedFiles = [];
-        
+
         if (is_array($files)) {
             foreach ($files as $index => $file) {
                 $sizeInBytes = $file['ukuran'] ?? 0;
@@ -203,20 +203,20 @@ class TugasController extends Controller
 
         if (is_array($files) && isset($files[$fileIndex])) {
             $targetFile = $files[$fileIndex];
-            
+
             if (!Storage::disk('public')->exists($targetFile['path'])) {
                 return back()->with('error', 'Berkas fisik tidak ditemukan di server.');
             }
 
             return response()->download(
-                Storage::disk('public')->path($targetFile['path']), 
+                Storage::disk('public')->path($targetFile['path']),
                 $targetFile['nama_asli']
             );
         }
 
         if (!is_array($files) && Storage::disk('public')->exists($p->file_path)) {
             return response()->download(
-                Storage::disk('public')->path($p->file_path), 
+                Storage::disk('public')->path($p->file_path),
                 $p->file_nama_asli ?? 'file'
             );
         }
@@ -225,48 +225,32 @@ class TugasController extends Controller
     }
 
     /** SEAMLESS VIEW/DOWNLOAD ZIP KOLEKTIF: Tombol "Download Zip" di dalam modal */
-    public function downloadFile($id)
+    public function downloadFile($id, $fileIndex)
     {
-        $p = TugasPengumpulan::findOrFail($id);
-        $files = json_decode($p->file_path, true);
+        try {
+            $pengumpulan = TugasPengumpulan::findOrFail($id);
+            $files = json_decode($pengumpulan->file_path, true);
 
-        if (is_array($files)) {
-            if (count($files) === 0) {
-                return back()->with('error', 'Tidak ada file di dalam sistem.');
+            if (!isset($files[$fileIndex])) {
+                abort(404, 'Berkas tidak ditemukan dalam catatan sistem.');
             }
 
-            if (count($files) === 1) {
-                $singleFile = $files[0]['path'];
-                if (!Storage::disk('public')->exists($singleFile)) {
-                    return back()->with('error', 'File tidak ditemukan di storage server.');
-                }
-                return response()->file(Storage::disk('public')->path($singleFile));
+            $fileData = $files[$fileIndex];
+            $storagePath = storage_path('app/private/' . $fileData['path']); // Sesuaikan dengan folder tempat kamu menyimpan file
+
+            if (!file_exists($storagePath)) {
+                abort(404, 'Fisik berkas tidak ditemukan di dalam server.');
             }
 
-            $zipFileName = 'Tugas_' . $p->nim . '_' . $p->tugas_kategori_id . '.zip';
-            $zipPath = storage_path('app/public/' . $zipFileName);
-
-            $zip = new ZipArchive;
-            if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
-                foreach ($files as $file) {
-                    if (Storage::disk('public')->exists($file['path'])) {
-                        $fullPath = Storage::disk('public')->path($file['path']);
-                        $zip->addFile($fullPath, $file['nama_asli']);
-                    }
-                }
-                $zip->close();
-
-                return response()->download($zipPath)->deleteFileAfterSend(true);
-            }
-
-            return back()->with('error', 'Gagal membuat file kompresi ZIP.');
+            // --- PERUBAHAN UTAMA DI SINI ---
+            // Menggunakan response()->file() agar berkas terbuka di tab baru (Preview mode)
+            // Kita tambahkan header Inline agar browser tahu bahwa ini untuk dilihat, bukan diunduh langsung
+            return response()->file($storagePath, [
+                'Content-Disposition' => 'inline; filename="' . $fileData['nama_asli'] . '"'
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal memproses berkas: ' . $e->getMessage());
         }
-
-        if (!Storage::disk('public')->exists($p->file_path)) {
-            return back()->with('error', 'File tidak ditemukan.');
-        }
-
-        return response()->file(Storage::disk('public')->path($p->file_path));
     }
 
     /** Export rekap ke Excel */
