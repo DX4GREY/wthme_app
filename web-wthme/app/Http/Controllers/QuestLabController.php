@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 class QuestLabController extends Controller
 {
     // Daftar Lab Valid
-    private $listLab = ['Lab PSTE', 'Lab APEL', 'Lab Green Energy', 'Lab ICONIC - Untirta Robotic Club'];
+    private $listLab = ['Lab PSTE', 'Lab APEL', 'Lab Photovoltaik', 'Lab Green Energy', 'Lab ICONIC - Untirta Robotic Club'];
 
     /**
      * Tampilan Sisi Peserta
