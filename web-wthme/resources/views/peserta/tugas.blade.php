@@ -178,7 +178,7 @@
                                 </div>
                             @endif
 
-                            {{-- Form Upload (Mendukung Banyak Berkas) --}}
+                            {{-- Form Upload --}}
                             @php $showForm = !$sudah || $errors->has('file_tugas'); @endphp
                             <div id="upload-{{ $tugas->id }}" style="display:{{ $showForm ? 'block' : 'none' }}; padding:0 1.5rem 1.5rem 1.5rem;">
                                 <form method="POST" action="{{ route('peserta.tugas.upload') }}" enctype="multipart/form-data">
@@ -192,12 +192,21 @@
                                             {{ $sudah ? 'Pilih berkas-berkas baru' : 'Klik atau seret berkas-berkas ke sini (Bisa pilih banyak)' }}
                                         </span>
                                         
-                                        {{-- MODIFIKASI: Ditambahkan atribut 'multiple' dan kurung siku [] pada name --}}
                                         <input type="file" id="file-{{ $tugas->id }}" name="file_tugas[]" multiple
                                             accept="{{ implode(',', array_map(fn($e) => '.' . $e, $tugas->ekstensiDiizinkan())) }}"
                                             style="display:none;" required
                                             onchange="handleFileSelected(this, {{ $tugas->id }})">
                                     </label>
+
+                                    {{-- TAMBAHAN: Container Penampung Pratinjau Daftar File Terpilih --}}
+                                    <div id="file-list-preview-{{ $tugas->id }}" style="display:none; margin-bottom:1.25rem; background:rgba(255,255,255,0.6); padding:1rem; border-radius:1rem; border:1px solid rgba(0,47,69,0.1);">
+                                        <div style="font-size:0.75rem; font-weight:800; color:#002f45; text-transform:uppercase; margin-bottom:0.5rem; letter-spacing:0.05em;">
+                                            📋 File Terpilih Siap Diunggah:
+                                        </div>
+                                        <div id="preview-items-{{ $tugas->id }}" style="display:flex; flex-direction:column; gap:0.5rem;">
+                                            {{-- Diisi dinamis via JS --}}
+                                        </div>
+                                    </div>
                                     
                                     <div style="margin-bottom:1.25rem;">
                                         <input type="text" name="catatan" value="{{ old('catatan', $kumpulan->catatan ?? '') }}"
@@ -233,19 +242,56 @@
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
 
-        // MODIFIKASI: Menghitung dinamis jumlah berkas yang diseleksi oleh user
+        // MODIFIKASI UTAMA: Menampilkan detail nama dan ukuran tiap berkas secara transparan
         function handleFileSelected(input, id) {
             const label = document.getElementById('file-label-' + id);
             const wrap = document.getElementById('label-' + id);
+            const previewBox = document.getElementById('file-list-preview-' + id);
+            const previewContainer = document.getElementById('preview-items-' + id);
+            
+            // Bersihkan sisa pratinjau lama
+            previewContainer.innerHTML = '';
             
             if (input.files.length > 0) {
-                if (input.files.length === 1) {
-                    label.textContent = "📄 " + input.files[0].name;
-                } else {
-                    label.textContent = "📂 " + input.files.length + " file berhasil dipilih";
-                }
+                // Perubahan styling area Dropzone / Label input
                 wrap.style.borderColor = '#002f45';
                 wrap.style.background = 'rgba(255, 255, 255, 0.8)';
+                
+                // Ubah teks utama label head menjadi rangkuman total berkas
+                label.textContent = "📂 Total: " + input.files.length + " berkas dipilih";
+
+                // Loop berkas satu per satu untuk dirender rinciannya
+                Array.from(input.files).forEach((file, index) => {
+                    const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+                    
+                    const row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.alignItems = 'center';
+                    row.style.justifyContent = 'space-between';
+                    row.style.padding = '0.5rem 0.75rem';
+                    row.style.background = 'rgba(0, 47, 69, 0.04)';
+                    row.style.borderRadius = '0.5rem';
+                    row.style.border = '1px solid rgba(0, 47, 69, 0.05)';
+                    
+                    row.innerHTML = `
+                        <span style="font-size:0.85rem; color:#002f45; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80%;" title="${file.name}">
+                            ${index + 1}. 📄 ${file.name}
+                        </span>
+                        <span style="font-size:0.75rem; color:#666; font-weight:700;">
+                            ${sizeInMb} MB
+                        </span>
+                    `;
+                    previewContainer.appendChild(row);
+                });
+
+                // Munculkan kotak list pratinjau
+                previewBox.style.display = 'block';
+            } else {
+                // Sembunyikan kembali jika user membatalkan pilihan berkas
+                previewBox.style.display = 'none';
+                label.textContent = 'Klik atau seret berkas-berkas ke sini (Bisa pilih banyak)';
+                wrap.style.borderColor = 'rgba(0, 47, 69, 0.2)';
+                wrap.style.background = 'rgba(255, 255, 255, 0.4)';
             }
         }
     </script>

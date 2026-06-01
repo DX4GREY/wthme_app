@@ -13,7 +13,7 @@
                         <span>←</span> Kembali
                     </a>
                     <h1 style="font-family:'Playfair Display',serif; color:#002f45; font-size:2.5rem; font-weight:800; margin:0;">
-                        📋 Rekapitulasi
+                        📋 Rekapitulasi Mentoring
                     </h1>
                     <p style="color:#002f45; opacity:0.7; margin-top:0.5rem; font-size:1.1rem; font-weight:500;">
                         Klasifikasi berdasarkan Kelompok & Jenis Kegiatan
@@ -69,7 +69,7 @@
                                                 <th style="padding:1rem 1.5rem; text-align:left; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">Nama Peserta</th>
                                                 <th style="padding:1rem 1.5rem; text-align:left; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">NIM</th>
                                                 <th style="padding:1rem 1.5rem; text-align:center; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">Status</th>
-                                                <th style="padding:1rem 1.5rem; text-align:left; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">Catatan</th>
+                                                <th style="padding:1rem 1.5rem; text-align:left; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">Aksi / Catatan</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -85,8 +85,38 @@
                                                             {{ strtoupper($rd->kehadiran) }}
                                                         </span>
                                                     </td>
-                                                    <td style="padding:1rem 1.5rem; color:#002f45; font-size:0.85rem; font-style:italic; opacity:0.6; border-radius: 0 12px 12px 0;">
-                                                        {{ $rd->keterangan ?? '—' }}
+                                                    <td style="padding:1rem 1.5rem; color:#002f45; font-size:0.85rem; border-radius: 0 12px 12px 0;">
+                                                        <div style="display: flex; align-items: center; gap: 1rem;">
+                                                            {{-- Tombol Lihat File (Mendukung File Tunggal / Banyak) --}}
+                                                            @if(!empty($rd->file_path))
+                                                                @php
+                                                                    $decodedFiles = json_decode($rd->file_path, true);
+                                                                    $isMultiple = is_array($decodedFiles);
+                                                                @php
+
+                                                                @if($isMultiple && count($decodedFiles) > 1)
+                                                                    {{-- Jika Banyak File: Trigger Modal via JS --}}
+                                                                    <button type="button" 
+                                                                            onclick="bukaModalFile('{{ e(json_encode($decodedFiles)) }}', '{{ $rd->peserta->name }}')"
+                                                                            style="padding: 0.4rem 0.8rem; background: #002f45; color: #fff; border: none; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
+                                                                        👁️ Lihat File ({{ count($decodedFiles) }})
+                                                                    </button>
+                                                                @else
+                                                                    {{-- Jika 1 File / Format Lama: Langsung Buka Tab Baru --}}
+                                                                    @php
+                                                                        $singlePath = $isMultiple ? ($decodedFiles[0]['path'] ?? '') : $rd->file_path;
+                                                                    @endphp
+                                                                    <a href="{{ asset('storage/' . $singlePath) }}" target="_blank"
+                                                                       style="padding: 0.4rem 0.8rem; background: #6b705c; color: #fff; text-decoration: none; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                                                                        👁️ Lihat File
+                                                                    </a>
+                                                                @endif
+                                                            @endif
+                                                            
+                                                            <span style="font-style:italic; opacity:0.6;">
+                                                                {{ $rd->keterangan ?? '—' }}
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             @endforeach
@@ -112,7 +142,23 @@
         </div>
     </div>
 
-    {{-- Styling Khusus untuk Blok Catatan di Halaman Rekap --}}
+    {{-- MODAL INTERAKTIF UNTUK MULTIPLE FILES --}}
+    <div id="modalDaftarFile" class="custom-modal">
+        <div class="custom-modal-content">
+            <div class="custom-modal-header">
+                <h3 style="margin:0; font-family:'Playfair Display',serif; color:#002f45;" id="modalNamaPeserta">Daftar File Tugas</h3>
+                <span class="custom-close" onclick="tutupModalFile()">&times;</span>
+            </div>
+            <div class="custom-modal-body">
+                <p style="font-size:0.9rem; color:#555; margin-bottom:1.5rem;">Silakan klik nama file di bawah ini untuk melihat isi dokumen di tab baru:</p>
+                <div id="containerListFile" style="display:flex; flex-direction:column; gap:0.75rem;">
+                    {{-- Diisi dinamis via JavaScript --}}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Styling Khusus --}}
     <style>
         .meeting-notes-rekap { 
             background: rgba(0, 47, 69, 0.04); 
@@ -132,9 +178,110 @@
         .notes-content { 
             font-size: 0.9rem; 
             color: #002f45; 
-            line-height: 0.8; 
+            line-height: 1.4; 
             opacity: 0.9; 
-            white-space: pre-wrap; /* Menjaga struktur spasi, enter, dan bullet point tetap presisi */
+            white-space: pre-wrap;
+        }
+
+        /* CSS untuk Custom Modal Pop-up */
+        .custom-modal {
+            display: none; 
+            position: fixed; 
+            z-index: 9999; 
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            overflow: auto; 
+            background-color: rgba(0,47,69,0.4);
+            backdrop-filter: blur(4px);
+        }
+        .custom-modal-content {
+            background-color: #fff;
+            margin: 15% auto; 
+            padding: 2rem;
+            border-radius: 1.25rem;
+            width: 80%;
+            max-width: 550px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            animation: slideDown 0.3s ease-out;
+        }
+        .custom-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+        }
+        .custom-close {
+            color: #aaa;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .custom-close:hover { color: #002f45; }
+        .custom-modal-body { padding-top: 1.5rem; }
+        
+        .file-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #002f45;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .file-list-item:hover {
+            background: #e0decd;
+            border-color: #6b705c;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
     </style>
+
+    {{-- Script Logika Modal --}}
+    <script>
+        function bukaModalFile(filesJson, namaPeserta) {
+            const files = JSON.parse(filesJson);
+            const container = document.getElementById('containerListFile');
+            const modalTitle = document.getElementById('modalNamaPeserta');
+            
+            modalTitle.innerText = "File Tugas: " + namaPeserta;
+            container.innerHTML = ''; // Kosongkan list lama
+
+            files.forEach((file, index) => {
+                const urlFile = "{{ asset('storage') }}/" + file.path;
+                const namaAsli = file.nama_asli || ("Dokumen " + (index + 1));
+                
+                // Membuat element list tautan dinamis
+                const a = document.createElement('a');
+                a.href = urlFile;
+                a.target = "_blank";
+                a.className = "file-list-item";
+                a.innerHTML = `<span>📄 ${namaAsli}</span> <span style="font-size:0.8rem; color:#666;">Buka Tab Baru →</span>`;
+                
+                container.appendChild(a);
+            });
+
+            document.getElementById('modalDaftarFile').style.display = 'block';
+        }
+
+        function tutupModalFile() {
+            document.getElementById('modalDaftarFile').style.display = 'none';
+        }
+
+        // Tutup modal otomatis jika user klik di luar area box putih modal
+        window.onclick = function(event) {
+            const modal = document.getElementById('modalDaftarFile');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    </script>
 @endsection
