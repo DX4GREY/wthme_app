@@ -80,11 +80,18 @@ class BarangController extends Controller
 
     public function panitiaIndex()
     {
-        $kelompoks = User::where('role', 'peserta')
+        // 1. Ambil data kelompok unik dari database
+        $kelompoksData = User::where('role', 'peserta')
             ->whereNotNull('kelompok')
             ->distinct()
-            ->orderBy('kelompok')
-            ->pluck('kelompok');
+            ->pluck('kelompok')
+            ->toArray(); // Ubah ke array biasa dulu
+
+        // 2. Urutkan menggunakan aturan "Natural Sorting" (Kelompok 1, 2, ... 10, 11)
+        sort($kelompoksData, SORT_NATURAL | SORT_FLAG_CASE);
+
+        // Kembalikan ke format collection agar aman dibaca Blade jika dibutuhkan
+        $kelompoks = collect($kelompoksData);
 
         $barangs = BarangKebutuhan::where('aktif', true)->get();
 
@@ -99,9 +106,9 @@ class BarangController extends Controller
                     $lengkap++;
                 }
             }
+            // Masukkan data ke summary mengikuti urutan $kelompoks yang sudah rapi
             $summary[$k] = ['total' => $total, 'lengkap' => $lengkap];
         }
-        ksort($summary);
 
         return view('panitia.barang.index', compact('kelompoks', 'summary', 'barangs'));
     }
@@ -122,7 +129,7 @@ class BarangController extends Controller
                 'jumlah_terkumpul' => $p ? $p->jumlah_terkumpul : 0,
                 'foto'             => $p && $p->foto_bukti ? Storage::url($p->foto_bukti) : null,
                 'is_lengkap'       => $p && $p->jumlah_terkumpul >= $b->jumlah_kebutuhan,
-                'is_validated'     => $p ? $p->is_validated : false, 
+                'is_validated'     => $p ? $p->is_validated : false,
                 'updated_at'       => $p ? $p->updated_at : null,
                 'updated_by_name'  => ($p && $p->updatedBy) ? $p->updatedBy->name : null,
             ];
@@ -423,7 +430,7 @@ class BarangController extends Controller
     {
         $request->validate([
             'jumlah_terkumpul'    => 'required|integer|min:0',
-            'panitia_penerima_id' => 'required|exists:users,id', 
+            'panitia_penerima_id' => 'required|exists:users,id',
             'foto_bukti'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
@@ -447,7 +454,7 @@ class BarangController extends Controller
         }
 
         $pengumpulan->jumlah_terkumpul    = $request->jumlah_terkumpul;
-        $pengumpulan->panitia_penerima_id = $request->panitia_penerima_id; 
+        $pengumpulan->panitia_penerima_id = $request->panitia_penerima_id;
         $pengumpulan->updated_by          = $user->id;
 
         // Otomatis turunkan status ACC jika jumlah diubah bertambah agar panitia memvalidasi ulang sisa cicilan barunya
