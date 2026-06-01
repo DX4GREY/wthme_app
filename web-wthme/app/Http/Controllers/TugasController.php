@@ -196,61 +196,53 @@ class TugasController extends Controller
     }
 
     /** MENGIKUTI LINK DI MODAL: Download berkas tunggal yang dipilih dari dalam pop-up modal */
+    /** MENGIKUTI LINK DI MODAL: Membuka/Preview berkas tunggal di tab baru */
     public function downloadSingleFile($id, $fileIndex)
     {
-        $p = TugasPengumpulan::findOrFail($id);
-        $files = json_decode($p->file_path, true);
-
-        if (is_array($files) && isset($files[$fileIndex])) {
-            $targetFile = $files[$fileIndex];
-
-            if (!Storage::disk('public')->exists($targetFile['path'])) {
-                return back()->with('error', 'Berkas fisik tidak ditemukan di server.');
-            }
-
-            return response()->download(
-                Storage::disk('public')->path($targetFile['path']),
-                $targetFile['nama_asli']
-            );
-        }
-
-        if (!is_array($files) && Storage::disk('public')->exists($p->file_path)) {
-            return response()->download(
-                Storage::disk('public')->path($p->file_path),
-                $p->file_nama_asli ?? 'file'
-            );
-        }
-
-        return back()->with('error', 'Berkas tidak valid atau tidak ditemukan.');
-    }
-
-    /** SEAMLESS VIEW/DOWNLOAD ZIP KOLEKTIF: Tombol "Download Zip" di dalam modal */
-    public function downloadFile($id, $fileIndex)
-    {
         try {
-            $pengumpulan = TugasPengumpulan::findOrFail($id);
-            $files = json_decode($pengumpulan->file_path, true);
+            $p = TugasPengumpulan::findOrFail($id);
+            $files = json_decode($p->file_path, true);
 
-            if (!isset($files[$fileIndex])) {
-                abort(404, 'Berkas tidak ditemukan dalam catatan sistem.');
+            // Jika formatnya berupa array file JSON (Multi-upload)
+            if (is_array($files) && isset($files[$fileIndex])) {
+                $targetFile = $files[$fileIndex];
+                $fullPath = Storage::disk('public')->path($targetFile['path']);
+
+                if (!Storage::disk('public')->exists($targetFile['path'])) {
+                    return back()->with('error', 'Berkas fisik tidak ditemukan di server.');
+                }
+
+                // Deteksi Mime-Type secara otomatis (e.g., application/pdf, image/jpeg)
+                $mimeType = mime_content_type($fullPath);
+
+                return response()->file($fullPath, [
+                    'Content-Type'        => $mimeType,
+                    'Content-Disposition' => 'inline; filename="' . $targetFile['nama_asli'] . '"'
+                ]);
             }
 
-            $fileData = $files[$fileIndex];
-            $storagePath = storage_path('app/private/' . $fileData['path']); // Sesuaikan dengan folder tempat kamu menyimpan file
+            // Fallback jika berupa string path tunggal lama
+            if (!is_array($files) && Storage::disk('public')->exists($p->file_path)) {
+                $fullPath = Storage::disk('public')->path($p->file_path);
+                $mimeType = mime_content_type($fullPath);
 
-            if (!file_exists($storagePath)) {
-                abort(404, 'Fisik berkas tidak ditemukan di dalam server.');
+                return response()->file($fullPath, [
+                    'Content-Type'        => $mimeType,
+                    'Content-Disposition' => 'inline; filename="' . ($p->file_nama_asli ?? 'file') . '"'
+                ]);
             }
 
-            // --- PERUBAHAN UTAMA DI SINI ---
-            // Menggunakan response()->file() agar berkas terbuka di tab baru (Preview mode)
-            // Kita tambahkan header Inline agar browser tahu bahwa ini untuk dilihat, bukan diunduh langsung
-            return response()->file($storagePath, [
-                'Content-Disposition' => 'inline; filename="' . $fileData['nama_asli'] . '"'
-            ]);
+            return back()->with('error', 'Berkas tidak valid atau tidak ditemukan.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal memproses berkas: ' . $e->getMessage());
         }
+    }
+
+    /** SEAMLESS DOWNLOAD ZIP KOLEKTIF / BACKUP ROUTE */
+    public function downloadFile($id, $fileIndex)
+    {
+        // Kita arahkan fungsi ini agar perilakunya sama persis dengan downloadSingleFile
+        return $this->downloadSingleFile($id, $fileIndex);
     }
 
     /** Export rekap ke Excel */
