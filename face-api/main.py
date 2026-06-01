@@ -7,7 +7,7 @@ import faiss
 import json, os, io, threading
 from PIL import Image
 
-app = FastAPI()
+app = FastAPI(root_path="/api-face")
 
 app.add_middleware(
     CORSMiddleware,
