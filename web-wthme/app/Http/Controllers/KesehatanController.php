@@ -8,25 +8,35 @@ use Illuminate\Http\Request;
 
 class KesehatanController extends Controller
 {
-    
+
     public function indexPanitia(Request $request)
     {
-        $kelompokList = User::where('role', 'peserta')
+        // 1. Ambil list kelompok unik, lalu urutkan secara natural (untuk dropdown filter)
+        $kelompokArray = User::where('role', 'peserta')
             ->whereNotNull('kelompok')
             ->distinct()
-            ->orderBy('kelompok')
-            ->pluck('kelompok');
+            ->pluck('kelompok')
+            ->toArray();
 
+        sort($kelompokArray, SORT_NATURAL | SORT_FLAG_CASE);
+        $kelompokList = collect($kelompokArray);
+
+        // 2. Query data riwayat penyakit
         $query = RiwayatPenyakit::query();
 
         if ($request->filled('kelompok')) {
             $query->where('kelompok', $request->kelompok);
         }
 
-        // Urutan langsung dirapikan berdasarkan nama alfabetis
-        $semuaRiwayat = $query->orderBy('nama')
-                            ->get()
-                            ->groupBy('kelompok'); // Mengelompokkan koleksi berdasarkan kelompok masing-masing
+        // 3. Ambil data, kelompokkan, lalu urutkan key kelompoknya secara natural
+        $groupedRiwayat = $query->orderBy('nama')
+            ->get()
+            ->groupBy('kelompok');
+
+        // Paksa urutan key kelompok: Kelompok 1, Kelompok 2, ... Kelompok 10
+        $semuaRiwayat = $groupedRiwayat->sortKeysUsing(function ($a, $b) {
+            return strnatcasecmp($a, $b);
+        });
 
         return view('panitia.kesehatan.index', compact('semuaRiwayat', 'kelompokList'));
     }

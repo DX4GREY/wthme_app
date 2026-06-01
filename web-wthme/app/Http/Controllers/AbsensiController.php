@@ -199,28 +199,33 @@ class AbsensiController extends Controller
 
     public function dataPeserta(Request $request)
     {
-        // 1. Ambil semua list sesi khusus peserta, diurutkan dari yang paling lama/awal (agar urutan kolom rapi ke kanan)
+        // 1. Ambil semua list sesi khusus peserta, diurutkan dari yang paling lama/awal
         $sesiList = QrSession::where('untuk', 'peserta')
             ->orderBy('created_at', 'asc')
             ->get();
 
-        // 2. Ambil master data user peserta (yang memiliki kelompok) & dikelompokkan langsung berdasarkan nomor kelompoknya
-        $matrixData = User::whereNotNull('kelompok')
-            ->orderBy('kelompok', 'asc')
+        // 2. Ambil master data user peserta, urutkan nama secara alfabetis dahulu
+        $rawUsers = User::whereNotNull('kelompok')
             ->orderBy('name', 'asc')
-            ->get()
-            ->groupBy('kelompok');
+            ->get();
 
-        // 3. Ambil log riwayat absensi mentah, kemudian di-grouping bertingkat berdasarkan user_id dan qr_session_id
-        // Trik ini untuk optimasi RAM agar pencarian status di dalam perulangan tabel silang secepat kilat (bebas N+1 query issue)
+        // 3. Grouping berdasarkan kelompok
+        $groupedData = $rawUsers->groupBy('kelompok');
+
+        // 4. Urutkan key kelompok secara "Natural" (1, 2, 3... bukan 1, 10, 2)
+        $matrixData = $groupedData->sortKeysUsing(function ($a, $b) {
+            return strnatcasecmp($a, $b);
+        });
+
+        // 5. Ambil log riwayat absensi mentah, kemudian di-grouping bertingkat
         $logAbsensi = AbsensiPeserta::get()->groupBy(['user_id', 'qr_session_id']);
 
-        // 4. Kirim data matriks global ke view rekap utama
+        // 6. Kirim data matriks global ke view rekap utama
         return view('panitia.data-absensi-peserta', compact('sesiList', 'matrixData', 'logAbsensi'));
     }
 
     // ===== AJAX UPDATE STATUS ABSENSI PESERTA =====
-    
+
     public function updateStatusPeserta(Request $request)
     {
         $request->validate([
