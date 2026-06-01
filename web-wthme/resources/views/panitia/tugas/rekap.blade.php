@@ -1,5 +1,27 @@
 @extends('layouts.app')
 
+{{-- Menaruh custom scrollbar di tempat yang benar (head) --}}
+@push('styles')
+<style>
+    /* Custom Scrollbar untuk Glassmorphism */
+    .custom-scroll::-webkit-scrollbar {
+        height: 8px;
+        width: 8px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.05);
+        border-radius: 10px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+        background: rgba(0, 47, 69, 0.2);
+        border-radius: 10px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 47, 69, 0.5);
+    }
+</style>
+@endpush
+
 @section('content')
 <div style="min-height:calc(100vh - 64px); padding:2rem 1.5rem; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
     <div style="max-width:1400px; margin:0 auto;">
@@ -27,9 +49,10 @@
         <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:1.25rem; margin-bottom:2.5rem;">
             @foreach($tugasList as $tugas)
                 @php 
-                    $stat = $statsPerTugas[$tugas->id]; 
-                    $total = \App\Models\User::where('role','peserta')->count();
-                    $pct = $total > 0 ? min(100, round(($stat['sudah_kumpul']/$total)*100)) : 0;
+                    $stat = $statsPerTugas[$tugas->id] ?? ['sudah_kumpul' => 0, 'terlambat' => 0]; 
+                    // Menggunakan variabel $totalPeserta dari Controller (Lebih hemat performa DB)
+                    $total = $totalPeserta ?? \App\Models\User::where('role','peserta')->count();
+                    $pct = $total > 0 ? min(100, round(($stat['sudah_kumpul'] / $total) * 100)) : 0;
                 @endphp
                 <div style="background:rgba(255, 255, 255, 0.7); backdrop-filter:blur(15px); border:1px solid rgba(255, 255, 255, 0.5); border-radius:1.25rem; padding:1.5rem; box-shadow:0 8px 32px rgba(0,0,0,0.05); transition:transform 0.3s ease;">
                     <div style="color:#002f45; font-size:0.85rem; font-weight:700; margin-bottom:1rem; line-height:1.4; height:2.5rem; overflow:hidden;">{{ $tugas->nama_tugas }}</div>
@@ -45,7 +68,7 @@
                     </div>
 
                     <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:600;">
-                        <span style="color:#16a34a;">{{ $stat['sudah_kumpul'] - $stat['terlambat'] }} Tepat Waktu</span>
+                        <span style="color:#16a34a;">{{ max(0, $stat['sudah_kumpul'] - $stat['terlambat']) }} Tepat Waktu</span>
                         @if($stat['terlambat'] > 0)
                             <span style="color:#dc2626;">{{ $stat['terlambat'] }} Terlambat</span>
                         @endif
@@ -87,7 +110,8 @@
                     <span style="color:rgba(255,255,255,0.7); font-size:0.85rem; font-weight:500;">{{ $pesertaList->count() }} Anggota</span>
                 </div>
 
-                <div style="overflow-x:auto;">
+                {{-- Menambahkan class custom-scroll di pembungkus tabel --}}
+                <div class="custom-scroll" style="overflow-x:auto;">
                     <table style="width:100%; border-collapse:collapse; min-width:{{ 300 + ($tugasList->count() * 180) }}px;">
                         <thead>
                             <tr style="background:rgba(255,255,255,0.3);">
@@ -97,7 +121,7 @@
                                         <div style="color:#002f45; font-size:0.75rem; font-weight:800; text-transform:uppercase; margin-bottom:0.25rem;">{{ $tugas->nama_tugas }}</div>
                                         @if($tugas->deadline)
                                             <div style="font-weight:600; font-size:0.65rem; color:{{ $tugas->isTerlambat() ? '#dc2626' : '#b45309' }};">
-                                                ⌛ {{ $tugas->deadline->format('d M, H:i') }}
+                                                ⌛ {{ \Carbon\Carbon::parse($tugas->deadline)->format('d M, H:i') }}
                                             </div>
                                         @endif
                                     </th>
@@ -123,7 +147,7 @@
                                                     </span>
                                                     
                                                     <span style="font-size:0.7rem; color:#64748b; font-weight:600;">
-                                                        {{ $p->dikumpulkan_at->format('d/m · H:i') }}
+                                                        {{ \Carbon\Carbon::parse($p->dikumpulkan_at)->format('d/m · H:i') }}
                                                     </span>
 
                                                     <div style="display:flex; align-items:center; gap:0.4rem; border-top:1px solid #f1f5f9; padding-top:0.4rem; width:100%; justify-content:center;">
@@ -165,30 +189,11 @@
             </div>
         @empty
             <div style="background:rgba(255,255,255,0.5); backdrop-filter:blur(10px); border-radius:1.5rem; padding:4rem; text-align:center; border:2px dashed rgba(0,0,0,0.1);">
-                <div style="font-size:3rem; margin-bottom:1rem;">empty</div>
+                <div style="font-size:3rem; margin-bottom:1rem;">📭</div>
                 <p style="color:#002f45; font-weight:600; font-size:1.1rem; opacity:0.5;">Belum ada data peserta atau tugas yang tersedia.</p>
             </div>
         @endforelse
 
     </div>
 </div>
-
-<style>
-    /* Custom Scrollbar untuk Glassmorphism */
-    div::-webkit-scrollbar {
-        height: 8px;
-        width: 8px;
-    }
-    div::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.05);
-        border-radius: 10px;
-    }
-    div::-webkit-scrollbar-thumb {
-        background: rgba(0, 47, 69, 0.2);
-        border-radius: 10px;
-    }
-    div::-webkit-scrollbar-thumb:hover {
-        background: rgba(0, 47, 69, 0.5);
-    }
-</style>
 @endsection

@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
+use ZipArchive; // Ditambahkan untuk membungkus multiple files menjadi ZIP
 
 class TugasController extends Controller
 {
@@ -33,7 +34,7 @@ class TugasController extends Controller
         $request->validate([
             'nama_tugas'    => 'required|string|max:255',
             'deskripsi'     => 'nullable|string|max:1000',
-            'file_petunjuk' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240', // Max 10MB
+            'file_petunjuk' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'deadline'      => 'nullable|date',
             'tipe_file'     => 'required|in:semua,pdf,gambar',
             'maks_ukuran'   => 'required|integer|min:512|max:51200',
@@ -42,11 +43,10 @@ class TugasController extends Controller
 
         $pathPetunjuk = null;
         if ($request->hasFile('file_petunjuk')) {
-            // Simpan ke storage/app/public/petunjuk-tugas
             $pathPetunjuk = $request->file('file_petunjuk')->store('petunjuk-tugas', 'public');
         }
 
-        \App\Models\TugasKategori::create([
+        TugasKategori::create([
             'nama_tugas'    => $request->nama_tugas,
             'deskripsi'     => $request->deskripsi,
             'file_petunjuk' => $pathPetunjuk,
@@ -54,7 +54,7 @@ class TugasController extends Controller
             'aktif'         => true,
             'tipe_file'     => $request->tipe_file,
             'maks_ukuran'   => $request->maks_ukuran,
-            'urutan'        => $request->urutan ?? \App\Models\TugasKategori::max('urutan') + 1,
+            'urutan'        => $request->urutan ?? (TugasKategori::max('urutan') + 1),
             'dibuat_oleh'   => auth()->id(),
         ]);
 
@@ -72,11 +72,19 @@ class TugasController extends Controller
     /** Hapus kategori tugas (dan semua file pengumpulan) */
     public function destroyTugas($id)
     {
-        $tugas = TugasKategori::findOrFail($id);
+        $tugas = TugasKategori::with('pengumpulan')->findOrFail($id);
 
-        // Hapus semua file
         foreach ($tugas->pengumpulan as $p) {
-            Storage::disk('public')->delete($p->file_path);
+            $files = json_decode($p->file_path, true);
+            if (is_array($files)) {
+                foreach ($files as $file) {
+                    if (isset($file['path'])) {
+                        Storage::disk('public')->delete($file['path']);
+                    }
+                }
+            } else {
+                Storage::disk('public')->delete($p->file_path);
+            }
         }
 
         $tugas->delete();
@@ -84,44 +92,57 @@ class TugasController extends Controller
         return back()->with('success', 'Tugas berhasil dihapus.');
     }
 
-    /** Rekap pengumpulan: tabel peserta × tugas, dikelompokkan per kelompok */
+    /** REKAP OPTIMIZED: Bebas dari query berulang (N+1 Problem) */
     public function rekap(Request $request)
     {
+        // 1. Ambil semua tugas
         $tugasList = TugasKategori::orderBy('urutan')->orderBy('created_at')->get();
 
-        // Ambil semua peserta, dikelompokkan per kelompok
-        $pesertaQuery = User::where('role', 'peserta')
-            ->orderBy('kelompok')
-            ->orderBy('name')
-            ->get();
+        // 2. Filter & Ambil data peserta
+        $filterKelompok = $request->kelompok;
+        $pesertaQuery = User::where('role', 'peserta');
+        
+        if ($filterKelompok) {
+            $pesertaQuery->where('kelompok', $filterKelompok);
+        }
 
-        // Map: user_id → [tugas_kategori_id => TugasPengumpulan]
-        $pengumpulanMap = TugasPengumpulan::all()
+        $pesertaData = $pesertaQuery->orderBy('kelompok')->orderBy('name')->get();
+        $pesertaPerKelompok = $pesertaData->groupBy('kelompok');
+
+        // 3. Eager loading peta pengumpulan agar tidak query berulang di baris tabel
+        $pesertaIds = $pesertaData->pluck('id')->toArray();
+        $pengumpulanMap = TugasPengumpulan::whereIn('user_id', $pesertaIds)
+            ->get()
             ->groupBy('user_id')
             ->map(fn($items) => $items->keyBy('tugas_kategori_id'));
 
-        // Filter kelompok
-        $filterKelompok = $request->kelompok;
-        if ($filterKelompok) {
-            $pesertaQuery = $pesertaQuery->where('kelompok', $filterKelompok);
-        }
-
-        $pesertaPerKelompok = $pesertaQuery->groupBy('kelompok');
-        $kelompokList       = User::where('role', 'peserta')
+        // 4. Ambil list unik kelompok untuk dropdown filter
+        $kelompokList = User::where('role', 'peserta')
             ->distinct()
             ->orderBy('kelompok')
             ->pluck('kelompok');
 
-        // Statistik per tugas
-        $statsPerTugas = $tugasList->map(function ($tugas) use ($pesertaQuery) {
-            $sudahKumpul = TugasPengumpulan::where('tugas_kategori_id', $tugas->id)->count();
+        // 5. Total seluruh peserta (untuk indikator card statistik)
+        $totalPeserta = User::where('role', 'peserta')->count();
+
+        // 6. OPTIMASI STATISTIK: Agregasi langsung via Group By DB (Hanya 1x Query!)
+        $globalStats = TugasPengumpulan::select('tugas_kategori_id')
+            ->selectRaw('count(*) as sudah_kumpul')
+            ->selectRaw("sum(case when status = 'terlambat' then 1 else 0 end) as terlambat")
+            ->groupBy('tugas_kategori_id')
+            ->get()
+            ->keyBy('tugas_kategori_id');
+
+        $statsPerTugas = $tugasList->mapWithKeys(function ($tugas) use ($globalStats) {
+            $stat = $globalStats->get($tugas->id);
             return [
-                'id'           => $tugas->id,
-                'sudah_kumpul' => $sudahKumpul,
-                'terlambat'    => TugasPengumpulan::where('tugas_kategori_id', $tugas->id)
-                    ->where('status', 'terlambat')->count(),
+                $tugas->id => [
+                    'id'           => $tugas->id,
+                    'sudah_kumpul' => $stat ? $stat->sudah_kumpul : 0,
+                    'terlambat'    => $stat ? (int)$stat->terlambat : 0,
+                ]
             ];
-        })->keyBy('id');
+        });
 
         return view('panitia.tugas.rekap', compact(
             'tugasList',
@@ -129,20 +150,59 @@ class TugasController extends Controller
             'pengumpulanMap',
             'kelompokList',
             'filterKelompok',
-            'statsPerTugas'
+            'statsPerTugas',
+            'totalPeserta'
         ));
     }
 
-    /** Download file tugas peserta */
+    /** SEAMLESS VIEW/DOWNLOAD: Jika file > 1 otomatis download .ZIP, jika 1 langsung open browser */
     public function downloadFile($id)
     {
         $p = TugasPengumpulan::findOrFail($id);
+        $files = json_decode($p->file_path, true);
 
+        // Kasus A: Jika kiriman berupa Multiple Files (Array JSON)
+        if (is_array($files)) {
+            if (count($files) === 0) {
+                return back()->with('error', 'Tidak ada file di dalam sistem.');
+            }
+
+            // Jika filenya cuma ada 1 di dalam array, langsung buka di browser (View Mode)
+            if (count($files) === 1) {
+                $singleFile = $files[0]['path'];
+                if (!Storage::disk('public')->exists($singleFile)) {
+                    return back()->with('error', 'File tidak ditemukan di storage server.');
+                }
+                return response()->file(Storage::disk('public')->path($singleFile));
+            }
+
+            // Jika filenya ada banyak, bungkus otomatis jadi ZIP biar panitia tidak bingung teks JSON
+            $zipFileName = 'Tugas_' . $p->nim . '_' . $p->tugas_kategori_id . '.zip';
+            $zipPath = storage_path('app/public/' . $zipFileName);
+
+            $zip = new ZipArchive;
+            if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
+                foreach ($files as $file) {
+                    if (Storage::disk('public')->exists($file['path'])) {
+                        $fullPath = Storage::disk('public')->path($file['path']);
+                        $zip->addFile($fullPath, $file['nama_asli']);
+                    }
+                }
+                $zip->close();
+
+                // Kembalikan response download file zip lalu hapus temporary zip setelah diunduh
+                return response()->download($zipPath)->deleteFileAfterSend(true);
+            }
+
+            return back()->with('error', 'Gagal membuat file kompresi ZIP.');
+        }
+
+        // Kasus B: Format lawas / Fallback (String Path Tunggal)
         if (!Storage::disk('public')->exists($p->file_path)) {
             return back()->with('error', 'File tidak ditemukan.');
         }
 
-        return Storage::disk('public')->download($p->file_path, $p->file_nama_asli);
+        return response()->file(Storage::disk('public')->path($p->file_path));
     }
 
     /** Export rekap ke Excel */
@@ -165,7 +225,6 @@ class TugasController extends Controller
             ->orderBy('created_at')
             ->get();
 
-        // Pengumpulan peserta ini
         $sudahKumpul = TugasPengumpulan::where('user_id', $user->id)
             ->get()
             ->keyBy('tugas_kategori_id');
@@ -176,52 +235,83 @@ class TugasController extends Controller
     /** Upload / replace file tugas peserta */
     public function uploadTugas(Request $request)
     {
-        $user      = auth()->user();
+        $user       = auth()->user();
         $kategoriId = $request->tugas_kategori_id;
-        $tugas     = TugasKategori::where('id', $kategoriId)
+        $tugas      = TugasKategori::where('id', $kategoriId)
             ->where('aktif', true)
             ->firstOrFail();
 
-        // Validasi ekstensi dinamis
         $ekstensiOke = implode(',', $tugas->ekstensiDiizinkan());
-        $maksKb      = $tugas->maks_ukuran; // dalam KB
+        $maksKb      = $tugas->maks_ukuran;
 
         $request->validate([
             'tugas_kategori_id' => 'required|exists:tugas_kategori,id',
-            'file_tugas'        => "required|file|mimes:{$ekstensiOke}|max:{$maksKb}",
+            'file_tugas'        => 'required|array',
+            'file_tugas.*'      => "file|mimes:{$ekstensiOke}|max:{$maksKb}",
             'catatan'           => 'nullable|string|max:500',
         ], [
-            'file_tugas.mimes' => 'Format file tidak diizinkan. File yang boleh: ' . strtoupper($ekstensiOke),
-            'file_tugas.max'   => 'Ukuran file melebihi batas (' . round($maksKb / 1024, 1) . ' MB).',
+            'file_tugas.required' => 'Wajib memilih file untuk dikumpulkan.',
+            'file_tugas.*.mimes'  => 'Ada format file tidak diizinkan. File yang boleh: ' . strtoupper($ekstensiOke),
+            'file_tugas.*.max'    => 'Ada ukuran file yang melebihi batas (' . round($maksKb / 1024, 1) . ' MB).',
         ]);
 
-        $file       = $request->file('file_tugas');
-        $ekstensi   = strtolower($file->getClientOriginalExtension());
-        $namaFile   = $user->nim . '_' . $tugas->id . '_' . time() . '.' . $ekstensi;
-        $filePath   = $file->storeAs('tugas-pengumpulan', $namaFile, 'public');
-
-        // Cek sudah pernah kumpul
         $existing = TugasPengumpulan::where('user_id', $user->id)
             ->where('tugas_kategori_id', $kategoriId)
             ->first();
 
+        if ($existing) {
+            $oldFiles = json_decode($existing->file_path, true);
+            if (is_array($oldFiles)) {
+                foreach ($oldFiles as $oldFile) {
+                    if (isset($oldFile['path'])) {
+                        Storage::disk('public')->delete($oldFile['path']);
+                    }
+                }
+            } else {
+                Storage::disk('public')->delete($existing->file_path);
+            }
+        }
+
+        $filesData = [];
+        $totalSize = 0;
+        $listNamaAsli = [];
+        $listEkstensi = [];
+
+        foreach ($request->file('file_tugas') as $index => $file) {
+            $ekstensi = strtolower($file->getClientOriginalExtension());
+            $namaFile = $user->nim . '_' . $tugas->id . '_' . time() . '_' . $index . '.' . $ekstensi;
+            $filePath = $file->storeAs('tugas-pengumpulan', $namaFile, 'public');
+
+            $filesData[] = [
+                'path' => $filePath,
+                'nama_asli' => $file->getClientOriginalName(),
+                'ekstensi' => $ekstensi,
+                'ukuran' => $file->getSize(),
+            ];
+
+            $totalSize += $file->getSize();
+            $listNamaAsli[] = $file->getClientOriginalName();
+            $listEkstensi[] = $ekstensi;
+        }
+
         $status = $tugas->isTerlambat() ? 'terlambat' : 'tepat_waktu';
 
-        if ($existing) {
-            // Hapus file lama
-            Storage::disk('public')->delete($existing->file_path);
+        $jsonFilePath = json_encode($filesData);
+        $stringNamaAsli = implode(', ', $listNamaAsli);
+        $stringEkstensi = implode(', ', array_unique($listEkstensi));
 
+        if ($existing) {
             $existing->update([
-                'file_path'       => $filePath,
-                'file_nama_asli'  => $file->getClientOriginalName(),
-                'file_ekstensi'   => $ekstensi,
-                'file_ukuran'     => $file->getSize(),
+                'file_path'       => $jsonFilePath,
+                'file_nama_asli'  => $stringNamaAsli,
+                'file_ekstensi'   => $stringEkstensi,
+                'file_ukuran'     => $totalSize,
                 'status'          => $status,
                 'catatan'         => $request->catatan,
                 'dikumpulkan_at'  => now(),
             ]);
 
-            $msg = 'Tugas berhasil diperbarui!';
+            $msg = 'Tugas berhasil diperbarui dengan ' . count($filesData) . ' file!';
         } else {
             TugasPengumpulan::create([
                 'user_id'           => $user->id,
@@ -229,16 +319,16 @@ class TugasController extends Controller
                 'nama'              => $user->name,
                 'nim'               => $user->nim,
                 'kelompok'          => $user->kelompok,
-                'file_path'         => $filePath,
-                'file_nama_asli'    => $file->getClientOriginalName(),
-                'file_ekstensi'     => $ekstensi,
-                'file_ukuran'       => $file->getSize(),
+                'file_path'         => $jsonFilePath,
+                'file_nama_asli'    => $stringNamaAsli,
+                'file_ekstensi'     => $stringEkstensi,
+                'file_ukuran'       => $totalSize,
                 'status'            => $status,
                 'catatan'           => $request->catatan,
                 'dikumpulkan_at'    => now(),
             ]);
 
-            $msg = 'Tugas berhasil dikumpulkan! 🎉';
+            $msg = 'Tugas berhasil dikumpulkan! 🎉 (' . count($filesData) . ' file)';
         }
 
         return back()->with('success', $msg);
