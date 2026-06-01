@@ -50,7 +50,6 @@
             @foreach($tugasList as $tugas)
                 @php 
                     $stat = $statsPerTugas[$tugas->id] ?? ['sudah_kumpul' => 0, 'terlambat' => 0]; 
-                    // Menggunakan variabel $totalPeserta dari Controller (Lebih hemat performa DB)
                     $total = $totalPeserta ?? \App\Models\User::where('role','peserta')->count();
                     $pct = $total > 0 ? min(100, round(($stat['sudah_kumpul'] / $total) * 100)) : 0;
                 @endphp
@@ -151,12 +150,13 @@
                                                     </span>
 
                                                     <div style="display:flex; align-items:center; gap:0.4rem; border-top:1px solid #f1f5f9; padding-top:0.4rem; width:100%; justify-content:center;">
-                                                        <span style="font-size:0.6rem; color:#94a3b8; font-weight:700;">{{ strtoupper($p->file_ekstensi) }}</span>
-                                                        <a href="{{ route('panitia.tugas.download', $p->id) }}" 
-                                                           style="background:#002f45; color:white; padding:0.2rem 0.5rem; border-radius:4px; text-decoration:none; font-size:0.7rem; transition:transform 0.2s;" 
-                                                           onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-                                                            ⬇
-                                                        </a>
+                                                        {{-- Tombol Interaktif Baru untuk melihat multi-file via Modal --}}
+                                                        <button type="button" 
+                                                                onclick="openDetailModal('{{ $peserta->name }}', '{{ $tugas->nama_tugas }}', '{{ $p->id }}')"
+                                                                style="background:#002f45; color:white; padding:0.25rem 0.6rem; border-radius:6px; border:none; font-size:0.7rem; font-weight:700; cursor:pointer; transition:transform 0.2s; display:flex; align-items:center; gap:0.2rem;"
+                                                                onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                                            👁 Lihat File
+                                                        </button>
                                                     </div>
                                                 </div>
                                             @else
@@ -196,4 +196,97 @@
 
     </div>
 </div>
+
+{{-- ==================== KOMPONEN MODAL DETAIL BERKAS (POP-UP) ==================== --}}
+<div id="detailFileModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); backdrop-filter:blur(6px); z-index:9999; justify-content:center; align-items:center; transition: all 0.3s ease;">
+    <div style="background:white; padding:2rem; border-radius:1.5rem; width:90%; max-width:500px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.05); position:relative;">
+        
+        {{-- Tombol Close X --}}
+        <button onclick="closeDetailModal()" style="position:absolute; top:1.25rem; right:1.25rem; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#94a3b8; transition:color 0.2s;" onmouseover="this.style.color='#002f45'" onmouseout="this.style.color='#94a3b8'">&times;</button>
+        
+        <h3 id="modalTitle" style="font-family:'Playfair Display',serif; color:#002f45; margin-top:0; margin-bottom:0.25rem; font-size:1.4rem; font-weight:800;">📁 Berkas Pengumpulan</h3>
+        <p id="modalSubtitle" style="color:#64748b; font-size:0.85rem; margin-bottom:1.5rem; font-weight:600; letter-spacing: 0.3px;"></p>
+        
+        {{-- Container Tempat List File Dimuat --}}
+        <div id="modalFileList" style="display:flex; flex-direction:column; gap:0.75rem; max-height:280px; overflow-y:auto; padding-right:0.25rem;" class="custom-scroll">
+            </div>
+
+        {{-- Opsi Action Button Bawah --}}
+        <div style="margin-top:1.75rem; display:flex; gap:0.75rem;">
+            <a id="downloadAllZip" href="#" style="flex:1.5; text-align:center; padding:0.75rem 1rem; background:#002f45; color:#d2c296; border-radius:12px; text-decoration:none; font-size:0.85rem; font-weight:700; display:flex; align-items:center; justify-content:center; gap:0.5rem; box-shadow:0 4px 12px rgba(0, 47, 69, 0.15);">
+                📦 Download Zip (.zip)
+            </a>
+            <button onclick="closeDetailModal()" style="flex:1; padding:0.75rem 1rem; background:#f1f5f9; color:#475569; border-radius:12px; border:none; font-size:0.85rem; font-weight:700; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                Tutup
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- LOGIC JAVASCRIPT MODAL & AJAX --}}
+<script>
+function openDetailModal(namaPeserta, namaTugas, pengumpulanId) {
+    // 1. Set text identitas pengumpul di modal
+    document.getElementById('modalSubtitle').innerText = namaPeserta + ' • ' + namaTugas;
+    
+    const container = document.getElementById('modalFileList');
+    container.innerHTML = '<p style="font-size:0.85rem; color:#64748b; text-align:center; padding:2rem 0;">⏳ Mengambil data berkas...</p>';
+    
+    // 2. Set route dinamis untuk mendownload kolektif (.zip) pengumpulan ini
+    document.getElementById('downloadAllZip').href = `/panitia/tugas/download-zip/${pengumpulanId}`;
+    
+    // 3. Tampilkan Pop-up Modal
+    document.getElementById('detailFileModal').style.display = 'flex';
+
+    // 4. Hit API Laravel untuk mengambil daftar file (menggunakan Fetch API)
+    fetch(`/api/panitia/pengumpulan/${pengumpulanId}/files`)
+        .then(res => {
+            if (!res.ok) throw new Error();
+            return res.json();
+        })
+        .then(data => {
+            container.innerHTML = '';
+            
+            if(!data.files || data.files.length === 0) {
+                container.innerHTML = '<p style="text-align:center; font-size:0.85rem; color:#94a3b8; padding:2rem 0;">Tidak ada file yang ditemukan.</p>';
+                return;
+            }
+            
+            // Render daftar file satu per satu ke dalam modal
+            data.files.forEach(file => {
+                container.innerHTML += `
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:#f8fafc; padding:0.75rem 1rem; border-radius:12px; border:1px solid #e2e8f0; gap:1rem;">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:0.85rem; font-weight:700; color:#002f45; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="${file.nama_asli}">
+                                ${file.nama_asli}
+                            </div>
+                            <div style="font-size:0.7rem; color:#94a3b8; font-weight:700; margin-top:0.15rem;">
+                                ${file.ukuran ? file.ukuran : ''} • <span style="color:#002f45;">${file.ekstensi.toUpperCase()}</span>
+                            </div>
+                        </div>
+                        <a href="/panitia/tugas/file/download/${file.id}" 
+                           style="background:#002f45; color:white; padding:0.35rem 0.6rem; border-radius:8px; text-decoration:none; font-size:0.75rem; font-weight:bold; transition: background 0.2s;"
+                           onmouseover="this.style.background='#004e72'" onmouseout="this.style.background='#002f45'">
+                            ⬇
+                        </a>
+                    </div>
+                `;
+            });
+        }).catch(() => {
+            container.innerHTML = '<p style="text-align:center; font-size:0.85rem; color:#dc2626; padding:2rem 0;">⚠️ Gagal memuat berkas. Pastikan endpoint API sudah sesuai.</p>';
+        });
+}
+
+function closeDetailModal() {
+    document.getElementById('detailFileModal').style.display = 'none';
+}
+
+// Menutup modal otomatis jika panitia klik di luar kotak putih modal
+window.onclick = function(event) {
+    const modal = document.getElementById('detailFileModal');
+    if (event.target == modal) {
+        modal.style.display = "none";
+    }
+}
+</script>
 @endsection

@@ -9,7 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
-use ZipArchive; // Ditambahkan untuk membungkus multiple files menjadi ZIP
+use ZipArchive;
 
 class TugasController extends Controller
 {
@@ -92,7 +92,7 @@ class TugasController extends Controller
         return back()->with('success', 'Tugas berhasil dihapus.');
     }
 
-    /** REKAP OPTIMIZED: Bebas dari query berulang (N+1 Problem) */
+    /** REKAP OPTIMIZED: Diurutkan berdasarkan kelompok secara natural numerik */
     public function rekap(Request $request)
     {
         // 1. Ambil semua tugas
@@ -106,7 +106,11 @@ class TugasController extends Controller
             $pesertaQuery->where('kelompok', $filterKelompok);
         }
 
-        $pesertaData = $pesertaQuery->orderBy('kelompok')->orderBy('name')->get();
+        // MENGGUNAKAN orderByRaw AGAR URUTAN KELOMPOK TIDAK NGACAK (Urutan Alami: 1, 2, 3... dst)
+        $pesertaData = $pesertaQuery->orderByRaw('CAST(kelompok AS UNSIGNED) ASC')
+            ->orderBy('name')
+            ->get();
+            
         $pesertaPerKelompok = $pesertaData->groupBy('kelompok');
 
         // 3. Eager loading peta pengumpulan agar tidak query berulang di baris tabel
@@ -116,16 +120,16 @@ class TugasController extends Controller
             ->groupBy('user_id')
             ->map(fn($items) => $items->keyBy('tugas_kategori_id'));
 
-        // 4. Ambil list unik kelompok untuk dropdown filter
+        // 4. Urutan Kelompok pada Dropdown Filter disesuaikan agar rapi secara numerik
         $kelompokList = User::where('role', 'peserta')
             ->distinct()
-            ->orderBy('kelompok')
+            ->orderByRaw('CAST(kelompok AS UNSIGNED) ASC')
             ->pluck('kelompok');
 
         // 5. Total seluruh peserta (untuk indikator card statistik)
         $totalPeserta = User::where('role', 'peserta')->count();
 
-        // 6. OPTIMASI STATISTIK: Agregasi langsung via Group By DB (Hanya 1x Query!)
+        // 6. OPTIMASI STATISTIK: Agregasi langsung via Group By DB
         $globalStats = TugasPengumpulan::select('tugas_kategori_id')
             ->selectRaw('count(*) as sudah_kumpul')
             ->selectRaw("sum(case when status = 'terlambat' then 1 else 0 end) as terlambat")
@@ -155,7 +159,75 @@ class TugasController extends Controller
         ));
     }
 
-    /** SEAMLESS VIEW/DOWNLOAD: Jika file > 1 otomatis download .ZIP, jika 1 langsung open browser */
+    /** MENGAMBIL LIST BERKAS JAVASCRIPT: Endpoint API internal untuk mengambil detail file di modal */
+    public function getFilesJson($id)
+    {
+        $p = TugasPengumpulan::findOrFail($id);
+        $files = json_decode($p->file_path, true);
+        
+        $formattedFiles = [];
+        
+        if (is_array($files)) {
+            foreach ($files as $index => $file) {
+                // Formatting ukuran file (Bytes ke format KB/MB)
+                $sizeInBytes = $file['ukuran'] ?? 0;
+                if ($sizeInBytes >= 1048576) {
+                    $formattedSize = round($sizeInBytes / 1048576, 2) . ' MB';
+                } else {
+                    $formattedSize = round($sizeInBytes / 1024, 1) . ' KB';
+                }
+
+                $formattedFiles[] = [
+                    'id' => $index, // Kita gunakan index array sebagai ID temporary berkas
+                    'nama_asli' => $file['nama_asli'] ?? 'File_' . ($index + 1),
+                    'ekstensi' => $file['ekstensi'] ?? 'file',
+                    'ukuran' => $formattedSize
+                ];
+            }
+        } else {
+            // Jika data lama string tunggal
+            $formattedFiles[] = [
+                'id' => 0,
+                'nama_asli' => $p->file_nama_asli ?? 'Berkas Utama',
+                'ekstensi' => $p->file_ekstensi ?? 'file',
+                'ukuran' => '-'
+            ];
+        }
+
+        return response()->json(['files' => $formattedFiles]);
+    }
+
+    /** MENGIKUTI LINK DI MODAL: Download berkas tunggal yang dipilih dari dalam pop-up modal */
+    public function downloadSingleFile($id, $fileIndex)
+    {
+        $p = TugasPengumpulan::findOrFail($id);
+        $files = json_decode($p->file_path, true);
+
+        if (is_array($files) && isset($files[$fileIndex])) {
+            $targetFile = $files[$fileIndex];
+            
+            if (!Storage::disk('public')->exists($targetFile['path'])) {
+                return back()->with('error', 'Berkas fisik tidak ditemukan di server.');
+            }
+
+            return response()->download(
+                Storage::disk('public')->path($targetFile['path']), 
+                $targetFile['nama_asli']
+            );
+        }
+
+        // Fallback untuk data format single path lama
+        if (!is_array($files) && Storage::disk('public')->exists($p->file_path)) {
+            return response()->download(
+                Storage::disk('public')->path($p->file_path), 
+                $p->file_nama_asli ?? 'file'
+            );
+        }
+
+        return back()->with('error', 'Berkas tidak valid atau tidak ditemukan.');
+    }
+
+    /** SEAMLESS VIEW/DOWNLOAD ZIP KOLEKTIF: Tombol "Download Zip" di dalam modal */
     public function downloadFile($id)
     {
         $p = TugasPengumpulan::findOrFail($id);
@@ -176,7 +248,7 @@ class TugasController extends Controller
                 return response()->file(Storage::disk('public')->path($singleFile));
             }
 
-            // Jika filenya ada banyak, bungkus otomatis jadi ZIP biar panitia tidak bingung teks JSON
+            // Jika filenya ada banyak, bungkus otomatis jadi ZIP
             $zipFileName = 'Tugas_' . $p->nim . '_' . $p->tugas_kategori_id . '.zip';
             $zipPath = storage_path('app/public/' . $zipFileName);
 
