@@ -147,6 +147,8 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/rekap',         [TugasController::class, 'rekap'])->name('rekap');
             Route::get('/download/{id}', [TugasController::class, 'downloadFile'])->name('download');
             Route::get('/export',        [TugasController::class, 'exportRekap'])->name('export');
+            Route::get('/files-json/{id}', [TugasController::class, 'getFilesJson'])->name('files-json');
+            Route::get('/file/download/{id}/{fileIndex}', [TugasController::class, 'downloadSingleFile'])->name('download-single');
         });
 
         // NOTULENSI

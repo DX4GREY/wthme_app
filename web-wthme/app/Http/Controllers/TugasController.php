@@ -169,7 +169,6 @@ class TugasController extends Controller
         
         if (is_array($files)) {
             foreach ($files as $index => $file) {
-                // Formatting ukuran file (Bytes ke format KB/MB)
                 $sizeInBytes = $file['ukuran'] ?? 0;
                 if ($sizeInBytes >= 1048576) {
                     $formattedSize = round($sizeInBytes / 1048576, 2) . ' MB';
@@ -178,19 +177,18 @@ class TugasController extends Controller
                 }
 
                 $formattedFiles[] = [
-                    'id' => $index, // Kita gunakan index array sebagai ID temporary berkas
+                    'id'        => $index,
                     'nama_asli' => $file['nama_asli'] ?? 'File_' . ($index + 1),
-                    'ekstensi' => $file['ekstensi'] ?? 'file',
-                    'ukuran' => $formattedSize
+                    'ekstensi'  => $file['ekstensi'] ?? 'file',
+                    'ukuran'    => $formattedSize
                 ];
             }
         } else {
-            // Jika data lama string tunggal
             $formattedFiles[] = [
-                'id' => 0,
+                'id'        => 0,
                 'nama_asli' => $p->file_nama_asli ?? 'Berkas Utama',
-                'ekstensi' => $p->file_ekstensi ?? 'file',
-                'ukuran' => '-'
+                'ekstensi'  => $p->file_ekstensi ?? 'file',
+                'ukuran'    => '-'
             ];
         }
 
@@ -216,7 +214,6 @@ class TugasController extends Controller
             );
         }
 
-        // Fallback untuk data format single path lama
         if (!is_array($files) && Storage::disk('public')->exists($p->file_path)) {
             return response()->download(
                 Storage::disk('public')->path($p->file_path), 
@@ -233,13 +230,11 @@ class TugasController extends Controller
         $p = TugasPengumpulan::findOrFail($id);
         $files = json_decode($p->file_path, true);
 
-        // Kasus A: Jika kiriman berupa Multiple Files (Array JSON)
         if (is_array($files)) {
             if (count($files) === 0) {
                 return back()->with('error', 'Tidak ada file di dalam sistem.');
             }
 
-            // Jika filenya cuma ada 1 di dalam array, langsung buka di browser (View Mode)
             if (count($files) === 1) {
                 $singleFile = $files[0]['path'];
                 if (!Storage::disk('public')->exists($singleFile)) {
@@ -248,7 +243,6 @@ class TugasController extends Controller
                 return response()->file(Storage::disk('public')->path($singleFile));
             }
 
-            // Jika filenya ada banyak, bungkus otomatis jadi ZIP
             $zipFileName = 'Tugas_' . $p->nim . '_' . $p->tugas_kategori_id . '.zip';
             $zipPath = storage_path('app/public/' . $zipFileName);
 
@@ -262,14 +256,12 @@ class TugasController extends Controller
                 }
                 $zip->close();
 
-                // Kembalikan response download file zip lalu hapus temporary zip setelah diunduh
                 return response()->download($zipPath)->deleteFileAfterSend(true);
             }
 
             return back()->with('error', 'Gagal membuat file kompresi ZIP.');
         }
 
-        // Kasus B: Format lawas / Fallback (String Path Tunggal)
         if (!Storage::disk('public')->exists($p->file_path)) {
             return back()->with('error', 'File tidak ditemukan.');
         }
@@ -355,10 +347,10 @@ class TugasController extends Controller
             $filePath = $file->storeAs('tugas-pengumpulan', $namaFile, 'public');
 
             $filesData[] = [
-                'path' => $filePath,
+                'path'      => $filePath,
                 'nama_asli' => $file->getClientOriginalName(),
-                'ekstensi' => $ekstensi,
-                'ukuran' => $file->getSize(),
+                'ekstensi'  => $ekstensi,
+                'ukuran'    => $file->getSize(),
             ];
 
             $totalSize += $file->getSize();
