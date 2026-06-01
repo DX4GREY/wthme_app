@@ -24,7 +24,7 @@ class LeaderboardController extends Controller
             $jumlahHadir = AbsensiPeserta::where('user_id', $peserta->id)
                 ->where('status', 'hadir')
                 ->count();
-            $poinAbsen = $jumlahHadir * 100;
+            $poinAbsen = $jumlahHadir * 300;
 
             // 2. HITUNG KEAKTIFAN ACARA (Hasil input dari KeaktifanController)
             $poinKeaktifan = DB::table('poin_keaktifan')
@@ -55,7 +55,7 @@ class LeaderboardController extends Controller
                             
                             // Setiap kelipatan 12 jam sisa waktu, dapat bonus +5 poin
                             $kelipatanBonus = floor($sisaWaktuJam / 12);
-                            $bonusPoin = $kelipatanBonus * 5;
+                            $bonusPoin = $kelipatanBonus * 10;
                             
                             $poinTugas += ($basePoin + $bonusPoin);
 
@@ -139,7 +139,7 @@ class LeaderboardController extends Controller
                 'panitia.name as nama_panitia'
             )
             ->orderBy('poin_keaktifan.created_at', 'desc')
-            ->paginate(10);
+            ->paginate(25);
 
         return view('panitia.keaktifan.index', compact('pesertas', 'riwayatLog'));
     }

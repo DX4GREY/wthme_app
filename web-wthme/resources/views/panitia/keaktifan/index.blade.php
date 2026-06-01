@@ -102,13 +102,9 @@
 
                     <div class="form-group">
                         <label>Nominal Poin Skor</label>
-                        {{-- SEKARANG MENGGUNAKAN DROPDOWN SESUAI REKUES --}}
-                        <select name="poin" required>
-                            <option value="" disabled selected>-- Pilih Nominal Poin --</option>
-                            <option value="15">+15 (Sangat Aktif)</option>
-                            <option value="10">+10 (Aktif)</option>
-                        </select>
-                        <small>*Pilih salah satu nominal poin keaktifan di atas.</small>
+                        {{-- KEMBALI MENGGUNAKAN INPUT TYPE NUMBER --}}
+                        <input type="number" name="poin" placeholder="Contoh: 15 atau -10" step="1" required>
+                        <small>*Ketik angka positif untuk menambah nilai, atau gunakan tanda minus (-) untuk memotong nilai.</small>
                     </div>
 
                     <div class="form-group">
@@ -240,9 +236,9 @@
                 // Pemicu Animasi Slide Up Form di Mobile
                 formSection.classList.add('drawer-open');
                 
-                // Auto fokus dialihkan ke dropdown pilihan poin
+                // Auto fokus dialihkan ke input pengetikan poin skor
                 setTimeout(() => {
-                    document.querySelector('select[name="poin"]').focus();
+                    document.querySelector('input[name="poin"]').focus();
                 }, 300);
             });
         });
@@ -516,8 +512,7 @@
         margin-bottom: 0.4rem;
     }
     
-    /* STYLING UNTUK SELECT DROPDOWN BIAR SENADA DENGAN THEME */
-    .form-group input, .form-group textarea, .form-group select {
+    .form-group input, .form-group textarea {
         width: 100%;
         padding: 0.75rem;
         border: 1px solid rgba(0, 47, 69, 0.2);
