@@ -125,6 +125,8 @@ Route::middleware(['auth'])->group(function () {
         // KESEHATAN
         Route::prefix('kesehatan')->name('kesehatan.')->group(function () {
             Route::get('/', [KesehatanController::class, 'indexPanitia'])->name('index');
+            Route::post('/{id}/update-pita', [KesehatanController::class, 'updateWarnaPita'])->name('updatePita');
+            
         });
 
         // KAS

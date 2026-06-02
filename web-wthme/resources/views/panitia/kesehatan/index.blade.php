@@ -20,6 +20,7 @@
                 </div>
 
                 <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+                    {{-- Form Filter Kelompok & Pita --}}
                     <form action="{{ route('panitia.kesehatan.index') }}" method="GET" style="display:flex; gap:0.5rem; background: rgba(255, 255, 255, 0.2); padding: 0.5rem; border-radius: 1rem; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3);">
                         <select name="kelompok" style="padding:0.6rem 1rem; border-radius:0.75rem; border:none; font-size:0.875rem; background:white; color:#002f45; outline:none; cursor:pointer;">
                             <option value="">Semua Kelompok</option>
@@ -27,6 +28,15 @@
                                 <option value="{{ $k }}" {{ request('kelompok') == $k ? 'selected' : '' }}>Kelompok {{ $k }}</option>
                             @endforeach
                         </select>
+
+                        {{-- Filter Berdasarkan Warna Pita --}}
+                        <select name="pita" style="padding:0.6rem 1rem; border-radius:0.75rem; border:none; font-size:0.875rem; background:white; color:#002f45; outline:none; cursor:pointer;">
+                            <option value="">Semua Kondisi</option>
+                            <option value="Tanpa Pita" {{ request('pita') == 'Tanpa Pita' ? 'selected' : '' }}>🟢 Normal (Tanpa Pita)</option>
+                            <option value="Kuning" {{ request('pita') == 'Kuning' ? 'selected' : '' }}>🟡 Pita Kuning (Sakit Ringan/Sedang)</option>
+                            <option value="Merah" {{ request('pita') == 'Merah' ? 'selected' : '' }}>🔴 Pita Merah (Penyakit Serius)</option>
+                        </select>
+
                         <button type="submit" style="background:#002f45; color:white; border:none; padding:0.6rem 1.2rem; border-radius:0.75rem; cursor:pointer; font-weight:600; font-size:0.875rem;">
                             Filter
                         </button>
@@ -59,7 +69,7 @@
                             <table style="width:100%; border-collapse:collapse; min-width: 1400px;">
                                 <thead>
                                     <tr style="background: rgba(255, 255, 255, 0.1);">
-                                        <th style="width: 13%; padding:1.25rem 1.5rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; border-bottom: 1px solid rgba(0,0,0,0.05);">Nama & NIM</th>
+                                        <th style="width: 16%; padding:1.25rem 1.5rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; border-bottom: 1px solid rgba(0,0,0,0.05);">Nama & NIM</th>
                                         <th style="width: 17%; padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Kontak & Alamat</th>
                                         <th style="width: 15%; padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Riwayat Alergi/Penyakit</th>
                                         <th style="width: 13%; padding:1.25rem 1rem; text-align:left; color:#002f45; font-size:0.7rem; font-weight:800; text-transform:uppercase; border-bottom: 1px solid rgba(0,0,0,0.05);">Konsumsi Obat</th>
@@ -73,40 +83,71 @@
                                     @foreach ($dataKesehatan as $r)
                                         <tr style="border-bottom:1px solid rgba(0,0,0,0.03); transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.4)'" onmouseout="this.style.background='transparent'">
                                             
-                                            {{-- Nama & NIM (Rata Kiri-Atas) --}}
+                                            {{-- Nama, NIM, dan Indikator Silinder Blok Warna Murni --}}
                                             <td style="padding:1.25rem 1.5rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal;">
-                                                <div style="color:#002f45; font-weight:700; font-size:0.9rem;">{{ $r->nama }}</div>
-                                                <div style="color:#002f45; font-size:0.75rem; opacity:0.6; font-family:monospace; margin-top: 4px;">{{ $r->nim }}</div>
+                                                <div style="display: flex; align-items: center; gap: 12px;">
+                                                    
+                                                    {{-- LOGIK CEK AKSES: Ambil data user yang sedang login saat ini --}}
+                                                    @php
+                                                        $canUpdate = false;
+                                                        if (Auth::check()) {
+                                                            $user = Auth::user();
+                                                            // Sesuaikan nama kolom database Anda (misal kolom 'role' dan kolom 'divisi')
+                                                            if ($user->role === 'admin' || $user->divisi === 'P3K') {
+                                                                $canUpdate = true;
+                                                            }
+                                                        }
+                                                    @endphp
+
+                                                    {{-- Dropdown Silinder Blok Warna Polos dengan Hak Akses Terproteksi --}}
+                                                    <select onchange="updatePita(this, {{ $r->id }})" 
+                                                            title="{{ $canUpdate ? 'Klasifikasi Pita Kesehatan' : 'Anda tidak memiliki akses mengubah status medis' }}"
+                                                            {{ !$canUpdate ? 'disabled' : '' }}
+                                                            style="padding: 0; border-radius: 50px; width: 32px; height: 20px; border: 1px solid rgba(0,47,69,0.3); outline: none; transition: 0.2s; -webkit-appearance: none; -moz-appearance: none; appearance: none; display: inline-flex; align-items: center; justify-content: center; color: transparent; font-size: 0px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+                                                            cursor: {{ $canUpdate ? 'pointer' : 'not-allowed' }};
+                                                            opacity: {{ $canUpdate ? '1' : '0.85' }};
+                                                            background-color: {{ $r->warna_pita == 'Merah' ? '#ffccd5' : ($r->warna_pita == 'Kuning' ? '#fef3c7' : '#e2e8f0') }};">
+                                                        <option value="" style="background:#white; color:#4a5568; font-size: 0.85rem;" {{ json_encode($r->warna_pita) == 'null' || $r->warna_pita == '' ? 'selected' : '' }}>🟢 Normal (STD)</option>
+                                                        <option value="Kuning" style="background:#white; color:#92400e; font-size: 0.85rem;" {{ $r->warna_pita == 'Kuning' ? 'selected' : '' }}>🟡 Ringan/Sedang (KNG)</option>
+                                                        <option value="Merah" style="background:#white; color:#c53030; font-size: 0.85rem;" {{ $r->warna_pita == 'Merah' ? 'selected' : '' }}>🔴 Serius/Kronis (MRH)</option>
+                                                    </select>
+
+                                                    {{-- Nama Peserta --}}
+                                                    <div style="color:#002f45; font-weight:700; font-size:0.9rem;">{{ $r->nama }}</div>
+                                                </div>
+                                                
+                                                {{-- NIM --}}
+                                                <div style="color:#002f45; font-size:0.75rem; opacity:0.6; font-family:monospace; margin-top: 4px; margin-left: 44px;">{{ $r->nim }}</div>
                                             </td>
 
-                                            {{-- Kontak & Alamat (Rata Kiri-Atas) --}}
+                                            {{-- Kontak & Alamat --}}
                                             <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal;">
                                                 <div><strong>HP:</strong> <span style="font-weight: 400;">{{ $r->no_telp ?? '-' }}</span></div>
                                                 <div style="margin-top:3px;"><strong>Ortu:</strong> <span style="font-weight: 400;">{{ $r->no_telp_ortu ?? '-' }}</span></div>
                                                 <div style="margin-top:6px; font-size:0.75rem; opacity:0.8; line-height:1.4; font-weight: 400;">{{ $r->alamat_rumah ?? '-' }}</div>
                                             </td>
 
-                                            {{-- Riwayat Penyakit (Rata Kiri-Atas) --}}
+                                            {{-- Riwayat Penyakit --}}
                                             <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal; line-height:1.4; font-weight: 400;">
                                                 {{ $r->riwayat_penyakit ?? '-' }}
                                             </td>
 
-                                            {{-- Obat Rutin (Rata Kiri-Atas) --}}
+                                            {{-- Obat Rutin --}}
                                             <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal; line-height:1.4; font-weight: 400;">
                                                 {{ $r->obat_rutin ?? '-' }}
                                             </td>
 
-                                            {{-- Riwayat Cedera (Rata Kiri-Atas) --}}
+                                            {{-- Riwayat Cedera --}}
                                             <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal; line-height:1.4; font-weight: 400;">
                                                 {{ $r->riwayat_cedera ?? '-' }}
                                             </td>
 
-                                            {{-- Alergi Makanan (Rata Kiri-Atas) --}}
+                                            {{-- Alergi Makanan --}}
                                             <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal; line-height:1.4; font-weight: 400;">
                                                 {{ $r->alergi_makanan ?? '-' }}
                                             </td>
 
-                                            {{-- Catatan Tambahan (Merah-merah dihapus, Rata Kiri-Atas standar) --}}
+                                            {{-- Catatan Tambahan --}}
                                             <td style="padding:1.25rem 1rem; color:#002f45; font-size:0.8rem; vertical-align: top; text-align: left; word-wrap: break-word; white-space: normal; line-height:1.4; font-weight: 400;">
                                                 @if ($r->keterangan_tambahan && $r->keterangan_tambahan != '-')
                                                     {{ $r->keterangan_tambahan }}
@@ -115,7 +156,7 @@
                                                 @endif
                                             </td>
 
-                                            {{-- Berkas Bukti File (Tetap di Tengah-Atas agar ikon kamera simetris) --}}
+                                            {{-- Berkas Bukti File --}}
                                             <td style="padding:1.25rem 1.5rem; text-align:center; vertical-align: top;">
                                                 @if($r->bukti_kesehatan)
                                                     <a href="{{ asset('storage/' . $r->bukti_kesehatan) }}" target="_blank" 
@@ -138,4 +179,44 @@
 
         </div>
     </div>
+
+    {{-- Script AJAX Real-Time Update --}}
+    <script>
+    function updatePita(selectElement, id) {
+        const warna = selectElement.value;
+        
+        if (warna === 'Merah') {
+            selectElement.style.backgroundColor = '#ffccd5';
+        } else if (warna === 'Kuning') {
+            selectElement.style.backgroundColor = '#fef3c7';
+        } else {
+            selectElement.style.backgroundColor = '#e2e8f0';
+        }
+
+        fetch(`{{ url('/panitia/kesehatan') }}/${id}/update-pita`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ warna_pita: warna })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Gagal memproses ke server.');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) {
+                alert('Gagal memperbarui status: ' + (data.message || 'Terjadi kesalahan.'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Gagal terhubung ke server. Periksa koneksi Anda.');
+        });
+    }
+    </script>
 @endsection

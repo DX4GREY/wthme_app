@@ -22,7 +22,8 @@ class RiwayatPenyakit extends Model
         'riwayat_cedera',
         'alergi_makanan',
         'keterangan_tambahan',
-        'bukti_kesehatan'
+        'bukti_kesehatan',
+        'warna_pita'
     ];
 
     public function user()
