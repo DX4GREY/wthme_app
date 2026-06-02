@@ -108,27 +108,34 @@ class MentoringController extends Controller
 
     // FIX: Menggunakan nama rekapGlobal() agar singkron dengan route, 
     // serta diproteksi agar data kosong/null tidak bikin sistem crash.
+    // FIX: Menggunakan nama rekapGlobal() agar sinkron dengan route, 
+    // Serta dioptimasi query-nya agar tidak membebani memori server (Anti-Error 500)
     public function rekapGlobal()
     {
-        $rekapDetail = MentoringDetail::with(['mentoring', 'peserta'])
-            ->whereHas('peserta', function ($query) {
-                $query->whereNotNull('kelompok');
-            })
-            ->whereHas('mentoring', function ($query) {
-                $query->whereNotNull('nama_kegiatan');
-            })
-            ->get()
-            ->groupBy([
-                function ($item) {
-                    return $item->peserta->kelompok ?? 'Tanpa Kelompok';
-                },
-                function ($item) {
-                    return $item->mentoring->nama_kegiatan ?? 'Kegiatan Tanpa Nama';
-                }
-            ])
-            ->sortKeys();
+        try {
+            // Ambil semua detail mentoring yang valid dan urutkan dari kelompok terkecil secara natural
+            $rekapDetail = MentoringDetail::with(['mentoring', 'peserta'])
+                ->whereHas('peserta', function ($query) {
+                    $query->whereNotNull('kelompok');
+                })
+                ->whereHas('mentoring', function ($query) {
+                    $query->whereNotNull('nama_kegiatan');
+                })
+                // Join tipis untuk kebutuhan sorting kelompok secara numerik alami (1, 2, 3.. 10)
+                ->join('users', 'mentoring_details.peserta_id', '=', 'users.id')
+                ->orderByRaw('CAST(users.kelompok AS UNSIGNED) ASC')
+                ->orderBy('users.name', 'ASC')
+                ->select('mentoring_details.*') // Ambil hanya kolom aslinya agar aman
+                ->get();
 
-        return view('panitia.mentoring.rekap', compact('rekapDetail'));
+            return view('panitia.mentoring.rekap', compact('rekapDetail'));
+        } catch (\Exception $e) {
+            // Jika ada kesalahan ketik/kolom di database, ia akan memunculkan pesan error aslinya (bukan 500 kosong)
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal memuat rekap global: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function exportSeluruh()

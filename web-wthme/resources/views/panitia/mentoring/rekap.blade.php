@@ -25,118 +25,183 @@
                 </a>
             </div>
 
-            @foreach ($rekapDetail as $noKelompok => $perKegiatan)
-                <div style="margin-bottom:5rem;">
-                    {{-- JUDUL KELOMPOK --}}
-                    <div style="display:flex; align-items:center; gap:1.5rem; margin-bottom:2rem;">
-                        <div style="width:60px; height:60px; background: rgba(0, 47, 69, 0.8); backdrop-filter: blur(5px); color:#d2c296; display:flex; align-items:center; justify-content:center; border-radius:18px; font-weight:800; font-size:1.6rem; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
-                            {{ $noKelompok }}
-                        </div>
-                        <h2 style="font-family:'Playfair Display',serif; color:#002f45; margin:0; font-size:2rem; letter-spacing:1px;">
-                            KELOMPOK {{ $noKelompok }}
-                        </h2>
-                        <div style="flex-grow:1; height:1px; background: linear-gradient(to right, rgba(0,47,69,0.3), transparent);"></div>
-                    </div>
+            @php
+                $currentKelompok = null;
+                $currentMentoringId = null;
+                $hasData = count($rekapDetail) > 0;
+            @endphp
 
-                    {{-- GRID KEGIATAN --}}
-                    <div style="display:grid; grid-template-columns: 1fr; gap:2.5rem; padding-left:1.5rem; border-left:2px solid rgba(0,47,69,0.1);">
-                        @foreach ($perKegiatan as $namaKegiatan => $details)
-                            <div style="background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 1.5rem; overflow:hidden; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);">
+            @if(!$hasData)
+                <div style="background: rgba(255, 255, 255, 0.4); border-radius: 1.5rem; padding: 3rem; text-align: center; color: #002f45; font-weight: 600;">
+                    📭 Belum ada riwayat rekapitulasi data mentoring yang tersimpan.
+                </div>
+            @endif
 
-                                {{-- Sub-Header (Glass Top) --}}
-                                <div style="padding:1.2rem 2rem; background: rgba(255, 255, 255, 0.3); border-bottom:1px solid rgba(255,255,255,0.2); display:flex; justify-content:space-between; align-items:center;">
-                                    <span style="font-weight:800; color:#002f45; font-size:1.1rem; letter-spacing:0.5px;">
-                                        📌 {{ strtoupper($namaKegiatan) }}
-                                    </span>
-                                    <span style="font-size:0.85rem; font-weight:700; color:#002f45; background: rgba(255, 255, 255, 0.5); padding:0.4rem 1rem; border-radius:12px; border: 1px solid rgba(255,255,255,0.3);">
-                                        📅 {{ date('d M Y', strtotime($details->first()->mentoring->tanggal)) }}
-                                    </span>
-                                </div>
+            @foreach ($rekapDetail as $index => $rd)
+                @php
+                    $loopKelompok = $rd->peserta->kelompok ?? 'Tanpa Kelompok';
+                    $loopMentoringId = $rd->mentoring_id;
+                    $namaKegiatan = $rd->mentoring->nama_kegiatan ?? 'Kegiatan Tanpa Nama';
+                    $tanggalKegiatan = $rd->mentoring->tanggal ?? null;
+                    
+                    // Hitung jumlah kehadiran statis per sesi mentoring saat ini untuk footer komponen card
+                    $allDetailsInSession = $rekapDetail->where('mentoring_id', $loopMentoringId);
+                    $hadirCount = $allDetailsInSession->where('kehadiran', 'Hadir')->count();
+                    $tidakHadirCount = $allDetailsInSession->whereIn('kehadiran', ['Izin', 'Alpha'])->count();
+                @endphp
 
-                                {{-- Menampilkan Catatan/Poin Pembahasan di Rekapitulasi (Jika Ada) --}}
-                                @if(!empty($details->first()->mentoring->catatan_pertemuan))
-                                    <div class="meeting-notes-rekap">
-                                        <div class="notes-title">📝 Rangkuman & Poin Pembahasan Mentoring:</div>
-                                        <div class="notes-content">{!! nl2br(e($details->first()->mentoring->catatan_pertemuan)) !!}</div>
-                                    </div>
-                                @endif
-
-                                {{-- Table Area --}}
-                                <div style="overflow-x: auto; padding: 0.5rem 1.5rem;">
-                                    <table style="width:100%; border-collapse:separate; border-spacing: 0 0.5rem;">
-                                        <thead>
-                                            <tr>
-                                                <th style="padding:1rem 1.5rem; text-align:left; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">Nama Peserta</th>
-                                                <th style="padding:1rem 1.5rem; text-align:left; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">NIM</th>
-                                                <th style="padding:1rem 1.5rem; text-align:center; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">Status</th>
-                                                <th style="padding:1rem 1.5rem; text-align:left; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">Aksi / Catatan</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($details as $rd)
-                                                <tr style="background: rgba(255, 255, 255, 0.15); transition: background 0.3s;">
-                                                    <td style="padding:1rem 1.5rem; font-weight:700; color:#002f45; border-radius: 12px 0 0 12px;">{{ $rd->peserta->name }}</td>
-                                                    <td style="padding:1rem 1.5rem; color:#002f45; font-size:0.9rem; opacity:0.8;">{{ $rd->peserta->nim }}</td>
-                                                    <td style="padding:1rem 1.5rem; text-align:center;">
-                                                        <span style="display:inline-block; padding:0.4rem 0.8rem; border-radius:10px; font-size:0.7rem; font-weight:800; letter-spacing:0.5px;
-                                                            {{ $rd->kehadiran === 'Hadir' ? 'background:rgba(34, 197, 94, 0.2); color:#166534; border: 1px solid rgba(34, 197, 94, 0.3);' : 
-                                                               ($rd->kehadiran === 'Izin' ? 'background:rgba(249, 115, 22, 0.2); color:#9a3412; border: 1px solid rgba(249, 115, 22, 0.3);' : 
-                                                               'background:rgba(239, 68, 68, 0.2); color:#991b1b; border: 1px solid rgba(239, 68, 68, 0.3);') }}">
-                                                            {{ strtoupper($rd->kehadiran) }}
-                                                        </span>
-                                                    </td>
-                                                    <td style="padding:1rem 1.5rem; color:#002f45; font-size:0.85rem; border-radius: 0 12px 12px 0;">
-                                                        <div style="display: flex; align-items: center; gap: 1rem;">
-                                                            {{-- Tombol Lihat File (Mendukung File Tunggal / Banyak) --}}
-                                                            @if(!empty($rd->file_path))
-                                                                @php
-                                                                    $decodedFiles = json_decode($rd->file_path, true);
-                                                                    $isMultiple = is_array($decodedFiles);
-                                                                @php
-
-                                                                @if($isMultiple && count($decodedFiles) > 1)
-                                                                    {{-- Jika Banyak File: Trigger Modal via JS --}}
-                                                                    <button type="button" 
-                                                                            onclick="bukaModalFile('{{ e(json_encode($decodedFiles)) }}', '{{ $rd->peserta->name }}')"
-                                                                            style="padding: 0.4rem 0.8rem; background: #002f45; color: #fff; border: none; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
-                                                                        👁️ Lihat File ({{ count($decodedFiles) }})
-                                                                    </button>
-                                                                @else
-                                                                    {{-- Jika 1 File / Format Lama: Langsung Buka Tab Baru --}}
-                                                                    @php
-                                                                        $singlePath = $isMultiple ? ($decodedFiles[0]['path'] ?? '') : $rd->file_path;
-                                                                    @endphp
-                                                                    <a href="{{ asset('storage/' . $singlePath) }}" target="_blank"
-                                                                       style="padding: 0.4rem 0.8rem; background: #6b705c; color: #fff; text-decoration: none; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
-                                                                        👁️ Lihat File
-                                                                    </a>
-                                                                @endif
-                                                            @endif
-                                                            
-                                                            <span style="font-style:italic; opacity:0.6;">
-                                                                {{ $rd->keterangan ?? '—' }}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
+                {{-- JIKA KELOMPOK BERUBAH: Buka container kelompok baru --}}
+                @if($currentKelompok !== $loopKelompok)
+                    @if($currentKelompok !== null)
                                         </tbody>
                                     </table>
                                 </div>
-
-                                {{-- Footer (Glass Bottom) --}}
                                 <div style="padding:1rem 2rem; background: rgba(255, 255, 255, 0.2); border-top:1px solid rgba(255,255,255,0.1); display:flex; gap:2rem; font-size:0.85rem;">
                                     <span style="color:#166534; font-weight:600;">
-                                        <span style="opacity:0.7;">✅ Hadir:</span> <strong>{{ $details->where('kehadiran', 'Hadir')->count() }}</strong>
+                                        <span style="opacity:0.7;">✅ Hadir:</span> <strong>{{ $hadirCount }}</strong>
                                     </span>
                                     <span style="color:#991b1b; font-weight:600;">
-                                        <span style="opacity:0.7;">❌ Tidak Hadir:</span> <strong>{{ $details->whereIn('kehadiran', ['Izin', 'Alpha'])->count() }}</strong>
+                                        <span style="opacity:0.7;">❌ Tidak Hadir:</span> <strong>{{ $tidakHadirCount }}</strong>
                                     </span>
                                 </div>
                             </div>
-                        @endforeach
+                        </div> {{-- Penutup grid kegiatan --}}
+                    </div> {{-- Penutup box kelompok --}}
+                    @endif
+
+                    @php $currentKelompok = $loopKelompok; $currentMentoringId = null; @endphp
+
+                    <div style="margin-bottom:5rem;">
+                        {{-- JUDUL KELOMPOK --}}
+                        <div style="display:flex; align-items:center; gap:1.5rem; margin-bottom:2rem;">
+                            <div style="width:60px; height:60px; background: rgba(0, 47, 69, 0.8); backdrop-filter: blur(5px); color:#d2c296; display:flex; align-items:center; justify-content:center; border-radius:18px; font-weight:800; font-size:1.6rem; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                                {{ $loopKelompok }}
+                            </div>
+                            <h2 style="font-family:'Playfair Display',serif; color:#002f45; margin:0; font-size:2rem; letter-spacing:1px;">
+                                KELOMPOK {{ $loopKelompok }}
+                            </h2>
+                            <div style="flex-grow:1; height:1px; background: linear-gradient(to right, rgba(0,47,69,0.3), transparent);"></div>
+                        </div>
+
+                        {{-- GRID KEGIATAN --}}
+                        <div style="display:grid; grid-template-columns: 1fr; gap:2.5rem; padding-left:1.5rem; border-left:2px solid rgba(0,47,69,0.1);">
+                @endif
+
+                {{-- JIKA KEGIATAN/SESI BERUBAH: Ganti card tabel pembungkus baru --}}
+                @if($currentMentoringId !== $loopMentoringId)
+                    @if($currentMentoringId !== null)
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div style="padding:1rem 2rem; background: rgba(255, 255, 255, 0.2); border-top:1px solid rgba(255,255,255,0.1); display:flex; gap:2rem; font-size:0.85rem;">
+                                    <span style="color:#166534; font-weight:600;">
+                                        <span style="opacity:0.7;">✅ Hadir:</span> <strong>{{ $hadirCount }}</strong>
+                                    </span>
+                                    <span style="color:#991b1b; font-weight:600;">
+                                        <span style="opacity:0.7;">❌ Tidak Hadir:</span> <strong>{{ $tidakHadirCount }}</strong>
+                                    </span>
+                                </div>
+                            </div>
+                    @endif
+
+                    @php $currentMentoringId = $loopMentoringId; @endphp
+
+                    <div style="background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 1.5rem; overflow:hidden; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);">
+                        
+                        {{-- Sub-Header (Glass Top) --}}
+                        <div style="padding:1.2rem 2rem; background: rgba(255, 255, 255, 0.3); border-bottom:1px solid rgba(255,255,255,0.2); display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:800; color:#002f45; font-size:1.1rem; letter-spacing:0.5px;">
+                                📌 {{ strtoupper($namaKegiatan) }}
+                            </span>
+                            <span style="font-size:0.85rem; font-weight:700; color:#002f45; background: rgba(255, 255, 255, 0.5); padding:0.4rem 1rem; border-radius:12px; border: 1px solid rgba(255,255,255,0.3);">
+                                📅 {{ $tanggalKegiatan ? date('d M Y', strtotime($tanggalKegiatan)) : '-' }}
+                            </span>
+                        </div>
+
+                        {{-- Menampilkan Catatan/Poin Pembahasan di Rekapitulasi (Jika Ada) --}}
+                        @if(!empty($rd->mentoring->catatan_pertemuan))
+                            <div class="meeting-notes-rekap">
+                                <div class="notes-title">📝 Rangkuman & Poin Pembahasan Mentoring:</div>
+                                <div class="notes-content">{!! nl2br(e($rd->mentoring->catatan_pertemuan)) !!}</div>
+                            </div>
+                        @endif
+
+                        {{-- Table Area --}}
+                        <div style="overflow-x: auto; padding: 0.5rem 1.5rem;">
+                            <table style="width:100%; border-collapse:separate; border-spacing: 0 0.5rem;">
+                                <thead>
+                                    <tr>
+                                        <th style="padding:1rem 1.5rem; text-align:left; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">Nama Peserta</th>
+                                        <th style="padding:1rem 1.5rem; text-align:left; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">NIM</th>
+                                        <th style="padding:1rem 1.5rem; text-align:center; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">Status</th>
+                                        <th style="padding:1rem 1.5rem; text-align:left; color:#002f45; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; opacity:0.6;">Aksi / Catatan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                @endif
+
+                {{-- ISI DATA BARIS PESERTA --}}
+                <tr style="background: rgba(255, 255, 255, 0.15); transition: background 0.3s;">
+                    <td style="padding:1rem 1.5rem; font-weight:700; color:#002f45; border-radius: 12px 0 0 12px;">{{ $rd->peserta->name ?? 'User Terhapus' }}</td>
+                    <td style="padding:1rem 1.5rem; color:#002f45; font-size:0.9rem; opacity:0.8;">{{ $rd->peserta->nim ?? '-' }}</td>
+                    <td style="padding:1rem 1.5rem; text-align:center;">
+                        <span style="display:inline-block; padding:0.4rem 0.8rem; border-radius:10px; font-size:0.7rem; font-weight:800; letter-spacing:0.5px;
+                            {{ $rd->kehadiran === 'Hadir' ? 'background:rgba(34, 197, 94, 0.2); color:#166534; border: 1px solid rgba(34, 197, 94, 0.3);' : 
+                               ($rd->kehadiran === 'Izin' ? 'background:rgba(249, 115, 22, 0.2); color:#9a3412; border: 1px solid rgba(249, 115, 22, 0.3);' : 
+                               'background:rgba(239, 68, 68, 0.2); color:#991b1b; border: 1px solid rgba(239, 68, 68, 0.3);') }}">
+                            {{ strtoupper($rd->kehadiran ?? 'ALPHA') }}
+                        </span>
+                    </td>
+                    <td style="padding:1rem 1.5rem; color:#002f45; font-size:0.85rem; border-radius: 0 12px 12px 0;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            @if(!empty($rd->file_path))
+                                @php
+                                    $decodedFiles = json_decode($rd->file_path, true);
+                                    $isMultiple = is_array($decodedFiles);
+                                @endphp
+
+                                @if($isMultiple && count($decodedFiles) > 1)
+                                    <button type="button" 
+                                            onclick="bukaModalFile('{{ e(json_encode($decodedFiles)) }}', '{{ $rd->peserta->name ?? 'Peserta' }}')"
+                                            style="padding: 0.4rem 0.8rem; background: #002f45; color: #fff; border: none; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
+                                        👁️ Lihat File ({{ count($decodedFiles) }})
+                                    </button>
+                                @else
+                                    @php
+                                        $singlePath = $isMultiple ? ($decodedFiles[0]['path'] ?? '') : $rd->file_path;
+                                    @endphp
+                                    <a href="{{ asset('storage/' . $singlePath) }}" target="_blank"
+                                       style="padding: 0.4rem 0.8rem; background: #6b705c; color: #fff; text-decoration: none; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                                        👁️ Lihat File
+                                    </a>
+                                @endif
+                            @endif
+                            
+                            <span style="font-style:italic; opacity:0.6;">
+                                {{ $rd->keterangan ?? '—' }}
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+
+                {{-- Kunci Penutup Iterasi Terakhir --}}
+                @if($loop->last)
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="padding:1rem 2rem; background: rgba(255, 255, 255, 0.2); border-top:1px solid rgba(255,255,255,0.1); display:flex; gap:2rem; font-size:0.85rem;">
+                                <span style="color:#166534; font-weight:600;">
+                                    <span style="opacity:0.7;">✅ Hadir:</span> <strong>{{ $hadirCount }}</strong>
+                                </span>
+                                <span style="color:#991b1b; font-weight:600;">
+                                    <span style="opacity:0.7;">❌ Tidak Hadir:</span> <strong>{{ $tidakHadirCount }}</strong>
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                @endif
+
             @endforeach
 
         </div>
@@ -146,7 +211,7 @@
     <div id="modalDaftarFile" class="custom-modal">
         <div class="custom-modal-content">
             <div class="custom-modal-header">
-                <h3 style="margin:0; font-family:'Playfair Display',serif; color:#002f45;" id="modalNamaPeserta">Daftar File Tugas</h3>
+                <h3 style="margin:0; font-family:'Playfair Display',serif; color:#002f45;" id="modalNamaPeserta">Daftar File</h3>
                 <span class="custom-close" onclick="tutupModalFile()">&times;</span>
             </div>
             <div class="custom-modal-body">
@@ -183,7 +248,6 @@
             white-space: pre-wrap;
         }
 
-        /* CSS untuk Custom Modal Pop-up */
         .custom-modal {
             display: none; 
             position: fixed; 
@@ -252,14 +316,13 @@
             const container = document.getElementById('containerListFile');
             const modalTitle = document.getElementById('modalNamaPeserta');
             
-            modalTitle.innerText = "File Tugas: " + namaPeserta;
-            container.innerHTML = ''; // Kosongkan list lama
+            modalTitle.innerText = "File Dokumen: " + namaPeserta;
+            container.innerHTML = ''; 
 
             files.forEach((file, index) => {
                 const urlFile = "{{ asset('storage') }}/" + file.path;
                 const namaAsli = file.nama_asli || ("Dokumen " + (index + 1));
                 
-                // Membuat element list tautan dinamis
                 const a = document.createElement('a');
                 a.href = urlFile;
                 a.target = "_blank";
@@ -276,7 +339,6 @@
             document.getElementById('modalDaftarFile').style.display = 'none';
         }
 
-        // Tutup modal otomatis jika user klik di luar area box putih modal
         window.onclick = function(event) {
             const modal = document.getElementById('modalDaftarFile');
             if (event.target == modal) {
