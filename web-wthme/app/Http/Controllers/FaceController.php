@@ -30,11 +30,12 @@ class FaceController extends Controller
         $client    = new \GuzzleHttp\Client(['timeout' => 60, 'connect_timeout' => 5]);
         $multipart = [];
 
+        // 🟢 SOLUSI: Mengirimkan beberapa file dengan key 'photos' secara mandiri
         foreach ($files as $i => $photo) {
             $multipart[] = [
-                'name'     => 'photos[]', // 🟢 SELESAI! Ditambahkan tanda [] agar terbaca sebagai list[] oleh FastAPI
+                'name'     => 'photos', // 🌟 Tetap 'photos' (tanpa []), FastAPI butuh nama aslinya
                 'contents' => fopen($photo->getRealPath(), 'r'),
-                'filename' => "face_{$i}.jpg",
+                'filename' => "face_user_{$user->id}_{$i}.jpg",
                 'headers'  => ['Content-Type' => 'image/jpeg'],
             ];
         }
@@ -46,7 +47,6 @@ class FaceController extends Controller
             );
 
             $result = json_decode($response->getBody()->getContents(), true);
-
         } catch (\GuzzleHttp\Exception\ConnectException $e) {
             return back()->with('error', 'Tidak bisa terhubung ke server face recognition. Pastikan FastAPI sedang berjalan.');
         } catch (\GuzzleHttp\Exception\ServerException $e) {
@@ -54,7 +54,7 @@ class FaceController extends Controller
             $responseBody = $e->getResponse()->getBody()->getContents();
             $errorData = json_decode($responseBody, true);
             $detailMessage = $errorData['detail'] ?? 'Terjadi kesalahan sistem di server Face API.';
-            
+
             Log::error("FastAPI Server Error: " . $responseBody);
             return back()->with('error', 'Server Error (500): ' . $detailMessage);
         } catch (\Exception $e) {
@@ -68,12 +68,14 @@ class FaceController extends Controller
                 'face_registered_at' => now(),
             ]);
 
-            return back()->with('success',
+            return back()->with(
+                'success',
                 "✅ Wajah berhasil didaftarkan dari {$result['registered']} foto!"
             );
         }
 
-        return back()->with('error',
+        return back()->with(
+            'error',
             $result['detail'] ?? 'Gagal mendaftarkan wajah. Pastikan wajah terlihat jelas dan cukup cahaya.'
         );
     }
