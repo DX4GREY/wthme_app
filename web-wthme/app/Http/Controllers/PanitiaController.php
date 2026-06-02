@@ -77,8 +77,11 @@ class PanitiaController extends Controller
             'totalPesertaHadir',
             'totalPanitiaHadir',
             'totalSeluruhPeserta',
+            'pesertaHadirL', // <--- Pastikan ini ditambahkan
+            'pesertaHadirP',
             'totalSeluruhPanitia',
             'namaSesiAktif' // Tambahkan ini agar di view bisa muncul nama sesinya
+
         ));
     }
 
