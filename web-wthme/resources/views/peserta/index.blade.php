@@ -198,20 +198,20 @@
                             'desc' => 'Isi formulir kondisi kesehatan Anda',
                             'badge' => !$sudahIsiRiwayat ? ['val' => 'Wajib', 'color' => '#f59e0b'] : null,
                         ],
-                        [
-                            'route' => route('peserta.quest.index'),
-                            'icon' => '🧭',
-                            'title' => 'Quest Lab Elektro',
-                            'desc' => 'Jelajahi 4 Lab Elektro, kumpulkan selfie & menangkan bonus hingga 200 XP!',
-                            'badge' => null,
-                        ],
-                        [
-                            'route' => route('peserta.kekeluargaan.index'),
-                            'icon' => '👥',
-                            'title' => 'Quest Kekeluargaan',
-                            'desc' => 'Foto bersama rekan angkatan. Klaim +5 XP per teman!',
-                            'badge' => null,
-                        ],
+                        // [
+                        //     'route' => route('peserta.quest.index'),
+                        //     'icon' => '🧭',
+                        //     'title' => 'Quest Lab Elektro',
+                        //     'desc' => 'Jelajahi 4 Lab Elektro, kumpulkan selfie & menangkan bonus hingga 200 XP!',
+                        //     'badge' => null,
+                        // ],
+                        // [
+                        //     'route' => route('peserta.kekeluargaan.index'),
+                        //     'icon' => '👥',
+                        //     'title' => 'Quest Kekeluargaan',
+                        //     'desc' => 'Foto bersama rekan angkatan. Klaim +5 XP per teman!',
+                        //     'badge' => null,
+                        // ],
                     ];
                 @endphp
 
