@@ -228,6 +228,23 @@ class AbsensiController extends Controller
 
     public function updateStatusPeserta(Request $request)
     {
+        $userLogin = auth()->user();
+
+        // =============== KUNCI PENGAMAN AKSES ===============
+        // Cek apakah user adalah Admin, atau bagian dari divisi ACARA / KOMDIS
+        // Catatan: Sesuaikan tulisan 'admin', 'ACARA', 'KOMDIS' dengan data asli di databasemu (case-sensitive)
+        $isAdmin   = ($userLogin->role === 'admin' || $userLogin->divisi === 'admin');
+        $isAcara   = (strtoupper($userLogin->divisi) === 'ACARA');
+        $isKomdis  = (strtoupper($userLogin->divisi) === 'KOMDIS');
+
+        if (!$isAdmin && !$isAcara && !$isKomdis) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak! Hanya Admin, Divisi Acara, dan Komdis yang dapat mengubah absensi.'
+            ], 403); // Status 403: Forbidden
+        }
+        // ====================================================
+
         $request->validate([
             'user_id'        => 'required|exists:users,id',
             'qr_session_id'  => 'required|exists:qr_sessions,id',
@@ -243,7 +260,7 @@ class AbsensiController extends Controller
             ->first();
 
         if ($request->status === 'tidak_hadir') {
-            // Jika panitia merubah menjadi Tidak Hadir (Alfa), hapus log record dari database jika ada
+            // Jika dirubah menjadi Tidak Hadir (Alfa), hapus log record dari database jika ada
             if ($absensi) {
                 $absensi->delete();
             }
