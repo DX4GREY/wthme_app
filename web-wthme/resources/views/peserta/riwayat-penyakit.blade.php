@@ -28,12 +28,37 @@
                 <h1
                     style="font-family:'Playfair Display',serif; color:#002f45; font-size:2.5rem; font-weight:800; margin:0; letter-spacing:-0.02em;">
                     Riwayat Medis <span style="color:#6b705c; font-style:italic;">Peserta</span>
-                </h1>
+                    </h1>
                 <p
-                    style="color:#002f45; opacity:0.75; font-size:0.95rem; font-weight:500; line-height:1.6; font-family: 'Plus Jakarta Sans', sans-serif;">
-                    Silakan isi data medis di bawah ini dengan sebenar-benarnya. Seluruh kolom formulir bersifat
+                    style="color:#002f45; opacity:0.75; font-size:0.95rem; font-weight:500; line-height:1.6; font-family: 'Plus Jakarta Sans', sans-serif; margin-bottom: 1rem;">
+                    Silakan isi data medis di bawah ini dengan sebenar-benarnya. Seluruh kolom formulir
+                    bersifat
                     <strong>wajib diisi</strong> demi keselamatan Anda selama kegiatan berlangsung.
-                </p>
+                    </p>
+
+                {{-- Box Contact Person Tim Medis --}}
+                <div
+                    style="background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(5px); border-radius: 1rem; border: 1px solid rgba(0, 47, 69, 0.1); padding: 1rem 1.25rem; font-size: 0.85rem; color: #002f45; line-height: 1.5;">
+                    <div
+                        style="font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+                            viewBox="0 0 24 24">
+                            <path
+                                d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z">
+                            </path>
+                        </svg>
+                        Hubungi Tim Medis / P3K (Jika Ada Kendala):
+                    </div>
+                    <ul style="margin: 0; padding-left: 1.2rem; font-weight: 600; opacity: 0.9;">
+                        <li>Anis Dwi Yanti: <a href="https://wa.me/6281808295796" target="_blank"
+                                style="color: #002f45; text-decoration: none; font-weight: 700;">+62 818-0829-5796</a></li>
+                        <li>Muhammad Nelvin Junior: <a href="https://wa.me/6287871588815" target="_blank"
+                                style="color: #002f45; text-decoration: none; font-weight: 700;">+62 878-7158-8815</a></li>
+                        <li>Selvy Irawan: <a href="https://wa.me/6281288227546" target="_blank"
+                                style="color: #002f45; text-decoration: none; font-weight: 700;">+62 812-8822-7546</a></li>
+                    </ul>
+                </div>
+                
             </div>
 
             {{-- Notifikasi Error Validasi Global --}}
