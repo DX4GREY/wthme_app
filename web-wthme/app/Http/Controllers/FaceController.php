@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\FaceRecognitionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log; // 🌟 Ditambahkan untuk logging error internal
 
 class FaceController extends Controller
 {
@@ -31,7 +32,7 @@ class FaceController extends Controller
 
         foreach ($files as $i => $photo) {
             $multipart[] = [
-                'name'     => 'photos',
+                'name'     => 'photos[]', // 🟢 SELESAI! Ditambahkan tanda [] agar terbaca sebagai list[] oleh FastAPI
                 'contents' => fopen($photo->getRealPath(), 'r'),
                 'filename' => "face_{$i}.jpg",
                 'headers'  => ['Content-Type' => 'image/jpeg'],
@@ -48,10 +49,19 @@ class FaceController extends Controller
 
         } catch (\GuzzleHttp\Exception\ConnectException $e) {
             return back()->with('error', 'Tidak bisa terhubung ke server face recognition. Pastikan FastAPI sedang berjalan.');
+        } catch (\GuzzleHttp\Exception\ServerException $e) {
+            // 🌟 Menangkap error 500 dari FastAPI agar memunculkan pesan detail error aslinya (bukan sekadar teks error kosong)
+            $responseBody = $e->getResponse()->getBody()->getContents();
+            $errorData = json_decode($responseBody, true);
+            $detailMessage = $errorData['detail'] ?? 'Terjadi kesalahan sistem di server Face API.';
+            
+            Log::error("FastAPI Server Error: " . $responseBody);
+            return back()->with('error', 'Server Error (500): ' . $detailMessage);
         } catch (\Exception $e) {
             return back()->with('error', 'Error: ' . $e->getMessage());
         }
 
+        // Memastikan status respons sukses dari FastAPI
         if (isset($result['status']) && $result['status'] === 'ok') {
             $user->update([
                 'face_registered'    => true,
