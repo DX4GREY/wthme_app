@@ -193,7 +193,7 @@
             selectElement.style.backgroundColor = '#e2e8f0';
         }
 
-        fetch(`{{ url('/panitia/kesehatan') }}/${id}/update-pita`, {
+        fetch(`/panitia/kesehatan/${id}/update-pita`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
