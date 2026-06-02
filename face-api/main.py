@@ -4,7 +4,7 @@ import insightface
 from insightface.app import FaceAnalysis
 import numpy as np
 import faiss
-import json, os, io, threading
+import json, os, io, threading, traceback
 from PIL import Image
 
 app = FastAPI(root_path="/api-face")
@@ -23,9 +23,7 @@ ENCODINGS_DIR = "encodings"
 FAISS_PATH    = "encodings.faiss"
 IDMAP_PATH    = "id_map.json"
 EMBEDDING_DIM = 512
-# Cosine similarity threshold: score >= ini = cocok
-# 0.35 = agak longgar, 0.45 = ketat. Mulai dari 0.38 lalu tuning.
-THRESHOLD = 0.38
+THRESHOLD     = 0.38
 
 os.makedirs(ENCODINGS_DIR, exist_ok=True)
 
@@ -36,15 +34,14 @@ face_app = FaceAnalysis(
     name      = "buffalo_sc",
     providers = ["CPUExecutionProvider"]
 )
-# det_size 320x320 cukup untuk foto close-up gate
 face_app.prepare(ctx_id=0, det_size=(320, 320))
 
 # ─────────────────────────────────────────
 #  FAISS index (global, protected by lock)
 # ─────────────────────────────────────────
 lock        = threading.Lock()
-faiss_index = faiss.IndexFlatIP(EMBEDDING_DIM)  # Inner Product = cosine similarity jika L2-normalized
-id_map      = []   # id_map[i] = user_id untuk row ke-i di faiss_index
+faiss_index = faiss.IndexFlatIP(EMBEDDING_DIM)
+id_map      = [] 
 
 
 # ─────────────────────────────────────────
@@ -58,18 +55,24 @@ def normalize(v: np.ndarray) -> np.ndarray:
 
 
 def read_image(file: UploadFile) -> np.ndarray:
-    """Baca UploadFile → numpy array RGB."""
-    contents = file.file.read()
-    img = Image.open(io.BytesIO(contents)).convert("RGB")
-    return np.array(img)
+    """Baca UploadFile → numpy array RGB dengan penanganan error aman."""
+    try:
+        contents = file.file.read()
+        if not contents:
+            raise ValueError("File kosong atau stream biner rusak.")
+        
+        # Reset pointer file agar tidak mengganggu pembacaan ulang jika diperlukan
+        file.file.seek(0) 
+        
+        img = Image.open(io.BytesIO(contents)).convert("RGB")
+        return np.array(img)
+    except Exception as e:
+        print(f"[ERROR BACA GAMBAR] {str(e)}")
+        raise ValueError(f"Gagal memproses file {file.filename} menjadi gambar valid. Error: {str(e)}")
 
 
 def get_faces(img_array: np.ndarray) -> list:
-    """
-    Jalankan InsightFace pada gambar.
-    Return list of (normalized_embedding, bbox, detection_score).
-    Diurutkan dari detection_score tertinggi (wajah paling jelas).
-    """
+    """Jalankan InsightFace pada gambar."""
     faces = face_app.get(img_array)
     if not faces:
         return []
@@ -79,10 +82,7 @@ def get_faces(img_array: np.ndarray) -> list:
 
 
 def rebuild_index():
-    """
-    Rebuild FAISS index dari semua file JSON di folder encodings/.
-    Dipanggil setiap kali ada register/delete.
-    """
+    """Rebuild FAISS index dari semua file JSON di folder encodings/."""
     global faiss_index, id_map
 
     new_index = faiss.IndexFlatIP(EMBEDDING_DIM)
@@ -103,12 +103,13 @@ def rebuild_index():
     faiss_index = new_index
     id_map      = new_map
 
-    # Persist ke disk
-    faiss.write_index(faiss_index, FAISS_PATH)
-    with open(IDMAP_PATH, "w") as f:
-        json.dump(id_map, f)
-
-    print(f"[INDEX] Rebuilt: {faiss_index.ntotal} entries")
+    try:
+        faiss.write_index(faiss_index, FAISS_PATH)
+        with open(IDMAP_PATH, "w") as f:
+            json.dump(id_map, f)
+        print(f"[INDEX] Rebuilt: {faiss_index.ntotal} entries")
+    except Exception as e:
+        print(f"[CRITICAL PERMISSION ERROR] Tidak bisa menulis data index ke disk: {e}")
 
 
 # ─────────────────────────────────────────
@@ -117,10 +118,7 @@ def rebuild_index():
 
 @app.on_event("startup")
 async def startup():
-    # Load index dari disk jika ada
     rebuild_index()
-
-    # Warmup model — supaya request pertama tidak lambat
     print("[WARMUP] Warming up InsightFace...")
     dummy = np.zeros((320, 320, 3), dtype=np.uint8)
     face_app.get(dummy)
@@ -135,49 +133,72 @@ async def startup():
 async def register_face(user_id: int, photos: list[UploadFile] = File(...)):
     """
     Terima 3 foto wajah, simpan rata-rata embedding.
-    Otomatis overwrite jika user_id sudah pernah daftar.
+    Aman dari crash internal server (Error 500 ditangkap & dilaporkan).
     """
-    embeddings = []
-    failed     = []
+    try:
+        embeddings = []
+        failed     = []
 
-    for i, photo in enumerate(photos):
-        img   = read_image(photo)
-        faces = get_faces(img)
+        print(f"[REGISTER] Memproses pendaftaran untuk User ID: {user_id}. Jumlah foto: {len(photos)}")
 
-        if faces:
-            # Ambil wajah dengan detection score tertinggi
-            best_embedding = faces[0][0]
-            embeddings.append(best_embedding)
-            print(f"[REGISTER] Foto {i+1}: wajah terdeteksi, det_score={faces[0][2]:.3f}")
-        else:
-            failed.append(i + 1)
-            print(f"[REGISTER] Foto {i+1}: wajah tidak terdeteksi")
+        for i, photo in enumerate(photos):
+            try:
+                img   = read_image(photo)
+                faces = get_faces(img)
 
-    if len(embeddings) == 0:
+                if faces:
+                    best_embedding = faces[0][0]
+                    embeddings.append(best_embedding)
+                    print(f"[REGISTER] Foto {i+1} ({photo.filename}): Wajah terdeteksi, det_score={faces[0][2]:.3f}")
+                else:
+                    failed.append(photo.filename if photo.filename else f"Foto_{i+1}")
+                    print(f"[REGISTER] Foto {i+1} ({photo.filename}): Wajah TIDAK terdeteksi")
+            except Exception as img_err:
+                print(f"[REGISTER ERROR] Gagal membaca indeks foto ke-{i}: {str(img_err)}")
+                failed.append(photo.filename if photo.filename else f"Foto_{i+1} (Error)")
+
+        if len(embeddings) == 0:
+            raise HTTPException(
+                status_code = 422,
+                detail      = f"Gagal mendaftar. Dari {len(photos)} foto yang dikirim, tidak ada wajah yang terdeteksi secara jelas. Pastikan pencahayaan cukup."
+            )
+
+        # Hitung rata-rata wajah & simpan
+        avg_embedding = normalize(np.mean(embeddings, axis=0))
+
+        json_path = f"{ENCODINGS_DIR}/{user_id}.json"
+        
+        try:
+            with open(json_path, "w") as f:
+                json.dump(avg_embedding.tolist(), f)
+        except IOError as io_err:
+            raise HTTPException(
+                status_code = 500,
+                detail      = f"Gagal menulis file wajah di server AI. Periksa izin akses folder. Detail: {str(io_err)}"
+            )
+
+        with lock:
+            rebuild_index()
+
+        return {
+            "status"    : "ok",
+            "user_id"   : user_id,
+            "registered": len(embeddings),
+            "failed"    : failed,
+            "message"   : f"Wajah berhasil didaftarkan dari {len(embeddings)} foto."
+        }
+
+    except HTTPException as http_err:
+        # Kembalikan error HTTP FastAPI asli (seperti 422) tanpa merubahnya jadi 500
+        raise http_err
+    except Exception as e:
+        # Ambil tracking error lengkap jika script Python crash di baris tak terduga
+        error_lines = traceback.format_exc()
+        print(f"[CRASH REPORT SYSTEM]:\n{error_lines}")
         raise HTTPException(
-            status_code = 422,
-            detail      = "Tidak ada wajah terdeteksi di semua foto. Pastikan pencahayaan cukup dan wajah menghadap kamera."
+            status_code = 500,
+            detail      = f"Sistem Python Crash: {str(e)}. Terjadi pada bagian: {error_lines.splitlines()[-2]}"
         )
-
-    # Rata-ratakan semua embedding yang berhasil, lalu normalize ulang
-    avg_embedding = normalize(np.mean(embeddings, axis=0))
-
-    # Simpan ke JSON (source of truth)
-    json_path = f"{ENCODINGS_DIR}/{user_id}.json"
-    with open(json_path, "w") as f:
-        json.dump(avg_embedding.tolist(), f)
-
-    # Rebuild FAISS index
-    with lock:
-        rebuild_index()
-
-    return {
-        "status"    : "ok",
-        "user_id"   : user_id,
-        "registered": len(embeddings),
-        "failed"    : failed,
-        "message"   : f"Wajah berhasil didaftarkan dari {len(embeddings)}/{len(photos)} foto"
-    }
 
 
 # ─────────────────────────────────────────
@@ -186,83 +207,75 @@ async def register_face(user_id: int, photos: list[UploadFile] = File(...)):
 
 @app.post("/identify")
 async def identify_face(photo: UploadFile = File(...)):
-    """
-    Terima 1 foto, cari wajah paling mirip di FAISS index.
-    Return user_id + confidence jika cocok.
-    """
-    img   = read_image(photo)
-    faces = get_faces(img)
+    """Terima 1 foto, cari wajah paling mirip di FAISS index."""
+    try:
+        img   = read_image(photo)
+        faces = get_faces(img)
 
-    if not faces:
-        return {"found": False, "reason": "Wajah tidak terdeteksi di foto"}
+        if not faces:
+            return {"found": False, "reason": "Wajah tidak terdeteksi di foto"}
 
-    # Pakai wajah dengan detection score tertinggi
-    query_embedding = faces[0][0]
-    query           = np.array([query_embedding])
+        query_embedding = faces[0][0]
+        query           = np.array([query_embedding])
 
-    with lock:
-        if faiss_index.ntotal == 0:
-            return {"found": False, "reason": "Belum ada wajah terdaftar"}
+        with lock:
+            if faiss_index.ntotal == 0:
+                return {"found": False, "reason": "Belum ada wajah terdaftar di database"}
 
-        # Search top-1
-        scores, indices = faiss_index.search(query, k=1)
+            scores, indices = faiss_index.search(query, k=1)
 
-    score = float(scores[0][0])
-    idx   = int(indices[0][0])
+        score = float(scores[0][0])
+        idx   = int(indices[0][0])
 
-    print(f"[IDENTIFY] score={round(score,4)} | threshold={THRESHOLD} | idx={idx} | user_id={id_map[idx] if idx >= 0 else 'N/A'}")
+        print(f"[IDENTIFY] score={round(score,4)} | threshold={THRESHOLD} | user_id={id_map[idx] if idx >= 0 else 'N/A'}")
 
-    # score = cosine similarity (0.0–1.0), makin tinggi makin mirip
-    if idx >= 0 and score >= THRESHOLD:
-        matched_user_id = id_map[idx]
+        if idx >= 0 and score >= THRESHOLD:
+            matched_user_id = id_map[idx]
+            return {
+                "found"     : True,
+                "user_id"   : matched_user_id,
+                "confidence": round(score * 100, 1),
+                "distance"  : round(1 - score, 4),
+            }
+
         return {
-            "found"     : True,
-            "user_id"   : matched_user_id,
-            "confidence": round(score * 100, 1),
-            "distance"  : round(1 - score, 4),
+            "found" : False,
+            "reason": f"Wajah tidak cocok dengan data mana pun (score={round(score,4)}, butuh >={THRESHOLD})"
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gagal mengidentifikasi wajah: {str(e)}")
 
-    return {
-        "found" : False,
-        "reason": f"Wajah tidak cocok (score={round(score,4)}, butuh >={THRESHOLD})"
-    }
 
-# ─────────────────────────────────────────────────────────────────
-#  Tambahkan endpoint ini ke main.py, setelah endpoint /identify
-# ─────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────
+#  CHECK FACE — POST /check-face
+# ─────────────────────────────────────────
 
 @app.post("/check-face")
 async def check_face(photo: UploadFile = File(...)):
-    """
-    Cek apakah wajah terdeteksi di foto — TANPA compare ke database.
-    Dipakai oleh halaman pendaftaran peserta untuk validasi sebelum daftar.
+    """Cek apakah wajah terdeteksi di foto — TANPA compare ke database."""
+    try:
+        img   = read_image(photo)
+        faces = get_faces(img)
 
-    Return:
-      detected      : bool   — apakah ada wajah
-      face_count    : int    — jumlah wajah yang terdeteksi
-      quality_score : float  — skor kualitas 0.0–1.0 (dari det_score InsightFace)
-      reason        : str    — pesan jika tidak terdeteksi
-    """
-    img   = read_image(photo)
-    faces = get_faces(img)   # fungsi yang sudah ada di main.py
+        if not faces:
+            return {
+                "detected"     : False,
+                "face_count"   : 0,
+                "quality_score": None,
+                "reason"       : "Tidak ada wajah terdeteksi. Pastikan wajah menghadap kamera dan cahaya cukup.",
+            }
 
-    if not faces:
+        best_score = float(faces[0][2])
+
         return {
-            "detected"     : False,
-            "face_count"   : 0,
-            "quality_score": None,
-            "reason"       : "Tidak ada wajah terdeteksi. Pastikan wajah menghadap kamera dan cahaya cukup.",
+            "detected"     : True,
+            "face_count"   : len(faces),
+            "quality_score": round(best_score, 3),
+            "reason"       : None,
         }
+    except Exception as e:
+        return {"detected": False, "face_count": 0, "quality_score": None, "reason": f"File Rusak: {str(e)}"}
 
-    # Ambil det_score wajah terbaik (sudah diurutkan dari tertinggi)
-    best_score = float(faces[0][2])   # faces[0] = (embedding, bbox, det_score)
-
-    return {
-        "detected"     : True,
-        "face_count"   : len(faces),
-        "quality_score": round(best_score, 3),
-        "reason"       : None,
-    }
 
 # ─────────────────────────────────────────
 #  DELETE — DELETE /register/{user_id}
@@ -290,7 +303,7 @@ async def delete_face(user_id: int):
 
 @app.post("/reload-cache")
 async def reload_cache():
-    """Force rebuild index dari disk. Berguna setelah manual edit file."""
+    """Force rebuild index dari disk."""
     with lock:
         rebuild_index()
     return {"status": "ok", "total": faiss_index.ntotal}
