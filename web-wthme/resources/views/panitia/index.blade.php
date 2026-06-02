@@ -25,11 +25,25 @@
             </div>
 
             {{-- Statistik Grid (Glassmorphism Style) --}}
+            {{-- Statistik Grid (Glassmorphism Style) --}}
             <div
                 style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">
                 <div class="stat-glass">
                     <span class="stat-label">Peserta Hadir</span>
-                    <span class="stat-value">{{ $totalPesertaHadir }}</span>
+                    <span class="stat-value" style="margin-bottom: 0.5rem;">{{ $totalPesertaHadir }}</span>
+
+                    {{-- Detail Gender L & P --}}
+                    <div
+                        style="display: flex; gap: 1.25rem; border-top: 1px solid rgba(0, 47, 69, 0.1); padding-top: 0.5rem; font-size: 0.85rem; color: #002f45;">
+                        <div>
+                            <span style="opacity: 0.6;">Laki-laki (L):</span>
+                            <strong>{{ $pesertaHadirL }}</strong>
+                        </div>
+                        <div>
+                            <span style="opacity: 0.6;">Perempuan (P):</span>
+                            <strong>{{ $pesertaHadirP }}</strong>
+                        </div>
+                    </div>
                 </div>
                 <div class="stat-glass">
                     <span class="stat-label">Panitia Hadir</span>

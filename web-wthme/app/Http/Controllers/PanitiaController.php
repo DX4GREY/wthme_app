@@ -28,9 +28,22 @@ class PanitiaController extends Controller
 
         // 2. Logika Hitung (Hanya jika ada sesi, jika tidak ada set ke 0)
         if ($latestSession) {
-            $totalPesertaHadir = AbsensiPeserta::where('qr_session_id', $latestSession->id)
+            // Hitung total peserta Laki-laki yang hadir di sesi ini
+            $pesertaHadirL = AbsensiPeserta::where('qr_session_id', $latestSession->id)
                 ->where('status', 'hadir')
-                ->count();
+                ->whereHas('user', function ($query) {
+                    $query->where('gender', 'L');
+                })->count();
+
+            // Hitung total peserta Perempuan yang hadir di sesi ini
+            $pesertaHadirP = AbsensiPeserta::where('qr_session_id', $latestSession->id)
+                ->where('status', 'hadir')
+                ->whereHas('user', function ($query) {
+                    $query->where('gender', 'P');
+                })->count();
+
+            // Total keseluruhan peserta hadir
+            $totalPesertaHadir = $pesertaHadirL + $pesertaHadirP;
 
             $totalPanitiaHadir = AbsensiPanitia::where('qr_session_id', $latestSession->id)
                 ->where('status', 'hadir')
@@ -38,6 +51,8 @@ class PanitiaController extends Controller
 
             $namaSesiAktif = $latestSession->nama_sesi;
         } else {
+            $pesertaHadirL = 0;
+            $pesertaHadirP = 0;
             $totalPesertaHadir = 0;
             $totalPanitiaHadir = 0;
             $namaSesiAktif = "Belum ada sesi";
