@@ -92,6 +92,44 @@ class TugasController extends Controller
         return back()->with('success', 'Tugas berhasil dihapus.');
     }
 
+    /** MENOLAK TUGAS PESERTA (Hanya bisa diakses Admin, Divisi ACARA, & MENTOR) */
+    public function tolakTugas($id)
+    {
+        $userLogIn = auth()->user();
+
+        // Validasi Hak Akses di Sisi Server
+        $isAdmin = $userLogIn->role === 'admin';
+        $isDivisiValid = in_array(strtoupper($userLogIn->divisi ?? ''), ['ACARA', 'MENTOR']);
+
+        if (!$isAdmin && !$isDivisiValid) {
+            return back()->with('error', 'Anda tidak memiliki hak akses untuk menolak tugas peserta!');
+        }
+
+        try {
+            $pengumpulan = TugasPengumpulan::findOrFail($id);
+
+            // 1. Hapus file fisik dari storage server
+            $files = json_decode($pengumpulan->file_path, true);
+            if (is_array($files)) {
+                foreach ($files as $file) {
+                    if (isset($file['path'])) {
+                        Storage::disk('public')->delete($file['path']);
+                    }
+                }
+            } else {
+                Storage::disk('public')->delete($pengumpulan->file_path);
+            }
+
+            // 2. Hapus data record dari database
+            $pengumpulan->delete();
+
+            return back()->with('success', 'Tugas berhasil ditolak. Status pengumpulan peserta telah di-reset.');
+            
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal menolak tugas: ' . $e->getMessage());
+        }
+    }
+
     /** REKAP OPTIMIZED: Diurutkan berdasarkan kelompok secara natural numerik */
     public function rekap(Request $request)
     {
@@ -195,7 +233,6 @@ class TugasController extends Controller
         return response()->json(['files' => $formattedFiles]);
     }
 
-    /** MENGIKUTI LINK DI MODAL: Download berkas tunggal yang dipilih dari dalam pop-up modal */
     /** MENGIKUTI LINK DI MODAL: Membuka/Preview berkas tunggal di tab baru */
     public function downloadSingleFile($id, $fileIndex)
     {
@@ -203,7 +240,6 @@ class TugasController extends Controller
             $p = TugasPengumpulan::findOrFail($id);
             $files = json_decode($p->file_path, true);
 
-            // Jika formatnya berupa array file JSON (Multi-upload)
             if (is_array($files) && isset($files[$fileIndex])) {
                 $targetFile = $files[$fileIndex];
                 $fullPath = Storage::disk('public')->path($targetFile['path']);
@@ -212,7 +248,6 @@ class TugasController extends Controller
                     return back()->with('error', 'Berkas fisik tidak ditemukan di server.');
                 }
 
-                // Deteksi Mime-Type secara otomatis (e.g., application/pdf, image/jpeg)
                 $mimeType = mime_content_type($fullPath);
 
                 return response()->file($fullPath, [
@@ -221,7 +256,6 @@ class TugasController extends Controller
                 ]);
             }
 
-            // Fallback jika berupa string path tunggal lama
             if (!is_array($files) && Storage::disk('public')->exists($p->file_path)) {
                 $fullPath = Storage::disk('public')->path($p->file_path);
                 $mimeType = mime_content_type($fullPath);
@@ -238,10 +272,8 @@ class TugasController extends Controller
         }
     }
 
-    /** SEAMLESS DOWNLOAD ZIP KOLEKTIF / BACKUP ROUTE */
     public function downloadFile($id, $fileIndex)
     {
-        // Kita arahkan fungsi ini agar perilakunya sama persis dengan downloadSingleFile
         return $this->downloadSingleFile($id, $fileIndex);
     }
 

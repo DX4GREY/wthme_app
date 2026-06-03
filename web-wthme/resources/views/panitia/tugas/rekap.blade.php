@@ -26,6 +26,18 @@
 <div style="min-height:calc(100vh - 64px); padding:2rem 1.5rem; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
     <div style="max-width:1400px; margin:0 auto;">
 
+        {{-- Flash Message Notifikasi Berhasil/Gagal --}}
+        @if(session('success'))
+            <div style="background: #dcfce7; color: #15803d; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid #bbf7d0; font-weight: 600; font-size: 0.95rem;">
+                ✅ {{ session('success') }}
+            </div>
+        @endif
+        @if(session('error'))
+            <div style="background: #fee2e2; color: #b91c1c; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid #fca5a5; font-weight: 600; font-size: 0.95rem;">
+                ⚠️ {{ session('error') }}
+            </div>
+        @endif
+
         {{-- Header Section --}}
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2.5rem; flex-wrap:wrap; gap:1.5rem;">
             <div>
@@ -210,8 +222,19 @@
         <div id="modalFileList" style="display:flex; flex-direction:column; gap:0.75rem; max-height:280px; overflow-y:auto; padding-right:0.25rem;" class="custom-scroll">
         </div>
 
+        {{-- Form Hidden untuk Tolak Tugas (Hanya untuk Admin, Divisi ACARA, & MENTOR) --}}
+        @if(auth()->user()->role === 'admin' || in_array(strtoupper(auth()->user()->divisi ?? ''), ['ACARA', 'MENTOR']))
+            <form id="formTolakTugas" method="POST" action="" onsubmit="return confirm('Apakah Anda yakin ingin MENOLAK dan MENGHAPUS tugas ini? Peserta harus mengunggah ulang kembali.')" style="margin-top: 1.25rem; border-top: 1px dashed #e2e8f0; padding-top: 1.25rem;">
+                @csrf
+                @method('DELETE')
+                <button type="submit" style="width: 100%; padding: 0.6rem; background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; border-radius: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#fca5a5'" onmouseout="this.style.background='#fee2e2'">
+                    🛑 Tolak Tugas & Hapus Berkas
+                </button>
+            </form>
+        @endif
+
         {{-- Opsi Action Button Bawah --}}
-        <div style="margin-top:1.75rem; display:flex; gap:0.75rem;">
+        <div style="margin-top:1rem; display:flex; gap:0.75rem;">
             <a id="downloadAllZip" href="#" style="flex:1.5; text-align:center; padding:0.75rem 1rem; background:#002f45; color:#d2c296; border-radius:12px; text-decoration:none; font-size:0.85rem; font-weight:700; display:flex; align-items:center; justify-content:center; gap:0.5rem; box-shadow:0 4px 12px rgba(0, 47, 69, 0.15);">
                 📦 Download Zip (.zip)
             </a>
@@ -230,15 +253,20 @@ function openDetailModal(namaPeserta, namaTugas, pengumpulanId) {
     const container = document.getElementById('modalFileList');
     container.innerHTML = '<p style="font-size:0.85rem; color:#64748b; text-align:center; padding:2rem 0;">⏳ Mengambil data berkas...</p>';
     
-    // 1. Ambil Base URL secara dinamis agar anti-error biarpun pake subfolder / port custom
     const baseUrl = "{{ url('/') }}";
     
-    // 2. Set route zip yang benar sesuai web.php (nama route 'download')
+    // Set route zip yang benar sesuai web.php
     document.getElementById('downloadAllZip').href = `${baseUrl}/panitia/tugas/download/${pengumpulanId}`;
+    
+    // Set form action tolak tugas (hanya jika element-nya dirender/ada)
+    const formTolak = document.getElementById('formTolakTugas');
+    if (formTolak) {
+        formTolak.action = `${baseUrl}/panitia/tugas/tolak/${pengumpulanId}`;
+    }
     
     document.getElementById('detailFileModal').style.display = 'flex';
 
-    // 3. Panggil endpoint internal /panitia/tugas/files-json/{id} secara presisi tanpa embel-embel /api
+    // Panggil endpoint internal /panitia/tugas/files-json/{id}
     fetch(`${baseUrl}/panitia/tugas/files-json/${pengumpulanId}`)
         .then(res => {
             if (!res.ok) throw new Error("HTTP error " + res.status);
@@ -252,7 +280,6 @@ function openDetailModal(namaPeserta, namaTugas, pengumpulanId) {
                 return;
             }
             
-            // 4. Render berkas tunggal lengkap dengan target="_blank" untuk membuka di tab baru
             data.files.forEach(file => {
                 container.innerHTML += `
                     <div style="display:flex; align-items:center; justify-content:space-between; background:#f8fafc; padding:0.75rem 1rem; border-radius:12px; border:1px solid #e2e8f0; gap:1rem;">

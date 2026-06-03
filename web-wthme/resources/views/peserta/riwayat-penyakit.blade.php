@@ -269,7 +269,7 @@
                                 Obat). Jika tidak memiliki berkas riwayat penyakit, silakan unggah foto kertas kosong atau
                                 tangkapan layar bertuliskan "Tidak Ada".</span>
                         </div>
-                        <input type="file" name="bukti_kesehatan" accept="image/*,application/pdf" required
+                        <input type="file" name="bukti_kesehatan" accept="image/*,application/pdf"
                             style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.5); border:1px solid rgba(0,47,69,0.15); border-radius:0.85rem; font-size:0.9rem; color:#002f45; font-weight:600; font-family: 'Plus Jakarta Sans', sans-serif;">
 
                         @if ($data && $data->bukti_kesehatan)

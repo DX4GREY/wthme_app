@@ -151,6 +151,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/export',        [TugasController::class, 'exportRekap'])->name('export');
             Route::get('/files-json/{id}', [TugasController::class, 'getFilesJson'])->name('files-json');
             Route::get('/file/download/{id}/{fileIndex}', [TugasController::class, 'downloadSingleFile'])->name('download-single');
+            Route::delete('/tolak/{id}', [TugasController::class, 'tolakTugas'])->name('tugas.tolak');
         });
 
         // NOTULENSI
