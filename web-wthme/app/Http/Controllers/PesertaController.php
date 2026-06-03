@@ -50,7 +50,7 @@ class PesertaController extends Controller
         $jumlahHadir = AbsensiPeserta::where('user_id', $user->id)
             ->where('status', 'hadir')
             ->count();
-        $poinAbsen = $jumlahHadir * 100;
+        $poinAbsen = $jumlahHadir * 300;
 
         // Aspek 2: Perhitungan Keaktifan Acara
         $poinKeaktifan = DB::table('poin_keaktifan')
@@ -75,7 +75,7 @@ class PesertaController extends Controller
                         // KONDISI SEBELUM DEADLINE (SISTEM BONUS PER 12 JAM)
                         $sisaWaktuJam = ($waktuDeadline - $waktuKumpul) / 3600;
                         $kelipatanBonus = floor($sisaWaktuJam / 12);
-                        $bonusPoin = $kelipatanBonus * 5;
+                        $bonusPoin = $kelipatanBonus * 10;
                         
                         $poinTugas += ($basePoin + $bonusPoin);
                     } else {
