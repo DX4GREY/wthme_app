@@ -130,7 +130,7 @@
                                 <span class="history-title">📌 {{ $men->nama_kegiatan }}</span>
                                 <span class="history-date">📅 {{ date('d M Y', strtotime($men->tanggal)) }}</span>
                             </div>
-                            @if (auth()->user()->role === 'bendahara' || auth()->user()->role === 'admin')
+                            @if (auth()->user()->role === 'mentor' || auth()->user()->role === 'admin')
                                 <form method="POST" action="{{ route('panitia.mentoring.destroy', $men->id) }}" onsubmit="return confirm('Hapus seluruh catatan kegiatan ini?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="delete-link">🗑️ Hapus</button>
@@ -171,7 +171,7 @@
                                             </td>
                                             <td style="font-style: italic; font-size: 0.8rem; opacity: 0.7;">{{ $det->keterangan ?? '—' }}</td>
                                             <td style="text-align: center;">
-                                                @if (auth()->user()->role === 'bendahara' || auth()->user()->role === 'admin')
+                                                @if (auth()->user()->role === 'mentor' || auth()->user()->role === 'admin')
                                                     <button onclick="openEditModal('{{ $det->id }}', '{{ $det->kehadiran }}', '{{ $det->keterangan }}')" class="edit-mini-btn">
                                                         ✏️ Edit
                                                     </button>
