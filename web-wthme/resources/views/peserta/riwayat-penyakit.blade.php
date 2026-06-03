@@ -28,13 +28,13 @@
                 <h1
                     style="font-family:'Playfair Display',serif; color:#002f45; font-size:2.5rem; font-weight:800; margin:0; letter-spacing:-0.02em;">
                     Riwayat Medis <span style="color:#6b705c; font-style:italic;">Peserta</span>
-                    </h1>
+                </h1>
                 <p
                     style="color:#002f45; opacity:0.75; font-size:0.95rem; font-weight:500; line-height:1.6; font-family: 'Plus Jakarta Sans', sans-serif; margin-bottom: 1rem;">
                     Silakan isi data medis di bawah ini dengan sebenar-benarnya. Seluruh kolom formulir
                     bersifat
                     <strong>wajib diisi</strong> demi keselamatan Anda selama kegiatan berlangsung.
-                    </p>
+                </p>
 
                 {{-- Box Contact Person Tim Medis --}}
                 <div
@@ -58,7 +58,7 @@
                                 style="color: #002f45; text-decoration: none; font-weight: 700;">+62 812-8822-7546</a></li>
                     </ul>
                 </div>
-                
+
             </div>
 
             {{-- Notifikasi Error Validasi Global --}}
@@ -261,14 +261,18 @@
                     <div>
                         <label
                             style="display:block; font-size:0.85rem; font-weight:800; color:#002f45; margin-bottom:0.6rem; text-transform:uppercase; letter-spacing:0.04em; line-height:1.5; font-family: 'Plus Jakarta Sans', sans-serif;">
-                            Bukti Riwayat Penyakit <span style="color:#ef4444;">*</span>
+                            Bukti Riwayat Penyakit <span
+                                style="color:#6b705c; font-size:0.75rem; font-weight:600; text-transform:lowercase;">(Opsional)</span>
                         </label>
                         <div
                             style="background: rgba(0, 47, 69, 0.05); padding: 1rem 1.25rem; border-left: 4px solid #6b705c; border-radius: 0.5rem 1rem 1rem 0.5rem; font-size:0.825rem; color:#002f45; line-height:1.6; margin-bottom:0.85rem; font-family: 'Plus Jakarta Sans', sans-serif;">
-                            <span style="opacity: 0.8;">Penting menyertakan bukti riwayat penyakit (Surat Dokter/Foto
-                                Obat). Jika tidak memiliki berkas riwayat penyakit, silakan unggah foto kertas kosong atau
-                                tangkapan layar bertuliskan "Tidak Ada".</span>
+                            <span style="opacity: 0.8;">Jika ada, silakan sertakan bukti riwayat penyakit (Surat
+                                Dokter/Foto Obat) dengan format Gambar atau PDF. Jika tidak memiliki riwayat penyakit atau
+                                tidak ada berkas, kolom ini <strong>boleh dikosongkan</strong>. <strong
+                                    style="color: #991b1b;">(Maksimal ukuran file: 5 MB)</strong></span>
                         </div>
+
+                        {{-- 🔴 PERBAIKAN: Menghapus atribut 'required' agar bisa dilewati --}}
                         <input type="file" name="bukti_kesehatan" accept="image/*,application/pdf"
                             style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.5); border:1px solid rgba(0,47,69,0.15); border-radius:0.85rem; font-size:0.9rem; color:#002f45; font-weight:600; font-family: 'Plus Jakarta Sans', sans-serif;">
 
