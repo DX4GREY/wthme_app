@@ -50,12 +50,36 @@ class PanitiaController extends Controller
                 ->count();
 
             $namaSesiAktif = $latestSession->nama_sesi;
+
+            // 🟢 LOGIKA BARU: Ambil rincian data kelompok yang HADIR PADA SESI INI
+            // Ambil semua data absensi peserta yang hadir di sesi ini beserta data relasi usernya
+            $absensiSesiAktif = AbsensiPeserta::where('qr_session_id', $latestSession->id)
+                ->where('status', 'hadir')
+                ->with('user') // Pastikan model AbsensiPeserta memiliki relasi function user()
+                ->get();
+
+            // Kelompokkan user yang hadir berdasarkan kolom 'kelompok' mereka
+            $detailKelompok = $absensiSesiAktif->groupBy(function($absensi) {
+                    return $absensi->user->kelompok ?? 'Tanpa Kelompok';
+                })
+                ->map(function ($items, $namaKelompok) {
+                    return [
+                        'nama'  => is_numeric($namaKelompok) ? 'Kelompok ' . $namaKelompok : $namaKelompok,
+                        'L'     => $items->where('user.gender', 'L')->count(),
+                        'P'     => $items->where('user.gender', 'P')->count(),
+                        'total' => $items->count()
+                    ];
+                })
+                ->sortBy('nama') // Urutkan alfabetis Kelompok 1, Kelompok 2, dst.
+                ->values();
+
         } else {
             $pesertaHadirL = 0;
             $pesertaHadirP = 0;
             $totalPesertaHadir = 0;
             $totalPanitiaHadir = 0;
             $namaSesiAktif = "Belum ada sesi";
+            $detailKelompok = collect(); // Kosongkan jika belum ada sesi
         }
 
         $totalSeluruhPeserta = User::where('role', 'peserta')->count();
@@ -77,15 +101,15 @@ class PanitiaController extends Controller
             'totalPesertaHadir',
             'totalPanitiaHadir',
             'totalSeluruhPeserta',
-            'pesertaHadirL', // <--- Pastikan ini ditambahkan
+            'pesertaHadirL', 
             'pesertaHadirP',
             'totalSeluruhPanitia',
-            'namaSesiAktif' // Tambahkan ini agar di view bisa muncul nama sesinya
-
+            'namaSesiAktif',
+            'detailKelompok' // 🟢 Pastikan variabel detailKelompok di-passing ke View
         ));
     }
 
-    // Tambahkan method ini di dalam class
+    // ... method storeLink, destroyLink, dll ke bawah tetap sama dan tidak perlu diubah ...
     public function storeLink(Request $request)
     {
         $request->validate([
@@ -104,7 +128,6 @@ class PanitiaController extends Controller
         return back()->with('success', 'Link berhasil dihapus!');
     }
 
-    // Fungsi untuk menyimpan pengumuman buat peserta
     public function storeInfoPeserta(Request $request)
     {
         $request->validate([
@@ -118,7 +141,6 @@ class PanitiaController extends Controller
         return back()->with('success', 'Pengumuman telah terkirim ke portal peserta!');
     }
 
-    // Fungsi untuk menghapus pengumuman
     public function destroyInfoPeserta($id)
     {
         InformasiPeserta::findOrFail($id)->delete();

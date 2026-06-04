@@ -32,18 +32,100 @@
                     <span class="stat-label">Peserta Hadir</span>
                     <span class="stat-value" style="margin-bottom: 0.5rem;">{{ $totalPesertaHadir }}</span>
 
-                    {{-- Detail Gender L & P --}}
-                    <div
-                        style="display: flex; gap: 1.25rem; border-top: 1px solid rgba(0, 47, 69, 0.1); padding-top: 0.5rem; font-size: 0.85rem; color: #002f45;">
-                        <div>
-                            <span style="opacity: 0.6;">Laki-laki (L):</span>
-                            <strong>{{ $pesertaHadirL }}</strong>
+                    {{-- Detail Gender & Rincian Kelompok Terfilter Sesi Aktif --}}
+                    <div style="border-top: 1px solid rgba(0, 47, 69, 0.1); padding-top: 0.75rem; color: #002f45;">
+
+                        {{-- Baris Akumulasi Total Gender Sesi Ini --}}
+                        <div style="display: flex; gap: 1.5rem; font-size: 0.85rem; margin-bottom: 0.75rem;">
+                            <div>
+                                <span style="opacity: 0.6;">Total L Hadir:</span>
+                                <strong>{{ $pesertaHadirL }}</strong>
+                            </div>
+                            <div>
+                                <span style="opacity: 0.6;">Total P Hadir:</span>
+                                <strong>{{ $pesertaHadirP }}</strong>
+                            </div>
                         </div>
-                        <div>
-                            <span style="opacity: 0.6;">Perempuan (P):</span>
-                            <strong>{{ $pesertaHadirP }}</strong>
+
+                        {{-- Dropdown Toggle Detail Kelompok --}}
+                        <div style="border-top: 1px solid rgba(0, 47, 69, 0.05); padding-top: 0.5rem;">
+                            <button onclick="toggleDetailKelompok()" id="btn-toggle-kelompok"
+                                style="background: none; border: none; padding: 0; color: #6b705c; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.25rem; width: 100%; transition: color 0.2s;">
+                                <span>Rincian Hadir Per Kelompok</span>
+                                <span id="arrow-kelompok"
+                                    style="transition: transform 0.2s; display: inline-block;">▸</span>
+                            </button>
+
+                            {{-- Kontainer Dropdown Kelompok --}}
+                            <div id="detail-kelompok-container"
+                                style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out, margin-top 0.3s ease-out; font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.4rem;">
+
+                                @if (isset($detailKelompok) && $detailKelompok->count() > 0)
+                                    @foreach ($detailKelompok as $kelompok)
+                                        <div
+                                            style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 47, 69, 0.03); padding: 0.45rem 0.75rem; border-radius: 0.5rem; border: 1px solid rgba(0,47,69,0.02);">
+                                            <span style="font-weight: 600;">{{ $kelompok['nama'] }}</span>
+                                            <div style="display: flex; gap: 0.75rem; opacity: 0.85;">
+                                                <span>L: <strong>{{ $kelompok['L'] }}</strong></span>
+                                                <span>P: <strong>{{ $kelompok['P'] }}</strong></span>
+                                                <span
+                                                    style="border-left: 1px solid rgba(0,47,69,0.15); padding-left: 0.5rem; color: #002f45; font-weight: 700;">
+                                                    Total: {{ $kelompok['total'] }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <div style="color: #6b705c; font-style: italic; padding: 0.5rem 0;">
+                                        Belum ada data kelompok yang hadir di sesi ini.
+                                    </div>
+                                @endif
+
+                            </div>
                         </div>
                     </div>
+
+                    <script>
+                        function toggleDetailKelompok() {
+                            const container = document.getElementById('detail-kelompok-container');
+                            const arrow = document.getElementById('arrow-kelompok');
+                            const btn = document.getElementById('btn-toggle-kelompok');
+
+                            if (container.style.maxHeight === '0px' || !container.style.maxHeight) {
+                                container.style.marginTop = '0.5rem';
+                                container.style.maxHeight = container.scrollHeight + "px";
+                                arrow.style.transform = 'rotate(90deg)';
+                                btn.style.color = '#002f45';
+                            } else {
+                                container.style.maxHeight = '0px';
+                                container.style.marginTop = '0px';
+                                arrow.style.transform = 'rotate(0deg)';
+                                btn.style.color = '#6b705c';
+                            }
+                        }
+                    </script>
+
+                    <script>
+                        function toggleDetailKelompok() {
+                            const container = document.getElementById('detail-kelompok-container');
+                            const arrow = document.getElementById('arrow-kelompok');
+                            const btn = document.getElementById('btn-toggle-kelompok');
+
+                            if (container.style.maxHeight === '0px' || !container.style.maxHeight) {
+                                // Buka dropdown (Menyesuaikan dengan total tinggi konten dinamis)
+                                container.style.marginTop = '0.5rem';
+                                container.style.maxHeight = container.scrollHeight + "px";
+                                arrow.style.transform = 'rotate(90deg)';
+                                btn.style.color = '#002f45';
+                            } else {
+                                // Tutup dropdown
+                                container.style.maxHeight = '0px';
+                                container.style.marginTop = '0px';
+                                arrow.style.transform = 'rotate(0deg)';
+                                btn.style.color = '#6b705c';
+                            }
+                        }
+                    </script>
                 </div>
                 <div class="stat-glass">
                     <span class="stat-label">Panitia Hadir</span>
