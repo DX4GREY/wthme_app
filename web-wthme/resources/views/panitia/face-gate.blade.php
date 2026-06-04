@@ -32,7 +32,7 @@
                 Face <span style="color:#6b705c; font-style:italic;">Gate</span>
             </h2>
             <p style="color:#002f45; opacity:0.6; font-size:0.9rem; margin-top:0.4rem;">
-                Absensi otomatis via pengenalan wajah
+                Absensi otomatis via pengenalan wajah (Mode Tanpa Jeda)
             </p>
         </div>
 
@@ -50,7 +50,6 @@
                         style="width:100%; padding:0.7rem 1rem; border-radius:0.75rem; border:1px solid rgba(0,47,69,0.2); background:white; color:#002f45; font-size:0.9rem;">
                         <option value="" style="color:#002f45; background:white;">-- Pilih Sesi --</option>
                         @foreach ($sesiList as $session)
-                            {{-- Menggunakan nama_sesi sesuai kolom database --}}
                             <option value="{{ $session->id }}" style="color:#002f45; background:white;">
                                 {{ $session->nama_sesi }}
                             </option>
@@ -131,14 +130,15 @@
         const counterBadge = document.getElementById('counterBadge');
         const sessionSelect = document.getElementById('sessionSelect');
 
-        const SCAN_INTERVAL = 2500;
-        const SUCCESS_COOLDOWN = 4000;
+        // TIMING EKSTREM (Sangat Cepat & Tanpa Jeda Penahan)
+        const SCAN_INTERVAL = 200; // Menembak kamera & scan tiap 0.2 detik sekali (5x dalam sedetik)
 
         let scanTimer = null;
         let attendedCount = 0;
         let isProcessing = false;
         const loggedIds = new Set();
 
+        // Akses kamera bawaan perangkat
         navigator.mediaDevices.getUserMedia({
             video: {
                 facingMode: 'user',
@@ -151,25 +151,32 @@
             alert('Kamera tidak bisa diakses.');
         });
 
+        // Pengatur gaya kotak status & lampu kilat (flash) kamera instan
         function setStatus(msg, type = 'neutral') {
             statusText.textContent = msg;
             const box = document.getElementById('statusBox');
-            box.style.background = type === 'success' ? 'rgba(16,185,129,0.12)' :
-                type === 'error' ? 'rgba(239,68,68,0.10)' :
-                type === 'warning' ? 'rgba(234,179,8,0.10)' :
+            
+            // Ubah warna kotak teks background secara instan
+            box.style.background = type === 'success' ? 'rgba(16,185,129,0.15)' :
+                type === 'error' ? 'rgba(239,68,68,0.15)' :
+                type === 'warning' ? 'rgba(234,179,8,0.15)' :
                 'rgba(0,47,69,0.07)';
 
-            scanOverlay.style.display = type === 'success' ? 'block' : 'none';
-            errorOverlay.style.display = type === 'error' ? 'block' : 'none';
-
-            if (type === 'success' || type === 'error') {
-                setTimeout(() => {
-                    scanOverlay.style.display = 'none';
-                    errorOverlay.style.display = 'none';
-                }, 2000);
+            // Sistem FLASH instan: Border menyala hanya saat status diubah, 
+            // dan akan langsung dimatikan pada jepretan berikutnya (tanpa timer penahan)
+            if (type === 'success') {
+                scanOverlay.style.display = 'block';
+                errorOverlay.style.display = 'none';
+            } else if (type === 'error') {
+                errorOverlay.style.display = 'block';
+                scanOverlay.style.display = 'none';
+            } else {
+                scanOverlay.style.display = 'none';
+                errorOverlay.style.display = 'none';
             }
         }
 
+        // Fungsi mencetak log ke panel kanan secara dinamis
         function addLog(data) {
             const placeholder = logList.querySelector('p');
             if (placeholder) placeholder.remove();
@@ -189,7 +196,7 @@
             const item = document.createElement('div');
             item.style.cssText = `
                 background:${bgColor}; border:1px solid ${border}; border-radius:0.75rem;
-                padding:0.65rem 0.9rem; animation:fadeIn 0.3s ease;
+                padding:0.65rem 0.9rem; animation:fadeIn 0.15s ease;
             `;
             item.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -210,7 +217,9 @@
             }
         }
 
+        // Fungsi scan super cepat
         async function captureAndIdentify() {
+            // Jika server AI masih memproses foto sebelumnya, lewati jepretan ini agar tidak macet
             if (isProcessing) return;
 
             const sessionId = sessionSelect.value;
@@ -220,13 +229,13 @@
             }
 
             isProcessing = true;
-            setStatus('🔍 Memindai wajah...', 'neutral');
 
             try {
                 ctx.drawImage(video, 0, 0, 640, 480);
 
+                // Kompresi diturunkan ke 0.65 agar ukuran file sangat ringan (kirim super instan ke server)
                 const blob = await new Promise(resolve =>
-                    canvas.toBlob(resolve, 'image/jpeg', 0.88)
+                    canvas.toBlob(resolve, 'image/jpeg', 0.65)
                 );
 
                 const formData = new FormData();
@@ -246,31 +255,24 @@
                             loggedIds.add(data.user_name);
                             addLog(data);
                         }
-                        setStatus(`🔁 ${data.user_name} sudah absen sebelumnya`, 'warning');
+                        setStatus(`🔁 ${data.user_name} sudah absen`, 'warning');
                     } else {
+                        // SUKSES: Langsung cetak log, nyalakan status sukses instan tanpa merusak loop
                         loggedIds.add(data.user_name);
                         addLog(data);
-                        setStatus(`✅ Selamat datang, ${data.user_name}!`, 'success');
-
-                        clearInterval(scanTimer);
-                        setTimeout(() => {
-                            if (stopBtn.style.display !== 'none') {
-                                startScanLoop();
-                            }
-                        }, SUCCESS_COOLDOWN);
-                        isProcessing = false;
-                        return;
+                        setStatus(`✅ ${data.user_name} Sukses!`, 'success');
                     }
                 } else if (data.fallback) {
-                    setStatus('👤 Tidak ada wajah terdeteksi, arahkan ke kamera', 'neutral');
+                    setStatus('🔍 Mencari wajah...', 'neutral');
                 } else {
-                    setStatus(`❌ ${data.message ?? 'Wajah tidak dikenali'}`, 'error');
+                    setStatus('❌ Wajah tidak dikenali', 'error');
                 }
 
             } catch (err) {
-                setStatus('⚠️ Koneksi error: ' + err.message, 'error');
+                setStatus('⚠️ Error koneksi', 'error');
             }
 
+            // Langsung buka gembok, 0.2 detik kemudian kamera siap menembak lagi
             isProcessing = false;
         }
 
@@ -278,6 +280,7 @@
             scanTimer = setInterval(captureAndIdentify, SCAN_INTERVAL);
         }
 
+        // Tombol Mulai
         startBtn.addEventListener('click', () => {
             if (!sessionSelect.value) {
                 alert('Pilih sesi absensi terlebih dahulu!');
@@ -285,17 +288,19 @@
             }
             startBtn.style.display = 'none';
             stopBtn.style.display = 'block';
-            setStatus('🟢 Scan berjalan — arahkan wajah ke kamera', 'neutral');
+            setStatus('🟢 Scan Aktif', 'neutral');
             captureAndIdentify();
             startScanLoop();
         });
 
+        // Tombol Stop
         stopBtn.addEventListener('click', () => {
             clearInterval(scanTimer);
             scanTimer = null;
             stopBtn.style.display = 'none';
             startBtn.style.display = 'block';
             setStatus('⏹ Scan dihentikan.', 'neutral');
+            isProcessing = false;
         });
     </script>
 @endsection
