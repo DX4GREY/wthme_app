@@ -97,6 +97,7 @@
                                                     $userLogin->divisi === 'admin' || 
                                                     strtoupper($userLogin->divisi) === 'ACARA' || 
                                                     strtoupper($userLogin->divisi) === 'KOMDIS'
+                                                    strtoupper($userLogin->divisi) === 'MENTOR'
                                                 );
                                             @endphp
 
