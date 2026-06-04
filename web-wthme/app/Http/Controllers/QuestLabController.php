@@ -228,4 +228,74 @@ class QuestLabController extends Controller
 
         return redirect()->back()->with('error', 'Data foto tidak ditemukan.');
     }
+
+    /**
+     * Proses ACC SEMUA Antrean Quest yang Masih Pending Sekaligus
+     */
+    public function approveAll()
+    {
+        // 1. Validasi hak akses divisi acara
+        if (!Auth::user()->isAcara()) {
+            return back()->with('error', 'Akses ditolak.');
+        }
+
+        // 2. Ambil semua quest lab yang statusnya masih 'pending'
+        $pendingQuests = QuestLab::where('status', 'pending')->get();
+
+        if ($pendingQuests->isEmpty()) {
+            return back()->with('info', 'Tidak ada antrean quest yang perlu disetujui.');
+        }
+
+        // 3. Loop satu per satu dan jalankan logika kalkulasi poin keaktifan
+        foreach ($pendingQuests as $quest) {
+            $quest->status = 'approved';
+            $quest->save();
+
+            $userId = $quest->user_id;
+
+            // Periksa apakah seluruh 4 lab milik user ini sudah disetujui sepenuhnya
+            $totalApproved = QuestLab::where('user_id', $userId)->where('status', 'approved')->count();
+
+            if ($totalApproved === 4) {
+                // Validasi apakah user sudah pernah mendapatkan poin quest agar tidak terjadi duplikasi nilai
+                $sudahDapatPoin = PoinKeaktifan::where('peserta_id', $userId)
+                    ->where('keterangan', 'LIKE', 'Menyelesaikan Quest 4 Lab Elektro%')
+                    ->exists();
+
+                if (!$sudahDapatPoin) {
+                    // Ambil catatan waktu pengiriman berkas lab terakhir milik user ini
+                    $waktuSelesaiUser = QuestLab::where('user_id', $userId)->max('submitted_at');
+
+                    // Hitung berapa banyak peserta lain yang sudah berstatus FULL APPROVED yang lebih cepat
+                    $pesertaLebihCepat = User::where('role', 'peserta')
+                        ->get()
+                        ->filter(function ($u) use ($waktuSelesaiUser) {
+                            $labs = QuestLab::where('user_id', $u->id)->where('status', 'approved')->get();
+                            if ($labs->count() !== 4) return false;
+                            return $labs->max('submitted_at') < $waktuSelesaiUser;
+                        })->count();
+
+                    $peringkat = $pesertaLebihCepat + 1;
+
+                    // Penentuan bobot nilai peringkat terkompresi
+                    if ($peringkat <= 10) {
+                        $poin = 200 - (($peringkat - 1) * 10);
+                    } else {
+                        $poin = 100;
+                    }
+
+                    // Inject langsung ke database poin_keaktifan
+                    PoinKeaktifan::create([
+                        'peserta_id' => $userId,
+                        'panitia_id' => Auth::id(),
+                        'poin' => $poin,
+                        'keterangan' => 'Menyelesaikan Quest 4 Lab Elektro (Peringkat ' . $peringkat . ' Tercepat)'
+                    ]);
+                }
+            }
+        }
+
+        // 4. Kembalikan response sukses setelah seluruh antrean SELESAI diproses
+        return redirect()->back()->with('success', 'Semua antrean quest lab berhasil disetujui seketika dan kalkulasi poin peserta telah diperbarui!');
+    }
 }
