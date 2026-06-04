@@ -77,6 +77,14 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/{id}', [KeaktifanController::class, 'destroy'])->name('destroy');
         });
 
+        // 🔴 FITUR BARU PANITIA (Diselipkan di sini)
+        Route::prefix('quest-lab')->name('quest.')->group(function () {
+            Route::get('/', [QuestLabController::class, 'indexPanitia'])->name('index');
+            Route::post('/approve-all', [QuestLabController::class, 'approveAll'])->name('approveAll'); // 🟢 PASTIKAN ADA DI SINI
+            Route::post('/approve/{id}', [QuestLabController::class, 'approveQuest'])->name('approve');
+            Route::post('/reject/{id}', [QuestLabController::class, 'rejectQuest'])->name('reject');
+        });
+
         // LEADERBOARD INPUT (Perbaikan Error RouteNotFoundException)
         Route::prefix('leaderboard')->name('leaderboard.')->group(function () {
             Route::get('/input', [LeaderboardController::class, 'inputPoint'])->name('input');
@@ -221,7 +229,6 @@ Route::middleware(['auth'])->group(function () {
         // Quest 4 Lab Elektro
         Route::prefix('quest-lab')->name('quest.')->group(function () {
             Route::get('/', [QuestLabController::class, 'indexPeserta'])->name('index');
-            Route::post('/approve-all', [QuestLabController::class, 'approveAll'])->name('approveAll');
             Route::post('/upload/{labName}', [QuestLabController::class, 'uploadSelfie'])->name('upload');
             Route::delete('/delete/{lab}', [QuestLabController::class, 'delete'])->name('delete');
         });
