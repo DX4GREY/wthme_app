@@ -152,6 +152,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/files-json/{id}', [TugasController::class, 'getFilesJson'])->name('files-json');
             Route::get('/file/download/{id}/{fileIndex}', [TugasController::class, 'downloadSingleFile'])->name('download-single');
             Route::delete('/tolak/{id}', [TugasController::class, 'tolakTugas'])->name('tugas.tolak');
+            Route::put('/{id}', [TugasController::class, 'updateTugas'])->name('update');
         });
 
         // NOTULENSI
@@ -220,6 +221,7 @@ Route::middleware(['auth'])->group(function () {
         // Quest 4 Lab Elektro
         Route::prefix('quest-lab')->name('quest.')->group(function () {
             Route::get('/', [QuestLabController::class, 'indexPeserta'])->name('index');
+            Route::post('/approve-all', [QuestLabController::class, 'approveAll'])->name('approveAll');
             Route::post('/upload/{labName}', [QuestLabController::class, 'uploadSelfie'])->name('upload');
             Route::delete('/delete/{lab}', [QuestLabController::class, 'delete'])->name('delete');
         });

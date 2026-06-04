@@ -31,13 +31,15 @@
             <div style="background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(15px); border-radius: 2rem; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 20px 40px rgba(0,0,0,0.04);">
                 
                 <div style="overflow-x: auto; width: 100%;">
-                    <table style="width:100%; border-collapse:collapse; min-width: 900px;">
+                    <table style="width:100%; border-collapse:collapse; min-width: 950px;">
                         <thead>
                             <tr style="background: #002f45;">
                                 <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 5px;">No</th>
                                 <th style="padding:1.25rem 1.5rem; text-align:left; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); min-width: 200px;">Nama Lengkap Peserta</th>
                                 <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 90px;">NIM</th>
                                 <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 70px;">Angkatan</th>
+                                {{-- Kolom Baru: Gender Header --}}
+                                <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 50px;">Gender</th>
                                 
                                 @foreach($sesiList as $sesi)
                                     <th style="padding:1.25rem 1rem; text-align:center; color:#d2c296; font-size:0.7rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); min-width: 140px; line-height: 1.2;">
@@ -52,14 +54,15 @@
                             @forelse($matrixData as $noKelompok => $daftarPeserta)
                                 
                                 <tr style="background: rgba(0, 47, 69, 0.08);">
-                                    <td colspan="{{ 4 + $sesiList->count() }}" style="padding: 1rem 1.5rem; font-weight: 800; color: #002f45; font-size: 0.9rem; letter-spacing: 0.05em; border-bottom: 2px solid #002f45;">
+                                    {{-- Mengubah colspan dari 4 menjadi 5 untuk menyeimbangkan kolom Gender baru --}}
+                                    <td colspan="{{ 5 + $sesiList->count() }}" style="padding: 1rem 1.5rem; font-weight: 800; color: #002f45; font-size: 0.9rem; letter-spacing: 0.05em; border-bottom: 2px solid #002f45;">
                                         🌿 KELOMPOK {{ $noKelompok ?? 'TANPA KELOMPOK' }} 
                                         <span style="font-weight: 500; font-size: 0.75rem; opacity: 0.7; margin-left: 8px;">(Total {{ $daftarPeserta->count() }} Anggota)</span>
                                     </td>
                                 </tr>
 
                                 @foreach($daftarPeserta as $index => $user)
-                                    <tr style="border-bottom:1px solid rgba(0,0,0,0.05); transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.45)'" onmouseout="this.style.background='transparent'">
+                                    <tr style="border-bottom:1px solid rgba(0,0,0,0.05); transition: 0.2s warm;" onmouseover="this.style.background='rgba(255,255,255,0.45)'" onmouseout="this.style.background='transparent'">
                                         
                                         <td style="padding:1rem; text-align:center; color:#002f45; opacity:0.6; font-family:monospace; font-weight:600; border-right: 1px solid rgba(0,0,0,0.02);">
                                             {{ $index + 1 }}
@@ -75,6 +78,12 @@
                                         
                                         <td style="padding:1rem; text-align:center; color:#002f45; font-weight:600; font-size:0.85rem;">
                                             {{ $user->angkatan }}
+                                        </td>
+
+                                        {{-- Kolom Baru: Menampilkan Inisial Gender (L / P) --}}
+                                        <td style="padding:1rem; text-align:center; color:#002f45; font-weight:700; font-size:0.85rem; font-family:monospace;">
+                                            {{-- strtoupper & substr mengantisipasi jika di DB tersimpan kata penuh seperti 'Laki-laki' / 'Perempuan' --}}
+                                            {{ $user->gender ? strtoupper(substr($user->gender, 0, 1)) : '-' }}
                                         </td>
 
                                         @foreach($sesiList as $sesi)
@@ -102,7 +111,6 @@
                                             @endphp
 
                                             <td style="padding:0.75rem 0.5rem; text-align:center; border-left: 1px solid rgba(0,0,0,0.02);">
-                                                {{-- Jika tidak punya hak akses, tambahkan attribute 'disabled' dan ganti cursornya --}}
                                                 <select class="status-select" 
                                                         data-user="{{ $user->id }}" 
                                                         data-session="{{ $sesi->id }}"
@@ -118,11 +126,13 @@
                                     </tr>
                                 @endforeach
 
-                                <tr style="height: 1.5rem;"><td colspan="{{ 4 + $sesiList->count() }}"></td></tr>
+                                {{-- Mengubah colspan dari 4 menjadi 5 --}}
+                                <tr style="height: 1.5rem;"><td colspan="{{ 5 + $sesiList->count() }}"></td></tr>
 
                             @empty
                                 <tr>
-                                    <td colspan="{{ 4 + $sesiList->count() }}" style="text-align: center; padding: 5rem 2rem;">
+                                    {{-- Mengubah colspan dari 4 menjadi 5 --}}
+                                    <td colspan="{{ 5 + $sesiList->count() }}" style="text-align: center; padding: 5rem 2rem;">
                                         <div style="font-size:4rem; margin-bottom:1rem;">👥</div>
                                         <h3 style="color:#002f45; font-weight:700; margin:0;">Tidak ada master data peserta terdaftar.</h3>
                                     </td>
@@ -175,7 +185,6 @@
                         })
                     })
                     .then(response => {
-                        // Ambil response JSON untuk membaca kustom message dari backend
                         return response.json().then(data => {
                             if (!response.ok || !data.success) {
                                 throw new Error(data.message || 'Gagal memperbarui status absensi.');

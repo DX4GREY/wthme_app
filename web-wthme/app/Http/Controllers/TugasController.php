@@ -61,6 +61,63 @@ class TugasController extends Controller
         return back()->with('success', 'Tugas berhasil dibuat!');
     }
 
+    /** Perbarui / Edit Kategori Tugas */
+    public function updateTugas(Request $request, $id)
+    {
+        $request->validate([
+            'nama_tugas'    => 'required|string|max:255',
+            'deskripsi'     => 'nullable|string|max:1000',
+            'file_petunjuk' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'deadline'      => 'nullable|date',
+            'tipe_file'     => 'required|in:semua,pdf,gambar',
+            'maks_ukuran'   => 'required|integer|min:512|max:51200',
+            'urutan'        => 'nullable|integer|min:0',
+        ]);
+
+        $tugas = TugasKategori::findOrFail($id);
+
+        // Handle upload file petunjuk baru jika panitia menggantinya
+        $pathPetunjuk = $tugas->file_petunjuk;
+        if ($request->hasFile('file_petunjuk')) {
+            if ($tugas->file_petunjuk) {
+                Storage::disk('public')->delete($tugas->file_petunjuk);
+            }
+            $pathPetunjuk = $request->file('file_petunjuk')->store('petunjuk-tugas', 'public');
+        }
+
+        $deadlineLama = $tugas->deadline;
+
+        $tugas->update([
+            'nama_tugas'    => $request->nama_tugas,
+            'deskripsi'     => $request->deskripsi,
+            'file_petunjuk' => $pathPetunjuk,
+            'deadline'      => $request->deadline,
+            'tipe_file'     => $request->tipe_file,
+            'maks_ukuran'   => $request->maks_ukuran,
+            'urutan'        => $request->urutan ?? $tugas->urutan,
+        ]);
+
+        // SINKRONISASI STATUS PERUBAHAN DEADLINE TERHADAP DATA PENGUMPULAN YANG SUDAH MASUK
+        if ($deadlineLama != $request->deadline) {
+            $pengumpulans = TugasPengumpulan::where('tugas_kategori_id', $tugas->id)->get();
+
+            foreach ($pengumpulans as $p) {
+                $waktuKumpul = strtotime($p->dikumpulkan_at ?? $p->created_at);
+                $waktuDeadlineBaru = $request->deadline ? strtotime($request->deadline) : null;
+
+                if ($waktuDeadlineBaru) {
+                    $statusBaru = ($waktuKumpul <= $waktuDeadlineBaru) ? 'tepat_waktu' : 'terlambat';
+                } else {
+                    $statusBaru = 'tepat_waktu'; // Jika deadline dihapus panitia, otomatis dianggap tepat waktu semua
+                }
+
+                $p->update(['status' => $statusBaru]);
+            }
+        }
+
+        return back()->with('success', 'Tugas berhasil diperbarui! Nilai & status pada Leaderboard otomatis disesuaikan.');
+    }
+
     /** Toggle aktif/nonaktif tugas */
     public function toggleTugas($id)
     {
@@ -92,12 +149,11 @@ class TugasController extends Controller
         return back()->with('success', 'Tugas berhasil dihapus.');
     }
 
-    /** MENOLAK TUGAS PESERTA (Hanya bisa diakses Admin, Divisi ACARA, & MENTOR) */
+    /** MENOLAK TUGAS PESERTA */
     public function tolakTugas($id)
     {
         $userLogIn = auth()->user();
 
-        // Validasi Hak Akses di Sisi Server
         $isAdmin = $userLogIn->role === 'admin';
         $isDivisiValid = in_array(strtoupper($userLogIn->divisi ?? ''), ['ACARA', 'MENTOR']);
 
@@ -108,7 +164,6 @@ class TugasController extends Controller
         try {
             $pengumpulan = TugasPengumpulan::findOrFail($id);
 
-            // 1. Hapus file fisik dari storage server
             $files = json_decode($pengumpulan->file_path, true);
             if (is_array($files)) {
                 foreach ($files as $file) {
@@ -120,7 +175,6 @@ class TugasController extends Controller
                 Storage::disk('public')->delete($pengumpulan->file_path);
             }
 
-            // 2. Hapus data record dari database
             $pengumpulan->delete();
 
             return back()->with('success', 'Tugas berhasil ditolak. Status pengumpulan peserta telah di-reset.');
@@ -130,13 +184,11 @@ class TugasController extends Controller
         }
     }
 
-    /** REKAP OPTIMIZED: Diurutkan berdasarkan kelompok secara natural numerik */
+    /** REKAP OPTIMIZED */
     public function rekap(Request $request)
     {
-        // 1. Ambil semua tugas
         $tugasList = TugasKategori::orderBy('urutan')->orderBy('created_at')->get();
 
-        // 2. Filter & Ambil data peserta
         $filterKelompok = $request->kelompok;
         $pesertaQuery = User::where('role', 'peserta');
 
@@ -144,30 +196,25 @@ class TugasController extends Controller
             $pesertaQuery->where('kelompok', $filterKelompok);
         }
 
-        // MENGGUNAKAN orderByRaw AGAR URUTAN KELOMPOK TIDAK NGACAK (Urutan Alami: 1, 2, 3... dst)
         $pesertaData = $pesertaQuery->orderByRaw('CAST(kelompok AS UNSIGNED) ASC')
             ->orderBy('name')
             ->get();
 
         $pesertaPerKelompok = $pesertaData->groupBy('kelompok');
 
-        // 3. Eager loading peta pengumpulan agar tidak query berulang di baris tabel
         $pesertaIds = $pesertaData->pluck('id')->toArray();
         $pengumpulanMap = TugasPengumpulan::whereIn('user_id', $pesertaIds)
             ->get()
             ->groupBy('user_id')
             ->map(fn($items) => $items->keyBy('tugas_kategori_id'));
 
-        // 4. Urutan Kelompok pada Dropdown Filter disesuaikan agar rapi secara numerik
         $kelompokList = User::where('role', 'peserta')
             ->distinct()
             ->orderByRaw('CAST(kelompok AS UNSIGNED) ASC')
             ->pluck('kelompok');
 
-        // 5. Total seluruh peserta (untuk indikator card statistik)
         $totalPeserta = User::where('role', 'peserta')->count();
 
-        // 6. OPTIMASI STATISTIK: Agregasi langsung via Group By DB
         $globalStats = TugasPengumpulan::select('tugas_kategori_id')
             ->selectRaw('count(*) as sudah_kumpul')
             ->selectRaw("sum(case when status = 'terlambat' then 1 else 0 end) as terlambat")
@@ -197,7 +244,7 @@ class TugasController extends Controller
         ));
     }
 
-    /** MENGAMBIL LIST BERKAS JAVASCRIPT: Endpoint API internal untuk mengambil detail file di modal */
+    /** API DETAIL DATA FILE */
     public function getFilesJson($id)
     {
         $p = TugasPengumpulan::findOrFail($id);
@@ -233,7 +280,7 @@ class TugasController extends Controller
         return response()->json(['files' => $formattedFiles]);
     }
 
-    /** MENGIKUTI LINK DI MODAL: Membuka/Preview berkas tunggal di tab baru */
+    /** PREVIEW FILE */
     public function downloadSingleFile($id, $fileIndex)
     {
         try {
@@ -288,7 +335,7 @@ class TugasController extends Controller
 
     // ===== SISI PESERTA =====
 
-    /** Halaman daftar tugas + status pengumpulan peserta */
+    /** Halaman daftar tugas */
     public function indexPeserta()
     {
         $user      = auth()->user();
@@ -304,7 +351,7 @@ class TugasController extends Controller
         return view('peserta.tugas', compact('tugasList', 'sudahKumpul', 'user'));
     }
 
-    /** Upload / replace file tugas peserta */
+    /** Upload tugas */
     public function uploadTugas(Request $request)
     {
         $user       = auth()->user();
