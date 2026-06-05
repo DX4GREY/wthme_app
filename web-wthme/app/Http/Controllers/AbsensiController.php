@@ -226,13 +226,13 @@ class AbsensiController extends Controller
 
     // ===== AJAX UPDATE STATUS ABSENSI PESERTA =====
 
+    // ===== AJAX UPDATE STATUS ABSENSI PESERTA =====
+
     public function updateStatusPeserta(Request $request)
     {
         $userLogin = auth()->user();
 
         // =============== KUNCI PENGAMAN AKSES ===============
-        // Cek apakah user adalah Admin, atau bagian dari divisi ACARA / KOMDIS
-        // Catatan: Sesuaikan tulisan 'admin', 'ACARA', 'KOMDIS' dengan data asli di databasemu (case-sensitive)
         $isAdmin   = ($userLogin->role === 'admin' || $userLogin->divisi === 'admin');
         $isAcara   = (strtoupper($userLogin->divisi) === 'ACARA');
         $isKomdis  = (strtoupper($userLogin->divisi) === 'KOMDIS');
@@ -241,7 +241,7 @@ class AbsensiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Akses ditolak! Hanya Admin, Divisi Acara, dan Komdis yang dapat mengubah absensi.'
-            ], 403); // Status 403: Forbidden
+            ], 403);
         }
         // ====================================================
 
@@ -251,16 +251,13 @@ class AbsensiController extends Controller
             'status'         => 'required|in:hadir,izin,tidak_hadir'
         ]);
 
-        // Sesuaikan dengan tipe kolom status di database Anda (hadir / tidak_hadir)
-        $statusDb = ($request->status === 'hadir') ? 'hadir' : 'tidak_hadir';
-
         // Cari log absensi yang sudah ada berdasarkan user dan sesi terkait
         $absensi = AbsensiPeserta::where('user_id', $request->user_id)
             ->where('qr_session_id', $request->qr_session_id)
             ->first();
 
         if ($request->status === 'tidak_hadir') {
-            // Jika dirubah menjadi Tidak Hadir (Alfa), hapus log record dari database jika ada
+            // Jika diubah menjadi Tidak Hadir (Alfa), hapus log record dari database jika ada
             if ($absensi) {
                 $absensi->delete();
             }
@@ -278,8 +275,11 @@ class AbsensiController extends Controller
                 $absensi->ip_address    = $request->ip();
             }
 
-            $absensi->status      = $statusDb;
-            // Jika statusnya izin, waktu_absen di-set null. Jika hadir, di-set waktu saat ini.
+            // PERBAIKAN LOGIKA DI SINI:
+            // Jika memilih 'izin' atau 'hadir', status kolom di DB dua-duanya harus 'hadir'
+            $absensi->status = 'hadir';
+
+            // Pembedanya: Jika 'hadir' beri waktu saat ini, jika 'izin' kosongkan (null) sesuai logika Blade Anda
             $absensi->waktu_absen = ($request->status === 'hadir') ? now() : null;
             $absensi->save();
         }
