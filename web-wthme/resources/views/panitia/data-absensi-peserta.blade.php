@@ -86,15 +86,20 @@
                                             @php
                                                 $log = $logAbsensi->get($user->id)?->get($sesi->id)?->first();
                                                 
-                                                $status = 'tidak_hadir';
-                                                if ($log) {
-                                                    $status = ($log->status === 'hadir' && !$log->waktu_absen) ? 'izin' : $log->status;
-                                                }
+                                                // KUNCI PERBAIKAN UTAMA: Ambil nilai asli status dari database
+                                                $status = $log ? $log->status : 'tidak_hadir';
 
-                                                $bgSelect = '#c53030';
-                                                $textSelect = '#ffffff'; // default text putih
-                                                if($status === 'hadir') { $bgSelect = '#2f855a'; $textSelect = '#ffffff'; }
-                                                if($status === 'izin') { $bgSelect = '#ecc94b'; $textSelect = '#002f45'; } // teks gelap untuk izin
+                                                $bgSelect = '#c53030';     // Default Alfa (Merah)
+                                                $textSelect = '#ffffff';   // Default teks putih
+                                                
+                                                if($status === 'hadir') { 
+                                                    $bgSelect = '#2f855a'; // Hijau
+                                                    $textSelect = '#ffffff'; 
+                                                }
+                                                if($status === 'izin') { 
+                                                    $bgSelect = '#ecc94b';  // Kuning Murni untuk Izin
+                                                    $textSelect = '#002f45'; // Teks gelap agar kontras
+                                                }
 
                                                 $userLogin = auth()->user();
                                                 $canEdit = (

@@ -234,11 +234,12 @@ class AbsensiController extends Controller
         $isAdmin   = ($userLogin->role === 'admin' || $userLogin->divisi === 'admin');
         $isAcara   = (strtoupper($userLogin->divisi) === 'ACARA');
         $isKomdis  = (strtoupper($userLogin->divisi) === 'KOMDIS');
+        $isMentor  = (strtoupper($userLogin->divisi) === 'MENTOR');
 
-        if (!$isAdmin && !$isAcara && !$isKomdis) {
+        if (!$isAdmin && !$isAcara && !$isKomdis && !$isMentor) {
             return response()->json([
                 'success' => false,
-                'message' => 'Akses ditolak! Hanya Admin, Divisi Acara, dan Komdis yang dapat mengubah absensi.'
+                'message' => 'Akses ditolak! Anda tidak memiliki otoritas mengubah absensi.'
             ], 403);
         }
         // ====================================================
@@ -259,7 +260,7 @@ class AbsensiController extends Controller
             if ($absensi) {
                 $absensi->delete();
             }
-        } else {
+        } else { // <--- PERBAIKAN: Sekarang menggunakan 'else' yang benar
             // Jika status adalah 'hadir' atau 'izin', buat record baru jika belum ada
             if (!$absensi) {
                 $user = User::find($request->user_id);
@@ -273,11 +274,11 @@ class AbsensiController extends Controller
                 $absensi->ip_address    = $request->ip();
             }
 
-            // Kolom status di DB dua-duanya harus 'hadir'
-            $absensi->status = 'hadir';
+            // Simpan status asli sesuai yang dipilih dari dropdown ('hadir' atau 'izin')
+            $absensi->status = $request->status;
 
-            // Pembedanya: Jika 'hadir' beri waktu saat ini, jika 'izin' dikosongkan (null)
-            $absensi->waktu_absen = ($request->status === 'hadir') ? now() : null;
+            // Waktu absen tetap dicatat sebagai penanda kapan admin mengubah datanya
+            $absensi->waktu_absen = now();
             $absensi->save();
         }
 
