@@ -104,6 +104,7 @@
                                                 $canEdit = (
                                                     $userLogin->role === 'admin' || 
                                                     $userLogin->divisi === 'admin' || 
+                                                    $userLogin->divisi === 'ACARA' || 
                                                     strtoupper($userLogin->divisi) === 'ACARA' || 
                                                     strtoupper($userLogin->divisi) === 'KOMDIS' ||
                                                     strtoupper($userLogin->divisi) === 'MENTOR'
@@ -115,7 +116,7 @@
                                                         data-user="{{ $user->id }}" 
                                                         data-session="{{ $sesi->id }}"
                                                         {{ !$canEdit ? 'disabled' : '' }}
-                                                        style="padding: 0.35rem 0.6rem; border-radius: 0.5rem; border: none; font-size: 0.75rem; font-weight: 700; color: white; outline: none; background-color: {{ $bgSelect }}; transition: 0.2s; width: 100%; max-width: 125px; text-align-last: center; {{ !$canEdit ? 'cursor: not-allowed; opacity: 0.85;' : 'cursor: pointer;' }}">
+                                                        style="padding: 0.35rem 0.6rem; border-radius: 0.5rem; border: none; font-size: 0.75rem; font-weight: 700; color: {{ $status === 'izin' ? '#002f45' : '#ffffff' }}; outline: none; background-color: {{ $bgSelect }}; transition: 0.2s; width: 100%; max-width: 125px; text-align-last: center; {{ !$canEdit ? 'cursor: not-allowed; opacity: 0.85;' : 'cursor: pointer;' }}">
                                                     <option value="hadir" {{ $status === 'hadir' ? 'selected' : '' }} style="background:#2f855a; color:white;">Hadir</option>
                                                     <option value="izin" {{ $status === 'izin' ? 'selected' : '' }} style="background:#ecc94b; color:#002f45;">Izin</option>
                                                     <option value="tidak_hadir" {{ $status === 'tidak_hadir' ? 'selected' : '' }} style="background:#c53030; color:white;">Alfa</option>
@@ -155,6 +156,7 @@
             selects.forEach(select => {
                 // Simpan status awal untuk rollback jika seandainya gagal/ditolak backend
                 select.dataset.originalBg = select.style.backgroundColor;
+                select.dataset.originalColor = select.style.color;
                 select.dataset.originalValue = select.value;
 
                 select.addEventListener('change', function () {
@@ -163,13 +165,16 @@
                     const userId = currentSelect.getAttribute('data-user');
                     const sessionId = currentSelect.getAttribute('data-session');
 
-                    // Ubah warna sementara di layar
+                    // Ubah warna sementara di layar (Paksa teks gelap pada status izin)
                     if (status === 'hadir') {
                         currentSelect.style.backgroundColor = '#2f855a';
+                        currentSelect.style.color = '#ffffff';
                     } else if (status === 'izin') {
                         currentSelect.style.backgroundColor = '#ecc94b';
+                        currentSelect.style.color = '#002f45';
                     } else {
                         currentSelect.style.backgroundColor = '#c53030';
+                        currentSelect.style.color = '#ffffff';
                     }
 
                     fetch("{{ route('panitia.absensi.updateStatus') }}", {
@@ -191,6 +196,7 @@
                             }
                             // Jika sukses, perbarui data backup awal
                             currentSelect.dataset.originalBg = currentSelect.style.backgroundColor;
+                            currentSelect.dataset.originalColor = currentSelect.style.color;
                             currentSelect.dataset.originalValue = status;
                         });
                     })
@@ -201,6 +207,7 @@
                         // Kembalikan tampilan dropdown ke pilihan sebelumnya jika ditolak backend
                         currentSelect.value = currentSelect.dataset.originalValue;
                         currentSelect.style.backgroundColor = currentSelect.dataset.originalBg;
+                        currentSelect.style.color = currentSelect.dataset.originalColor;
                     });
                 });
             });
