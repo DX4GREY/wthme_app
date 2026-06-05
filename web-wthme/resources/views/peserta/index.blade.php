@@ -88,21 +88,40 @@
                     </p>
                 </div>
             </div>
-            {{-- 🏆 BOX TOTAL POIN PESERTA (SIMPEL & BULAT) 🏆 --}}
-            <div style="display: flex; justify-content: center; margin-bottom: 1.5rem;">
+
+            {{-- 🏆 BOX TOTAL POIN & PERINGKAT PESERTA (SIMPEL & BULAT) 🏆 --}}
+            <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                
+                {{-- Box Skor XP --}}
                 <div
                     style="display: inline-flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 0.5rem 1.5rem; border-radius: 50px; border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 4px 20px rgba(0, 47, 69, 0.04);">
                     <span style="font-size: 1.15rem;">🏆</span>
                     <span
                         style="color: #002f45; font-size: 0.9rem; font-weight: 600; font-family: 'Inter', sans-serif; letter-spacing: -0.01em;">
-                        Skor Peserta:
+                        Skor Anda:
                         <span
                             style="color: #fff; background: #6b705c; font-weight: 800; font-size: 0.95rem; padding: 3px 12px; border-radius: 20px; margin-left: 6px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
                             {{ $totalPoin ?? 0 }} XP
                         </span>
                     </span>
                 </div>
+
+                {{-- Box Peringkat Global --}}
+                <div
+                    style="display: inline-flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 0.5rem 1.5rem; border-radius: 50px; border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 4px 20px rgba(0, 47, 69, 0.04);">
+                    <span style="font-size: 1.15rem;">🏅</span>
+                    <span
+                        style="color: #002f45; font-size: 0.9rem; font-weight: 600; font-family: 'Inter', sans-serif; letter-spacing: -0.01em;">
+                        Peringkat Anda:
+                        <span
+                            style="color: #fff; background: #002f45; font-weight: 800; font-size: 0.95rem; padding: 3px 12px; border-radius: 20px; margin-left: 6px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                            #{{ $myRank ?? '-' }}
+                        </span>
+                    </span>
+                </div>
+
             </div>
+
             {{-- SLIDER PENGUMUMAN DINAMIS --}}
             @if ($pengumuman->count() > 0)
                 <div class="slider-container">
@@ -219,7 +238,7 @@
                     <a href="{{ $menu['route'] }}"
                         style="text-decoration:none; background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 1.5rem; padding: 1.75rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; gap: 1.25rem; position: relative; box-shadow: 0 8px 32px 0 rgba(0, 47, 69, 0.05);"
                         onmouseover="this.style.background='rgba(255, 255, 255, 0.4)'; this.style.transform='translateY(-5px)';"
-                        onmouseout="this.style.background='rgba(255, 255, 255, 0.25)'; this.style.transform='translateY(0)';">
+                        onmouseout="this.style.background='rgba(255, 255, 255, 0.25)'; this.style.transform='translateY(0)';"	>
                         @if ($menu['badge'])
                             <span
                                 style="position:absolute; top:1rem; right:1.25rem; background:{{ $menu['badge']['color'] }}; color:white; font-size:0.7rem; font-weight:700; padding:0.25rem 0.75rem; border-radius:999px;">

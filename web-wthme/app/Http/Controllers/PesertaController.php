@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
 class PesertaController extends Controller
 {
     /**
-     * Menampilkan Dashboard Utama Sisi Peserta + Akumulasi Poin Personal
+     * Menampilkan Dashboard Utama Sisi Peserta + Akumulasi Poin & Peringkat Personal
      */
     public function index()
     {
@@ -43,68 +43,82 @@ class PesertaController extends Controller
         $pengumuman  = \App\Models\InformasiPeserta::latest()->get();
 
         // =========================================================================
-        // LOGIKA PERHITUNGAN TOTAL POIN REALTIME UNTUK PESERTA YANG SEDANG LOGIN
+        // LOGIKA PERHITUNGAN TOTAL POIN REALTIME UNTUK SELURUH PESERTA (DAPAT RANKING)
         // =========================================================================
         
-        // Aspek 1: Perhitungan Absensi (+100 poin per hadir sesuai Leaderboard terbaru)
-        $jumlahHadir = AbsensiPeserta::where('user_id', $user->id)
-            ->where('status', 'hadir')
-            ->count();
-        $poinAbsen = $jumlahHadir * 300;
+        $allPesertas = User::where('role', 'peserta')->get();
+        $rankList = [];
+        $totalPoin = 0; // Default penampung poin user login
 
-        // Aspek 2: Perhitungan Keaktifan Acara
-        $poinKeaktifan = DB::table('poin_keaktifan')
-            ->where('peserta_id', $user->id)
-            ->sum('poin') ?? 0;
+        foreach ($allPesertas as $peserta) {
+            // Aspek 1: Absensi (+300 poin per hadir)
+            $jumlahHadir = AbsensiPeserta::where('user_id', $peserta->id)
+                ->where('status', 'hadir')
+                ->count();
+            $poinAbsen = $jumlahHadir * 300;
 
-        // Aspek 3: Perhitungan Kecepatan Pengumpulan Tugas (Sistem Bonus 12j & Penalti 24j)
-        $kumpulanTugas = TugasPengumpulan::where('user_id', $user->id)->get();
-        $poinTugas = 0;
+            // Aspek 2: Keaktifan Acara
+            $poinKeaktifan = DB::table('poin_keaktifan')
+                ->where('peserta_id', $peserta->id)
+                ->sum('poin') ?? 0;
 
-        foreach ($kumpulanTugas as $kumpul) {
-            $indukTugas = TugasKategori::find($kumpul->tugas_kategori_id);
-            
-            if ($indukTugas) {
-                $basePoin = 80; // Poin dasar
-                
-                $waktuDeadline = $indukTugas->deadline ? strtotime($indukTugas->deadline) : null;
-                $waktuKumpul   = strtotime($kumpul->dikumpulkan_at ?? $kumpul->created_at);
+            // Aspek 3: Tugas (Bonus 12j & Penalti 24j)
+            $kumpulanTugas = TugasPengumpulan::where('user_id', $peserta->id)->get();
+            $poinTugas = 0;
 
-                if ($waktuDeadline) {
-                    if ($waktuKumpul <= $waktuDeadline) {
-                        // KONDISI SEBELUM DEADLINE (SISTEM BONUS PER 12 JAM)
-                        $sisaWaktuJam = ($waktuDeadline - $waktuKumpul) / 3600;
-                        $kelipatanBonus = floor($sisaWaktuJam / 12);
-                        $bonusPoin = $kelipatanBonus * 10;
-                        
-                        $poinTugas += ($basePoin + $bonusPoin);
+            foreach ($kumpulanTugas as $kumpul) {
+                $indukTugas = TugasKategori::find($kumpul->tugas_kategori_id);
+                if ($indukTugas) {
+                    $basePoin = 80;
+                    $waktuDeadline = $indukTugas->deadline ? strtotime($indukTugas->deadline) : null;
+                    $waktuKumpul   = strtotime($kumpul->dikumpulkan_at ?? $kumpul->created_at);
+
+                    if ($waktuDeadline) {
+                        if ($waktuKumpul <= $waktuDeadline) {
+                            $sisaWaktuJam = ($waktuDeadline - $waktuKumpul) / 3600;
+                            $kelipatanBonus = floor($sisaWaktuJam / 12);
+                            $poinTugas += ($basePoin + ($kelipatanBonus * 10));
+                        } else {
+                            $waktuTerlambatJam = ($waktuKumpul - $waktuDeadline) / 3600;
+                            $kelipatanPenalti = floor($waktuTerlambatJam / 24);
+                            if ($kelipatanPenalti == 0) $kelipatanPenalti = 1; 
+                            
+                            $skorAkhir = $basePoin - ($kelipatanPenalti * 5);
+                            $poinTugas += ($skorAkhir < 10) ? 10 : $skorAkhir;
+                        }
                     } else {
-                        // KONDISI SETELAH DEADLINE (SISTEM PENALTI PER 24 JAM)
-                        $waktuTerlambatJam = ($waktuKumpul - $waktuDeadline) / 3600;
-                        $kelipatanPenalti = floor($waktuTerlambatJam / 24);
-                        
-                        if ($kelipatanPenalti == 0) {
-                            $kelipatanPenalti = 1; 
-                        }
-                        
-                        $potonganPoin = $kelipatanPenalti * 5;
-                        $skorAkhir = $basePoin - $potonganPoin;
-                        
-                        if ($skorAkhir < 10) {
-                            $skorAkhir = 10;
-                        }
-                        
-                        $poinTugas += $skorAkhir;
+                        $poinTugas += $basePoin;
                     }
-                } else {
-                    // JIKA TUGAS TANPA DEADLINE
-                    $poinTugas += $basePoin;
                 }
+            }
+
+            $totalSkor = $poinAbsen + $poinKeaktifan + $poinTugas;
+
+            // Simpan data ke array untuk disorting
+            $rankList[] = [
+                'user_id' => $peserta->id,
+                'total'   => $totalSkor
+            ];
+
+            // Jika loop sedang memproses user yang login, ikat nilainya ke $totalPoin
+            if ($peserta->id === $user->id) {
+                $totalPoin = $totalSkor;
             }
         }
 
-        // Akumulasi Akhir Seluruh Poin
-        $totalPoin = $poinAbsen + $poinKeaktifan + $poinTugas;
+        // Urutkan seluruh peserta berdasarkan total skor tertinggi
+        usort($rankList, function ($a, $b) {
+            return $b['total'] <=> $a['total'];
+        });
+
+        // Cari posisi index ke berapa user_id yang sedang login berada di dalam array list
+        $myRank = 0;
+        foreach ($rankList as $index => $item) {
+            if ($item['user_id'] === $user->id) {
+                $myRank = $index + 1; // Ditambah 1 karena array dimulai dari angka 0
+                break;
+            }
+        }
 
         return view('peserta.index', compact(
             'user', 
@@ -114,7 +128,8 @@ class PesertaController extends Controller
             'barangBelum', 
             'links', 
             'pengumuman',
-            'totalPoin' // <--- Variabel ini siap dipakai di blade peserta
+            'totalPoin',
+            'myRank' // Variabel peringkat siap dipakai di Blade
         ));
     }
 
