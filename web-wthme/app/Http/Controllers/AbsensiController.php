@@ -226,8 +226,6 @@ class AbsensiController extends Controller
 
     // ===== AJAX UPDATE STATUS ABSENSI PESERTA =====
 
-    // ===== AJAX UPDATE STATUS ABSENSI PESERTA =====
-
     public function updateStatusPeserta(Request $request)
     {
         $userLogin = auth()->user();
@@ -275,11 +273,10 @@ class AbsensiController extends Controller
                 $absensi->ip_address    = $request->ip();
             }
 
-            // PERBAIKAN LOGIKA DI SINI:
-            // Jika memilih 'izin' atau 'hadir', status kolom di DB dua-duanya harus 'hadir'
+            // Kolom status di DB dua-duanya harus 'hadir'
             $absensi->status = 'hadir';
 
-            // Pembedanya: Jika 'hadir' beri waktu saat ini, jika 'izin' kosongkan (null) sesuai logika Blade Anda
+            // Pembedanya: Jika 'hadir' beri waktu saat ini, jika 'izin' dikosongkan (null)
             $absensi->waktu_absen = ($request->status === 'hadir') ? now() : null;
             $absensi->save();
         }

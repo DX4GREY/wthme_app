@@ -38,7 +38,6 @@
                                 <th style="padding:1.25rem 1.5rem; text-align:left; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); min-width: 200px;">Nama Lengkap Peserta</th>
                                 <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 90px;">NIM</th>
                                 <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 70px;">Angkatan</th>
-                                {{-- Kolom Baru: Gender Header --}}
                                 <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 50px;">Gender</th>
                                 
                                 @foreach($sesiList as $sesi)
@@ -54,7 +53,6 @@
                             @forelse($matrixData as $noKelompok => $daftarPeserta)
                                 
                                 <tr style="background: rgba(0, 47, 69, 0.08);">
-                                    {{-- Mengubah colspan dari 4 menjadi 5 untuk menyeimbangkan kolom Gender baru --}}
                                     <td colspan="{{ 5 + $sesiList->count() }}" style="padding: 1rem 1.5rem; font-weight: 800; color: #002f45; font-size: 0.9rem; letter-spacing: 0.05em; border-bottom: 2px solid #002f45;">
                                         🌿 KELOMPOK {{ $noKelompok ?? 'TANPA KELOMPOK' }} 
                                         <span style="font-weight: 500; font-size: 0.75rem; opacity: 0.7; margin-left: 8px;">(Total {{ $daftarPeserta->count() }} Anggota)</span>
@@ -80,9 +78,7 @@
                                             {{ $user->angkatan }}
                                         </td>
 
-                                        {{-- Kolom Baru: Menampilkan Inisial Gender (L / P) --}}
                                         <td style="padding:1rem; text-align:center; color:#002f45; font-weight:700; font-size:0.85rem; font-family:monospace;">
-                                            {{-- strtoupper & substr mengantisipasi jika di DB tersimpan kata penuh seperti 'Laki-laki' / 'Perempuan' --}}
                                             {{ $user->gender ? strtoupper(substr($user->gender, 0, 1)) : '-' }}
                                         </td>
 
@@ -96,15 +92,14 @@
                                                 }
 
                                                 $bgSelect = '#c53030';
-                                                if($status === 'hadir') $bgSelect = '#2f855a';
-                                                if($status === 'izin') $bgSelect = '#ecc94b';
+                                                $textSelect = '#ffffff'; // default text putih
+                                                if($status === 'hadir') { $bgSelect = '#2f855a'; $textSelect = '#ffffff'; }
+                                                if($status === 'izin') { $bgSelect = '#ecc94b'; $textSelect = '#002f45'; } // teks gelap untuk izin
 
-                                                // Logika View untuk Validasi Akses Pengguna saat ini
                                                 $userLogin = auth()->user();
                                                 $canEdit = (
                                                     $userLogin->role === 'admin' || 
                                                     $userLogin->divisi === 'admin' || 
-                                                    $userLogin->divisi === 'ACARA' || 
                                                     strtoupper($userLogin->divisi) === 'ACARA' || 
                                                     strtoupper($userLogin->divisi) === 'KOMDIS' ||
                                                     strtoupper($userLogin->divisi) === 'MENTOR'
@@ -116,7 +111,7 @@
                                                         data-user="{{ $user->id }}" 
                                                         data-session="{{ $sesi->id }}"
                                                         {{ !$canEdit ? 'disabled' : '' }}
-                                                        style="padding: 0.35rem 0.6rem; border-radius: 0.5rem; border: none; font-size: 0.75rem; font-weight: 700; color: {{ $status === 'izin' ? '#002f45' : '#ffffff' }}; outline: none; background-color: {{ $bgSelect }}; transition: 0.2s; width: 100%; max-width: 125px; text-align-last: center; {{ !$canEdit ? 'cursor: not-allowed; opacity: 0.85;' : 'cursor: pointer;' }}">
+                                                        style="padding: 0.35rem 0.6rem; border-radius: 0.5rem; border: none; font-size: 0.75rem; font-weight: 700; color: {{ $textSelect }}; outline: none; background-color: {{ $bgSelect }}; transition: 0.2s; width: 100%; max-width: 125px; text-align-last: center; {{ !$canEdit ? 'cursor: not-allowed; opacity: 0.85;' : 'cursor: pointer;' }}">
                                                     <option value="hadir" {{ $status === 'hadir' ? 'selected' : '' }} style="background:#2f855a; color:white;">Hadir</option>
                                                     <option value="izin" {{ $status === 'izin' ? 'selected' : '' }} style="background:#ecc94b; color:#002f45;">Izin</option>
                                                     <option value="tidak_hadir" {{ $status === 'tidak_hadir' ? 'selected' : '' }} style="background:#c53030; color:white;">Alfa</option>
@@ -127,12 +122,10 @@
                                     </tr>
                                 @endforeach
 
-                                {{-- Mengubah colspan dari 4 menjadi 5 --}}
                                 <tr style="height: 1.5rem;"><td colspan="{{ 5 + $sesiList->count() }}"></td></tr>
 
                             @empty
                                 <tr>
-                                    {{-- Mengubah colspan dari 4 menjadi 5 --}}
                                     <td colspan="{{ 5 + $sesiList->count() }}" style="text-align: center; padding: 5rem 2rem;">
                                         <div style="font-size:4rem; margin-bottom:1rem;">👥</div>
                                         <h3 style="color:#002f45; font-weight:700; margin:0;">Tidak ada master data peserta terdaftar.</h3>
@@ -165,13 +158,13 @@
                     const userId = currentSelect.getAttribute('data-user');
                     const sessionId = currentSelect.getAttribute('data-session');
 
-                    // Ubah warna sementara di layar (Paksa teks gelap pada status izin)
+                    // Ubah warna background DAN warna tulisan secara realtime di layar
                     if (status === 'hadir') {
                         currentSelect.style.backgroundColor = '#2f855a';
                         currentSelect.style.color = '#ffffff';
                     } else if (status === 'izin') {
                         currentSelect.style.backgroundColor = '#ecc94b';
-                        currentSelect.style.color = '#002f45';
+                        currentSelect.style.color = '#002f45'; // Teks gelap agar terbaca di background kuning
                     } else {
                         currentSelect.style.backgroundColor = '#c53030';
                         currentSelect.style.color = '#ffffff';
