@@ -202,95 +202,140 @@ class BarangController extends Controller
         $spreadsheet = new Spreadsheet();
         $spreadsheet->removeSheetByIndex(0); // Hapus sheet default
 
-        // Buat SATU-SATUNYA Sheet: Rekap Global
-        $global = $spreadsheet->createSheet();
-        $global->setTitle('Rekap Global');
+        // Buat SATU-SATUNYA Sheet untuk menampung semua kelompok
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle("Rekap Semua Kelompok");
 
-        // Definisikan Kode Warna (Palette)
+        // Definisikan Kode Warna (Sama seperti format awal Anda)
         $navyHex  = '002f45';
         $tealHex  = 'bdd1d3';
-        $sandHex  = 'd2c296';
         $greenHex = 'd4edda';
         $redHex   = 'f8d7da';
         $whiteHex = 'FFFFFF';
 
-        // --- Judul Atas ---
-        $lastColLetter = chr(65 + $barangs->count());
-        $global->mergeCells("A1:{$lastColLetter}1");
-        $global->setCellValue('A1', 'REKAP GLOBAL PENGUMPULAN BARANG - SELURUH KELOMPOK');
-        $global->getStyle('A1')->applyFromArray([
-            'font'      => ['bold' => true, 'size' => 13, 'color' => ['rgb' => $whiteHex], 'name' => 'Arial'],
-            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $navyHex]],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-        ]);
-        $global->getRowDimension(1)->setRowHeight(35);
+        $row = 1; // Mulai dari baris pertama
 
-        // --- Header Kolom Nama Kelompok ---
-        $global->setCellValue('A2', 'Kelompok');
-        $global->getStyle('A2')->applyFromArray([
-            'font'      => ['bold' => true, 'color' => ['rgb' => $navyHex], 'name' => 'Arial'],
-            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $tealHex]],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
-        ]);
-
-        // --- Header Kolom Nama Barang ---
-        foreach ($barangs as $bi => $b) {
-            $col = chr(66 + $bi);
-            $global->setCellValue("{$col}2", $b->nama_barang . "\n(" . $b->jumlah_kebutuhan . ' ' . $b->satuan . ')');
-            $global->getStyle("{$col}2")->applyFromArray([
-                'font'      => ['bold' => true, 'size' => 10, 'color' => ['rgb' => $navyHex], 'name' => 'Arial'],
-                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $tealHex]],
-                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
-                'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
-            ]);
-            $global->getColumnDimension($col)->setWidth(20);
-        }
-        $global->getColumnDimension('A')->setWidth(15);
-        $global->getRowDimension(2)->setRowHeight(40);
-
-        // --- Isi Data Baris Kelompok (Berurutan) ---
-        $row = 3;
-        foreach ($kelompoks as $k) {
-            // Kolom Kelompok
-            $global->setCellValue("A{$row}", "Kelompok $k");
-            $global->getStyle("A{$row}")->applyFromArray([
-                'font'      => ['bold' => true, 'name' => 'Arial', 'color' => ['rgb' => $navyHex]],
-                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $sandHex]],
+        foreach ($kelompoks as $kelompok) {
+            // --- HEADER KELOMPOK ---
+            $sheet->mergeCells("A{$row}:G{$row}");
+            $sheet->setCellValue("A{$row}", "REKAP PENGUMPULAN BARANG - KELOMPOK $kelompok");
+            $sheet->getStyle("A{$row}")->applyFromArray([
+                'font'      => ['bold' => true, 'size' => 13, 'color' => ['rgb' => $whiteHex], 'name' => 'Arial'],
+                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $navyHex]],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-                'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
             ]);
+            $sheet->getRowDimension($row)->setRowHeight(30);
+            $row++;
 
-            // Kolom Progress Barang per Kelompok
-            foreach ($barangs as $bi => $b) {
-                $col = chr(66 + $bi);
-                $p   = PengumpulanBarang::where('barang_kebutuhan_id', $b->id)->where('kelompok', $k)->first();
-
-                $terkumpul = $p ? $p->jumlah_terkumpul : 0;
-                $lengkap   = $terkumpul >= $b->jumlah_kebutuhan;
-
-                // Warnai background cell: Hijau (Lengkap), Kuning (Sebagian), Merah (Belum)
-                $bgColor   = $lengkap ? $greenHex : ($terkumpul > 0 ? 'fff3cd' : $redHex);
-                // Warna teks menyesuaikan status progress
-                $textColor = $lengkap ? '155724' : ($terkumpul > 0 ? '856404' : '721c24');
-
-                $global->setCellValue("{$col}{$row}", "{$terkumpul}/{$b->jumlah_kebutuhan}");
-                $global->getStyle("{$col}{$row}")->applyFromArray([
-                    'font'      => ['name' => 'Arial', 'size' => 10, 'bold' => true, 'color' => ['rgb' => $textColor]],
-                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
+            // --- HEADER TABEL ---
+            $headers = ['No', 'Nama Barang', 'Kebutuhan', 'Terkumpul', 'Progress', 'Status', 'Link Bukti Foto'];
+            foreach ($headers as $i => $h) {
+                $col = chr(65 + $i);
+                $sheet->setCellValue("{$col}{$row}", $h);
+                $sheet->getStyle("{$col}{$row}")->applyFromArray([
+                    'font'      => ['bold' => true, 'color' => ['rgb' => $navyHex], 'name' => 'Arial'],
+                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $tealHex]],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
+                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
                 ]);
             }
-            $global->getRowDimension($row)->setRowHeight(22);
+            $sheet->getRowDimension($row)->setRowHeight(22);
+
+            $startDataRow = $row + 1; // Simpan baris awal data barang untuk formula COUNTIF nanti
             $row++;
+
+            // --- DATA BARANG PER KELOMPOK ---
+            foreach ($barangs as $idx => $b) {
+                $p       = PengumpulanBarang::where('barang_kebutuhan_id', $b->id)->where('kelompok', $kelompok)->first();
+                $terkumpul = $p ? $p->jumlah_terkumpul : 0;
+                $lengkap = $terkumpul >= $b->jumlah_kebutuhan;
+                $bgColor = $lengkap ? $greenHex : ($terkumpul > 0 ? 'fff3cd' : $redHex);
+
+                $rowData = [
+                    $idx + 1,
+                    $b->nama_barang,
+                    $b->jumlah_kebutuhan . ' ' . $b->satuan,
+                    $terkumpul . ' ' . $b->satuan,
+                    $terkumpul . '/' . $b->jumlah_kebutuhan,
+                    $lengkap ? 'Lengkap ✓' : ($terkumpul > 0 ? 'Sebagian' : 'Belum'),
+                    ''
+                ];
+
+                foreach ($rowData as $ci => $val) {
+                    $col = chr(65 + $ci);
+                    if ($ci === 6) continue; // Skip kolom link foto dulu
+
+                    $sheet->setCellValue("{$col}{$row}", $val);
+                    $sheet->getStyle("{$col}{$row}")->applyFromArray([
+                        'font'      => [
+                            'name' => 'Arial',
+                            'size' => 10,
+                            'color' => ['rgb' => $lengkap ? '155724' : ($terkumpul > 0 ? '856404' : '721c24')]
+                        ],
+                        'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
+                        'alignment' => ['horizontal' => $ci === 1 ? Alignment::HORIZONTAL_LEFT : Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
+                    ]);
+                }
+
+                // Kolom G: Link Bukti Foto
+                if ($p && $p->foto_bukti) {
+                    $fullUrl = url(Storage::url($p->foto_bukti));
+                    $sheet->setCellValue("G{$row}", '=HYPERLINK("' . $fullUrl . '", "Lihat Foto ↗")');
+                    $sheet->getStyle("G{$row}")->applyFromArray([
+                        'font'      => ['name' => 'Arial', 'size' => 10, 'underlined' => true, 'color' => ['rgb' => '0000FF'], 'bold' => true],
+                        'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
+                    ]);
+                } else {
+                    $sheet->setCellValue("G{$row}", "Tidak Ada Foto");
+                    $sheet->getStyle("G{$row}")->applyFromArray([
+                        'font'      => ['name' => 'Arial', 'size' => 10, 'color' => ['rgb' => '721c24']],
+                        'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
+                    ]);
+                }
+
+                $sheet->getRowDimension($row)->setRowHeight(20);
+                $row++;
+            }
+
+            // --- TOTAL BARANG LENGKAP PER KELOMPOK ---
+            $sheet->mergeCells("A{$row}:D{$row}");
+            $sheet->setCellValue("A{$row}", 'TOTAL BARANG LENGKAP');
+
+            $endDataRow = $row - 1;
+            $sheet->setCellValue("E{$row}", "=COUNTIF(F{$startDataRow}:F{$endDataRow},\"Lengkap ✓\")&\"/\"&COUNTA(B{$startDataRow}:B{$endDataRow})");
+            $sheet->setCellValue("F{$row}", "");
+            $sheet->setCellValue("G{$row}", "");
+
+            $sheet->getStyle("A{$row}:G{$row}")->applyFromArray([
+                'font'      => ['bold' => true, 'name' => 'Arial', 'color' => ['rgb' => $whiteHex]],
+                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $navyHex]],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
+            ]);
+            $sheet->getRowDimension($row)->setRowHeight(24);
+
+            // Beri jarak 2 baris kosong sebelum masuk ke kelompok berikutnya agar rapi
+            $row += 3;
         }
 
-        // Set sheet pertama aktif secara default saat dibuka
+        // Pengaturan Lebar Kolom (Sama seperti format awal)
+        $sheet->getColumnDimension('A')->setWidth(6);
+        $sheet->getColumnDimension('B')->setWidth(30);
+        $sheet->getColumnDimension('C')->setWidth(15);
+        $sheet->getColumnDimension('D')->setWidth(15);
+        $sheet->getColumnDimension('E')->setWidth(12);
+        $sheet->getColumnDimension('F')->setWidth(15);
+        $sheet->getColumnDimension('G')->setWidth(18);
+
         $spreadsheet->setActiveSheetIndex(0);
 
-        // Proses download file
-        $filename = 'rekap_global_barang_' . date('Ymd_His') . '.xlsx';
+        // Proses Unduh File
+        $filename = 'rekap_detail_semua_kelompok_' . date('Ymd_His') . '.xlsx';
         $tmpPath  = storage_path("app/temp/{$filename}");
 
         if (!file_exists(storage_path('app/temp'))) {
