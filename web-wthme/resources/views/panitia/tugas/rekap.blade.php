@@ -121,7 +121,6 @@
                     <span style="color:rgba(255,255,255,0.7); font-size:0.85rem; font-weight:500;">{{ $pesertaList->count() }} Anggota</span>
                 </div>
 
-                {{-- Menambahkan class custom-scroll di pembungkus tabel --}}
                 <div class="custom-scroll" style="overflow-x:auto;">
                     <table style="width:100%; border-collapse:collapse; min-width:{{ 300 + ($tugasList->count() * 180) }}px;">
                         <thead>
@@ -162,8 +161,9 @@
                                                     </span>
 
                                                     <div style="display:flex; align-items:center; gap:0.4rem; border-top:1px solid #f1f5f9; padding-top:0.4rem; width:100%; justify-content:center;">
+                                                        {{-- BAGIAN YANG FIX: Menambahkan addslashes() --}}
                                                         <button type="button" 
-                                                                onclick="openDetailModal('{{ $peserta->name }}', '{{ $tugas->nama_tugas }}', '{{ $p->id }}')"
+                                                                onclick="openDetailModal('{{ addslashes($peserta->name) }}', '{{ addslashes($tugas->nama_tugas) }}', '{{ $p->id }}')"
                                                                 style="background:#002f45; color:white; padding:0.25rem 0.6rem; border-radius:6px; border:none; font-size:0.7rem; font-weight:700; cursor:pointer; transition:transform 0.2s; display:flex; align-items:center; gap:0.2rem;"
                                                                 onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
                                                             👁 Lihat File
@@ -266,7 +266,7 @@ function openDetailModal(namaPeserta, namaTugas, pengumpulanId) {
     
     document.getElementById('detailFileModal').style.display = 'flex';
 
-    // Panggil endpoint internal /panitia/tugas/files-json/{id}
+    // Panggil endpoint internal /panitia/tugas/files-json/${pengumpulanId}
     fetch(`${baseUrl}/panitia/tugas/files-json/${pengumpulanId}`)
         .then(res => {
             if (!res.ok) throw new Error("HTTP error " + res.status);
