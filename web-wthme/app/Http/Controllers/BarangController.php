@@ -85,14 +85,12 @@ class BarangController extends Controller
             ->whereNotNull('kelompok')
             ->distinct()
             ->pluck('kelompok')
-            ->toArray(); // Ubah ke array biasa dulu
+            ->toArray();
 
         // 2. Urutkan menggunakan aturan "Natural Sorting" (Kelompok 1, 2, ... 10, 11)
         sort($kelompoksData, SORT_NATURAL | SORT_FLAG_CASE);
 
-        // Kembalikan ke format collection agar aman dibaca Blade jika dibutuhkan
         $kelompoks = collect($kelompoksData);
-
         $barangs = BarangKebutuhan::where('aktif', true)->get();
 
         $summary = [];
@@ -106,7 +104,6 @@ class BarangController extends Controller
                     $lengkap++;
                 }
             }
-            // Masukkan data ke summary mengikuti urutan $kelompoks yang sudah rapi
             $summary[$k] = ['total' => $total, 'lengkap' => $lengkap];
         }
 
@@ -155,11 +152,15 @@ class BarangController extends Controller
 
     public function panitiaRekap()
     {
-        $kelompoks = User::where('role', 'peserta')
+        // FIX: Menggunakan Natural Sorting agar nomor kelompok berurutan rapi di web rekap global
+        $kelompoksData = User::where('role', 'peserta')
             ->whereNotNull('kelompok')
             ->distinct()
-            ->orderBy('kelompok')
-            ->pluck('kelompok');
+            ->pluck('kelompok')
+            ->toArray();
+
+        sort($kelompoksData, SORT_NATURAL | SORT_FLAG_CASE);
+        $kelompoks = collect($kelompoksData);
 
         $barangs = BarangKebutuhan::where('aktif', true)->orderBy('nama_barang')->get();
 
@@ -185,201 +186,111 @@ class BarangController extends Controller
 
     public function exportRekap()
     {
-        $kelompoks = User::where('role', 'peserta')
+        // 1. Ambil data kelompok unik dan urutkan dengan Natural Sorting (1, 2, ... 10, 11)
+        $kelompoksData = User::where('role', 'peserta')
             ->whereNotNull('kelompok')
             ->distinct()
-            ->orderBy('kelompok')
-            ->pluck('kelompok');
+            ->pluck('kelompok')
+            ->toArray();
 
+        sort($kelompoksData, SORT_NATURAL | SORT_FLAG_CASE);
+        $kelompoks = collect($kelompoksData);
+
+        // 2. Ambil data barang yang aktif
         $barangs = BarangKebutuhan::where('aktif', true)->orderBy('nama_barang')->get();
 
         $spreadsheet = new Spreadsheet();
-        $spreadsheet->removeSheetByIndex(0);
+        $spreadsheet->removeSheetByIndex(0); // Hapus sheet default
 
+        // Buat SATU-SATUNYA Sheet: Rekap Global
+        $global = $spreadsheet->createSheet();
+        $global->setTitle('Rekap Global');
+
+        // Definisikan Kode Warna (Palette)
         $navyHex  = '002f45';
         $tealHex  = 'bdd1d3';
         $sandHex  = 'd2c296';
-        $creamHex = 'e0decd';
         $greenHex = 'd4edda';
         $redHex   = 'f8d7da';
         $whiteHex = 'FFFFFF';
 
-        foreach ($kelompoks as $kelompok) {
-            $sheet = $spreadsheet->createSheet();
-            $sheet->setTitle("Kelompok $kelompok");
-
-            $sheet->mergeCells('A1:G1');
-            $sheet->setCellValue('A1', "REKAP PENGUMPULAN BARANG - KELOMPOK $kelompok");
-            $sheet->getStyle('A1')->applyFromArray([
-                'font'      => ['bold' => true, 'size' => 13, 'color' => ['rgb' => $whiteHex], 'name' => 'Arial'],
-                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $navyHex]],
-                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-            ]);
-            $sheet->getRowDimension(1)->setRowHeight(30);
-
-            $headers = ['No', 'Nama Barang', 'Kebutuhan', 'Terkumpul', 'Progress', 'Status', 'Link Bukti Foto'];
-            foreach ($headers as $i => $h) {
-                $col = chr(65 + $i);
-                $sheet->setCellValue("{$col}2", $h);
-                $sheet->getStyle("{$col}2")->applyFromArray([
-                    'font'      => ['bold' => true, 'color' => ['rgb' => $navyHex], 'name' => 'Arial'],
-                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $tealHex]],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
-                ]);
-            }
-            $sheet->getRowDimension(2)->setRowHeight(22);
-
-            $row = 3;
-            foreach ($barangs as $idx => $b) {
-                $p       = PengumpulanBarang::where('barang_kebutuhan_id', $b->id)->where('kelompok', $kelompok)->first();
-                $terkumpul = $p ? $p->jumlah_terkumpul : 0;
-                $lengkap = $terkumpul >= $b->jumlah_kebutuhan;
-                $bgColor = $lengkap ? $greenHex : ($terkumpul > 0 ? 'fff3cd' : $redHex);
-
-                $rowData = [
-                    $idx + 1,
-                    $b->nama_barang,
-                    $b->jumlah_kebutuhan . ' ' . $b->satuan,
-                    $terkumpul . ' ' . $b->satuan,
-                    $terkumpul . '/' . $b->jumlah_kebutuhan,
-                    $lengkap ? 'Lengkap ✓' : ($terkumpul > 0 ? 'Sebagian' : 'Belum'),
-                    ''
-                ];
-
-                foreach ($rowData as $ci => $val) {
-                    $col = chr(65 + $ci);
-                    if ($ci === 6) continue;
-
-                    $sheet->setCellValue("{$col}{$row}", $val);
-                    $sheet->getStyle("{$col}{$row}")->applyFromArray([
-                        'font'      => [
-                            'name' => 'Arial',
-                            'size' => 10,
-                            'color' => ['rgb' => $lengkap ? '155724' : ($terkumpul > 0 ? '856404' : '721c24')]
-                        ],
-                        'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
-                        'alignment' => ['horizontal' => $ci === 1 ? Alignment::HORIZONTAL_LEFT : Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
-                    ]);
-                }
-
-                if ($p && $p->foto_bukti) {
-                    $fullUrl = url(Storage::url($p->foto_bukti));
-                    $sheet->setCellValue("G{$row}", '=HYPERLINK("' . $fullUrl . '", "Lihat Foto ↗")');
-                    $sheet->getStyle("G{$row}")->applyFromArray([
-                        'font'      => ['name' => 'Arial', 'size' => 10, 'underlined' => true, 'color' => ['rgb' => '0000FF'], 'bold' => true],
-                        'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
-                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
-                    ]);
-                } else {
-                    $sheet->setCellValue("G{$row}", "Tidak Ada Foto");
-                    $sheet->getStyle("G{$row}")->applyFromArray([
-                        'font'      => ['name' => 'Arial', 'size' => 10, 'color' => ['rgb' => '721c24']],
-                        'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
-                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
-                    ]);
-                }
-
-                $sheet->getRowDimension($row)->setRowHeight(20);
-                $row++;
-            }
-
-            $sheet->mergeCells("A{$row}:D{$row}");
-            $sheet->setCellValue("A{$row}", 'TOTAL BARANG LENGKAP');
-            $sheet->setCellValue("E{$row}", "=COUNTIF(F3:F" . ($row - 1) . ",\"Lengkap ✓\")&\"/\"&COUNTA(B3:B" . ($row - 1) . ")");
-            $sheet->setCellValue("F{$row}", "");
-            $sheet->setCellValue("G{$row}", "");
-
-            $sheet->getStyle("A{$row}:G{$row}")->applyFromArray([
-                'font'      => ['bold' => true, 'name' => 'Arial', 'color' => ['rgb' => $whiteHex]],
-                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $navyHex]],
-                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-                'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
-            ]);
-            $sheet->getRowDimension($row)->setRowHeight(24);
-
-            $sheet->getColumnDimension('A')->setWidth(5);
-            $sheet->getColumnDimension('B')->setWidth(30);
-            $sheet->getColumnDimension('C')->setWidth(15);
-            $sheet->getColumnDimension('D')->setWidth(15);
-            $sheet->getColumnDimension('E')->setWidth(12);
-            $sheet->getColumnDimension('F')->setWidth(15);
-            $sheet->getColumnDimension('G')->setWidth(18);
-        }
-
-        $global = $spreadsheet->createSheet();
-        $global->setTitle('Rekap Global');
-
-        $global->mergeCells('A1:' . chr(65 + $barangs->count()) . '1');
+        // --- Judul Atas ---
+        $lastColLetter = chr(65 + $barangs->count());
+        $global->mergeCells("A1:{$lastColLetter}1");
         $global->setCellValue('A1', 'REKAP GLOBAL PENGUMPULAN BARANG - SELURUH KELOMPOK');
         $global->getStyle('A1')->applyFromArray([
             'font'      => ['bold' => true, 'size' => 13, 'color' => ['rgb' => $whiteHex], 'name' => 'Arial'],
             'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $navyHex]],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
-        $global->getRowDimension(1)->setRowHeight(30);
+        $global->getRowDimension(1)->setRowHeight(35);
 
+        // --- Header Kolom Nama Kelompok ---
         $global->setCellValue('A2', 'Kelompok');
         $global->getStyle('A2')->applyFromArray([
             'font'      => ['bold' => true, 'color' => ['rgb' => $navyHex], 'name' => 'Arial'],
             'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $tealHex]],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
         ]);
 
+        // --- Header Kolom Nama Barang ---
         foreach ($barangs as $bi => $b) {
             $col = chr(66 + $bi);
             $global->setCellValue("{$col}2", $b->nama_barang . "\n(" . $b->jumlah_kebutuhan . ' ' . $b->satuan . ')');
             $global->getStyle("{$col}2")->applyFromArray([
-                'font'      => ['bold' => true, 'color' => ['rgb' => $navyHex], 'name' => 'Arial'],
+                'font'      => ['bold' => true, 'size' => 10, 'color' => ['rgb' => $navyHex], 'name' => 'Arial'],
                 'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $tealHex]],
-                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'wrapText' => true],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
                 'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
             ]);
-            $global->getColumnDimension($col)->setWidth(18);
+            $global->getColumnDimension($col)->setWidth(20);
         }
-        $global->getColumnDimension('A')->setWidth(12);
-        $global->getRowDimension(2)->setRowHeight(35);
+        $global->getColumnDimension('A')->setWidth(15);
+        $global->getRowDimension(2)->setRowHeight(40);
 
+        // --- Isi Data Baris Kelompok (Berurutan) ---
         $row = 3;
         foreach ($kelompoks as $k) {
+            // Kolom Kelompok
             $global->setCellValue("A{$row}", "Kelompok $k");
             $global->getStyle("A{$row}")->applyFromArray([
                 'font'      => ['bold' => true, 'name' => 'Arial', 'color' => ['rgb' => $navyHex]],
                 'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $sandHex]],
-                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                 'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
             ]);
 
+            // Kolom Progress Barang per Kelompok
             foreach ($barangs as $bi => $b) {
                 $col = chr(66 + $bi);
                 $p   = PengumpulanBarang::where('barang_kebutuhan_id', $b->id)->where('kelompok', $k)->first();
+
                 $terkumpul = $p ? $p->jumlah_terkumpul : 0;
                 $lengkap   = $terkumpul >= $b->jumlah_kebutuhan;
+
+                // Warnai background cell: Hijau (Lengkap), Kuning (Sebagian), Merah (Belum)
                 $bgColor   = $lengkap ? $greenHex : ($terkumpul > 0 ? 'fff3cd' : $redHex);
+                // Warna teks menyesuaikan status progress
+                $textColor = $lengkap ? '155724' : ($terkumpul > 0 ? '856404' : '721c24');
 
                 $global->setCellValue("{$col}{$row}", "{$terkumpul}/{$b->jumlah_kebutuhan}");
                 $global->getStyle("{$col}{$row}")->applyFromArray([
-                    'font'      => [
-                        'name' => 'Arial',
-                        'size' => 10,
-                        'color' => ['rgb' => $lengkap ? '155724' : ($terkumpul > 0 ? '856404' : '721c24')]
-                    ],
+                    'font'      => ['name' => 'Arial', 'size' => 10, 'bold' => true, 'color' => ['rgb' => $textColor]],
                     'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                     'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
                 ]);
             }
-            $global->getRowDimension($row)->setRowHeight(18);
+            $global->getRowDimension($row)->setRowHeight(22);
             $row++;
         }
 
+        // Set sheet pertama aktif secara default saat dibuka
         $spreadsheet->setActiveSheetIndex(0);
 
-        $filename = 'rekap_barang_' . date('Ymd_His') . '.xlsx';
+        // Proses download file
+        $filename = 'rekap_global_barang_' . date('Ymd_His') . '.xlsx';
         $tmpPath  = storage_path("app/temp/{$filename}");
 
         if (!file_exists(storage_path('app/temp'))) {
@@ -431,7 +342,7 @@ class BarangController extends Controller
         $request->validate([
             'jumlah_terkumpul'    => 'required|integer|min:0',
             'panitia_penerima_id' => 'required|exists:users,id',
-            'foto_bukti'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_bukti'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
         ]);
 
         $user    = Auth::user();
@@ -442,13 +353,10 @@ class BarangController extends Controller
             'kelompok'            => $user->kelompok,
         ]);
 
-        // 🔥 PERBAIKAN LOGIKA PROTEKSI: 
-        // Hanya dikunci total jika data sudah di-ACC DAN jumlahnya SUDAH LENGKAP memenuhi kebutuhan target.
         if ($pengumpulan->is_validated && $pengumpulan->jumlah_terkumpul >= $barang->jumlah_kebutuhan) {
-            return back()->withErrors(['error' => 'Data sudah lengkap dan di-ACC panitia, tidak dapat diubah lagi.']);
+            return back()->withErrors(['error' => 'Data sudah lengkap and di-ACC panitia, tidak dapat diubah lagi.']);
         }
 
-        // Jika baru di-ACC sebagian (misal 3 dari 6), tapi peserta malah mencoba menurunkan jumlah di bawah data lama, kita cegah.
         if ($pengumpulan->is_validated && $request->jumlah_terkumpul < $pengumpulan->jumlah_terkumpul) {
             return back()->withErrors(['error' => 'Jumlah barang tidak boleh lebih kecil dari jumlah yang sudah di-ACC sebelumnya.']);
         }
@@ -457,7 +365,6 @@ class BarangController extends Controller
         $pengumpulan->panitia_penerima_id = $request->panitia_penerima_id;
         $pengumpulan->updated_by          = $user->id;
 
-        // Otomatis turunkan status ACC jika jumlah diubah bertambah agar panitia memvalidasi ulang sisa cicilan barunya
         if ($pengumpulan->is_validated && $request->jumlah_terkumpul > $pengumpulan->getOriginal('jumlah_terkumpul')) {
             $pengumpulan->is_validated = false;
         }
@@ -483,7 +390,6 @@ class BarangController extends Controller
             ->where('kelompok', $user->kelompok)
             ->firstOrFail();
 
-        // 🔥 Hanya dikunci total jika sudah lengkap target bawaannya
         if ($pengumpulan->is_validated && $pengumpulan->jumlah_terkumpul >= $barang->jumlah_kebutuhan) {
             return back()->withErrors(['error' => 'Data sudah di-ACC panitia sepenuhnya.']);
         }
@@ -491,7 +397,6 @@ class BarangController extends Controller
         if ($pengumpulan->foto_bukti) {
             Storage::disk('public')->delete($pengumpulan->foto_bukti);
             $pengumpulan->foto_bukti = null;
-            // Jika status ACC turun karena perubahan berkas bukti baru
             $pengumpulan->is_validated = false;
             $pengumpulan->save();
         }
@@ -507,7 +412,6 @@ class BarangController extends Controller
             ->where('kelompok', $user->kelompok)
             ->firstOrFail();
 
-        // 🔥 Hanya dikunci total jika sudah lengkap target bawaannya
         if ($pengumpulan->is_validated && $pengumpulan->jumlah_terkumpul >= $barang->jumlah_kebutuhan) {
             return back()->withErrors(['error' => 'Data sudah di-ACC panitia sepenuhnya.']);
         }
