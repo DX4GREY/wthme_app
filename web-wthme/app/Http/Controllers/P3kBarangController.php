@@ -49,7 +49,11 @@ class P3kBarangController extends Controller
         ]);
 
         P3kBarangKebutuhan::create($request->only(
-            'nama_barang', 'kategori', 'jumlah_kebutuhan', 'satuan', 'keterangan'
+            'nama_barang',
+            'kategori',
+            'jumlah_kebutuhan',
+            'satuan',
+            'keterangan'
         ));
 
         return back()->with('success', 'Barang P3K berhasil ditambahkan.');
@@ -68,7 +72,11 @@ class P3kBarangController extends Controller
 
         $barang = P3kBarangKebutuhan::findOrFail($id);
         $barang->update($request->only(
-            'nama_barang', 'kategori', 'jumlah_kebutuhan', 'satuan', 'keterangan'
+            'nama_barang',
+            'kategori',
+            'jumlah_kebutuhan',
+            'satuan',
+            'keterangan'
         ));
 
         return back()->with('success', 'Barang P3K berhasil diupdate.');
@@ -271,7 +279,12 @@ class P3kBarangController extends Controller
         $obatPribadi = P3kObatPribadi::where('kelompok', $kelompok)->with('peserta', 'pj')->get();
 
         return view('panitia.p3k.kelompok', compact(
-            'kelompok', 'dataKelompok', 'dataIndividu', 'barangsIndividu', 'summaryIndividuKelompok', 'obatPribadi'
+            'kelompok',
+            'dataKelompok',
+            'dataIndividu',
+            'barangsIndividu',
+            'summaryIndividuKelompok',
+            'obatPribadi'
         ));
     }
 
@@ -497,8 +510,14 @@ class P3kBarangController extends Controller
         $obatPribadi = P3kObatPribadi::with('peserta', 'pj')->orderBy('kelompok')->get();
 
         return view('panitia.p3k.rekap', compact(
-            'kelompoks', 'barangsKelompok', 'barangsIndividu', 'rekapKelompok', 'rekapIndividu',
-            'summaryIndividuPerKelompok', 'stokIndividu', 'obatPribadi'
+            'kelompoks',
+            'barangsKelompok',
+            'barangsIndividu',
+            'rekapKelompok',
+            'rekapIndividu',
+            'summaryIndividuPerKelompok',
+            'stokIndividu',
+            'obatPribadi'
         ));
     }
 
@@ -588,7 +607,7 @@ class P3kBarangController extends Controller
             $r++;
         }
 
-        foreach (['A','B','C','D','E','F'] as $col) {
+        foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $col) {
             $sheet3->getColumnDimension($col)->setWidth(20);
         }
 
@@ -669,7 +688,7 @@ class P3kBarangController extends Controller
 
         $sheet->getColumnDimension('A')->setWidth(6);
         $sheet->getColumnDimension('B')->setWidth(28);
-        foreach (['C','D','E','F'] as $col) {
+        foreach (['C', 'D', 'E', 'F'] as $col) {
             $sheet->getColumnDimension($col)->setWidth(14);
         }
     }
@@ -832,7 +851,7 @@ class P3kBarangController extends Controller
 
         $sheet->getColumnDimension('A')->setWidth(6);
         $sheet->getColumnDimension('B')->setWidth(28);
-        foreach (['C','D','E'] as $col) {
+        foreach (['C', 'D', 'E'] as $col) {
             $sheet->getColumnDimension($col)->setWidth(16);
         }
     }
@@ -1145,7 +1164,7 @@ class P3kBarangController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->role === 'admin' || $user->isKorlap()) {
+        if ($user->role === 'admin' || $user->id == 611) {
             return;
         }
 
