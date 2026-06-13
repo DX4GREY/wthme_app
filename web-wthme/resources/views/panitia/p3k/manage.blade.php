@@ -73,7 +73,7 @@
             </form>
         </div>
 
-        {{-- Mapping PJ per Kelompok --}}
+        {{-- Mapping PJ per Kelompok
         <div style="background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 1.5rem; padding: 2rem; margin-bottom: 2.5rem;">
             <h2 style="color:#002f45; font-size:1.1rem; font-weight:800; margin:0 0 1.5rem;">🛡️ Pembagian PJ P3K per Kelompok</h2>
             <form method="POST" action="{{ route('panitia.p3k.manage.pj.store') }}" style="display:grid; grid-template-columns:1fr 2fr auto; gap:1.25rem; align-items:end; margin-bottom:1.5rem;">
@@ -111,7 +111,7 @@
             <p style="color:#002f45; opacity:0.4; font-size:0.75rem; margin-top:1rem;">
                 Tips: dari contoh data, biasanya kelompok 1-5 → PJ A, 6-10 → PJ B, 11-15 → PJ C. Input satu per satu sesuai pembagian.
             </p>
-        </div>
+        </div> --}}
 
         {{-- Daftar Barang Kelompok --}}
         <h3 style="font-family:'Playfair Display',serif; color:#002f45; font-size:1.3rem; font-weight:800; margin-bottom:1rem; padding-left:0.5rem;">📦 Barang Kelompok</h3>
