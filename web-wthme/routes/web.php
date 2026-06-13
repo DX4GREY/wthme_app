@@ -21,6 +21,8 @@ use App\Http\Controllers\FaceAbsensiController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\KeaktifanController;
 // 🟢 IMPORT CONTROLLER BARU
+use App\Http\Controllers\P3kBarangController;
+use App\Http\Controllers\QuestMeetController;
 use App\Http\Controllers\QuestLabController;
 use App\Http\Controllers\FotoKekeluargaanController;
 use Illuminate\Support\Facades\Route;
@@ -50,11 +52,23 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/panitia/{id}/edit',            [AdminController::class, 'editPanitia'])->name('panitia.edit');
         Route::put('/panitia/{id}',                 [AdminController::class, 'updatePanitia'])->name('panitia.update');
         Route::get('/template',     [AdminController::class, 'downloadTemplate'])->name('template');
+
         // Route Baru untuk Peserta
         Route::get('/import-peserta', [AdminController::class, 'importPesertaForm'])->name('import.peserta');
         Route::post('/import-peserta', [AdminController::class, 'importPesertaStore'])->name('import.peserta.store');
         Route::get('/template-peserta', [AdminController::class, 'downloadTemplatePeserta'])->name('template.peserta');
         Route::post('/peserta/reset/{id}', [AdminController::class, 'resetPasswordPeserta'])->name('peserta.reset');
+
+        // 🟢 PINDAH KE SINI: Route Import Abang-Abang KBMS khusus Admin
+        // --- EDIT PADA BAGIAN KELOMPOK ROUTE INI SAJA ---
+        Route::prefix('abang')->name('abang.')->group(function () {
+            // 🟢 Diubah ke method 'indexAbang' agar mengarah ke admin.abang.index yang asli
+            Route::get('/', [QuestMeetController::class, 'indexAbang'])->name('index');
+
+            Route::get('/import', [QuestMeetController::class, 'importForm'])->name('import');
+            Route::post('/import', [QuestMeetController::class, 'importStore'])->name('import.store');
+            Route::get('/template', [QuestMeetController::class, 'downloadTemplateAbang'])->name('template');
+        });
     });
 
     // --- PANITIA ---
@@ -77,19 +91,52 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/{id}', [KeaktifanController::class, 'destroy'])->name('destroy');
         });
 
-        // 🔴 FITUR BARU PANITIA (Diselipkan di sini)
+        // Fitur Kontrol Divisi Acara & Admin untuk Quest Meet KBM (Tanpa Route Import)
+        Route::prefix('quest-meet')->name('meet.')->group(function () {
+            Route::get('/', [QuestMeetController::class, 'indexPanitia'])->name('index');
+            Route::post('/approve/{id}', [QuestMeetController::class, 'approve'])->name('approve');
+            Route::post('/reject/{id}', [QuestMeetController::class, 'reject'])->name('reject');
+        });
+
+        // 🔴 FITUR QUEST LAB (Pembersihan Duplikat)
         Route::prefix('quest-lab')->name('quest.')->group(function () {
             Route::get('/', [QuestLabController::class, 'indexPanitia'])->name('index');
-            Route::post('/approve-all', [QuestLabController::class, 'approveAll'])->name('approveAll'); // 🟢 PASTIKAN ADA DI SINI
+            Route::post('/approve-all', [QuestLabController::class, 'approveAll'])->name('approveAll');
             Route::post('/approve/{id}', [QuestLabController::class, 'approveQuest'])->name('approve');
             Route::post('/reject/{id}', [QuestLabController::class, 'rejectQuest'])->name('reject');
         });
+        // P3K BARANG (PANITIA)
+        Route::prefix('p3k')->name('p3k.')->group(function () {
+            Route::get('/', [P3kBarangController::class, 'panitiaIndex'])->name('index');
+            Route::get('/kelompok/{kelompok}', [P3kBarangController::class, 'panitiaKelompok'])->name('kelompok');
+            Route::get('/rekap', [P3kBarangController::class, 'panitiaRekap'])->name('rekap');
+            Route::get('/export', [P3kBarangController::class, 'exportRekap'])->name('export');
 
-        // LEADERBOARD INPUT (Perbaikan Error RouteNotFoundException)
+            // Validasi & terpakai - BARANG KELOMPOK (agregat per kelompok)
+            Route::post('/validasi/{barangId}/{kelompok}', [P3kBarangController::class, 'toggleValidasi'])->name('validasi');
+            Route::post('/terpakai/{barangId}/{kelompok}', [P3kBarangController::class, 'updateTerpakai'])->name('terpakai');
+
+            // Validasi - BARANG INDIVIDU (per peserta, saat pengumpulan)
+            Route::post('/individu/validasi/{barangId}/{userId}', [P3kBarangController::class, 'toggleValidasiIndividu'])->name('individu.validasi');
+
+            // Stok GLOBAL barang individu (pool, lintas kelompok) - dipakai/dikurangi oleh panitia
+            Route::post('/stok/{barangId}/terpakai', [P3kBarangController::class, 'updateStokTerpakai'])->name('stok.terpakai');
+            Route::post('/stok/{barangId}/adjust', [P3kBarangController::class, 'adjustStokTerpakai'])->name('stok.adjust');
+
+            Route::post('/obat/{id}/toggle', [P3kBarangController::class, 'obatToggleDiserahkan'])->name('obat.toggle');
+
+            // Manage daftar barang & mapping PJ (divisi P3K saja)
+            Route::get('/manage', [P3kBarangController::class, 'manageIndex'])->name('manage');
+            Route::post('/manage', [P3kBarangController::class, 'manageStore'])->name('manage.store');
+            Route::put('/manage/{id}', [P3kBarangController::class, 'manageUpdate'])->name('manage.update');
+            Route::delete('/manage/{id}', [P3kBarangController::class, 'manageDestroy'])->name('manage.destroy');
+
+            Route::post('/manage/pj', [P3kBarangController::class, 'pjStore'])->name('manage.pj.store');
+        });
+
+        // LEADERBOARD INPUT
         Route::prefix('leaderboard')->name('leaderboard.')->group(function () {
             Route::get('/input', [LeaderboardController::class, 'inputPoint'])->name('input');
-            // Jika butuh proses simpan point nanti tinggal uncomment baris di bawah ini:
-            // Route::post('/input', [LeaderboardController::class, 'storePoint'])->name('input.store');
         });
 
         // QR & ABSENSI
@@ -112,7 +159,6 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/catatan/{sesiId}', [MentoringController::class, 'simpanCatatan'])->name('catatan.simpan');
             Route::post('/assign-mentor', [MentoringController::class, 'assignMentor'])->name('assignMentor');
 
-            // Hak akses extra mentoring (Read/Write)
             Route::get('/rekap-global', [MentoringController::class, 'rekapGlobal'])->name('rekap');
             Route::get('/kelompok/{kelompok}', [MentoringController::class, 'kelompok'])->name('kelompok');
 
@@ -134,7 +180,6 @@ Route::middleware(['auth'])->group(function () {
         Route::prefix('kesehatan')->name('kesehatan.')->group(function () {
             Route::get('/', [KesehatanController::class, 'indexPanitia'])->name('index');
             Route::post('/{id}/update-pita', [KesehatanController::class, 'updateWarnaPita'])->name('updatePita');
-            
         });
 
         // KAS
@@ -185,23 +230,15 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/kelompok/{kelompok}', [BarangController::class, 'panitiaKelompok'])->name('kelompok');
             Route::get('/rekap', [BarangController::class, 'panitiaRekap'])->name('rekap');
             Route::get('/export', [BarangController::class, 'exportRekap'])->name('export');
-
-            // ROUTE VALIDASI INTERAKTIF
             Route::post('/validasi/{barangId}/{kelompok}', [BarangController::class, 'toggleValidasi'])->name('validasi');
 
-            // Manage barang (Hanya divisi Logistik / Admin)
             Route::get('/manage', [BarangController::class, 'manageIndex'])->name('manage');
             Route::post('/manage', [BarangController::class, 'manageStore'])->name('manage.store');
             Route::put('/manage/{id}', [BarangController::class, 'manageUpdate'])->name('manage.update');
             Route::delete('/manage/{id}', [BarangController::class, 'manageDestroy'])->name('manage.destroy');
         });
 
-        // 🔴 FITUR BARU PANITIA (Diselipkan di sini)
-        Route::prefix('quest-lab')->name('quest.')->group(function () {
-            Route::get('/', [QuestLabController::class, 'indexPanitia'])->name('index');
-            Route::post('/approve/{id}', [QuestLabController::class, 'approveQuest'])->name('approve');
-            Route::post('/reject/{id}', [QuestLabController::class, 'rejectQuest'])->name('reject');
-        });
+        
     });
 
     // --- PESERTA ---
@@ -214,6 +251,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/tugas',             [TugasController::class, 'indexPeserta'])->name('tugas');
         Route::post('/tugas/upload',     [TugasController::class, 'uploadTugas'])->name('tugas.upload');
 
+
         // Logistik Barang (Peserta)
         Route::get('/barang', [BarangController::class, 'pesertaIndex'])->name('barang');
         Route::patch('/barang/{barangId}', [BarangController::class, 'pesertaUpdate'])->name('barang.update');
@@ -221,11 +259,30 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/barang/{barangId}', [BarangController::class, 'pesertaReset'])->name('barang.reset');
         Route::delete('/peserta/barang/{id}/foto', [BarangController::class, 'deleteFoto'])->name('barang.foto.destroy');
 
+        // P3K Barang (Peserta)
+        Route::get('/p3k', [P3kBarangController::class, 'pesertaIndex'])->name('p3k');
+
+        // P3K Barang (Peserta)
+        Route::get('/p3k', [P3kBarangController::class, 'pesertaIndex'])->name('p3k');
+
+        // Barang KELOMPOK (agregat, sama seperti Logistik)
+        Route::patch('/p3k/kelompok/{barangId}', [P3kBarangController::class, 'pesertaUpdateKelompok'])->name('p3k.kelompok.update');
+        Route::delete('/p3k/kelompok/{barangId}/foto', [P3kBarangController::class, 'pesertaHapusFotoKelompok'])->name('p3k.kelompok.hapus-foto');
+        Route::delete('/p3k/kelompok/{barangId}', [P3kBarangController::class, 'pesertaResetKelompok'])->name('p3k.kelompok.reset');
+
+        // Barang INDIVIDU (milik peserta sendiri)
+        Route::patch('/p3k/individu/{barangId}', [P3kBarangController::class, 'pesertaUpdateIndividu'])->name('p3k.individu.update');
+        Route::delete('/p3k/individu/{barangId}/foto', [P3kBarangController::class, 'pesertaHapusFotoIndividu'])->name('p3k.individu.hapus-foto');
+        Route::delete('/p3k/individu/{barangId}', [P3kBarangController::class, 'pesertaResetIndividu'])->name('p3k.individu.reset');
+
+        // Obat Pribadi (Peserta)
+        Route::post('/p3k/obat', [P3kBarangController::class, 'obatStore'])->name('p3k.obat.store');
+        Route::delete('/p3k/obat/{id}', [P3kBarangController::class, 'obatDestroy'])->name('p3k.obat.destroy');
+
         // Face Recognition
         Route::get('/daftar-wajah',  [FaceController::class, 'registerForm'])->name('face.register');
         Route::post('/daftar-wajah', [FaceController::class, 'registerStore'])->name('face.register.store');
 
-        // 🟢 FITUR BARU PESERTA (Diselipkan di sini)
         // Quest 4 Lab Elektro
         Route::prefix('quest-lab')->name('quest.')->group(function () {
             Route::get('/', [QuestLabController::class, 'indexPeserta'])->name('index');
@@ -233,6 +290,13 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/delete/{lab}', [QuestLabController::class, 'delete'])->name('delete');
         });
 
+        // Quest Meet
+        Route::prefix('quest-meet')->name('meet.')->group(function () {
+            Route::get('/', [QuestMeetController::class, 'indexPeserta'])->name('index');
+            Route::get('/create', [QuestMeetController::class, 'create'])->name('create');
+            Route::get('/get-abang/{angkatan}', [QuestMeetController::class, 'getAbangByAngkatan'])->name('get-abang');
+            Route::post('/store', [QuestMeetController::class, 'store'])->name('store');
+        });
 
         // Misi Kekeluargaan Angkatan
         Route::prefix('kekeluargaan')->name('kekeluargaan.')->group(function () {

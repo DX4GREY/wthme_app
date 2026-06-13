@@ -91,7 +91,7 @@
 
             {{-- 🏆 BOX TOTAL POIN & PERINGKAT PESERTA (SIMPEL & BULAT) 🏆 --}}
             <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap;">
-                
+
                 {{-- Box Skor XP --}}
                 <div
                     style="display: inline-flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 0.5rem 1.5rem; border-radius: 50px; border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 4px 20px rgba(0, 47, 69, 0.04);">
@@ -143,7 +143,7 @@
                                         @if ($info->konten)
                                             <p
                                                 style="color: #002f45; opacity: 0.8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 15px; font-family: 'Inter', sans-serif;">
-                                                {!! nl2br(e(Str::limit($info->konten, 200))) !!}
+                                                {! nl2br(e(Str::limit($info->konten, 200))) !}
                                             </p>
                                         @endif
 
@@ -211,6 +211,13 @@
                             'badge' => null,
                         ],
                         [
+                            'route' => route('peserta.p3k'),
+                            'icon' => '🩹',
+                            'title' => 'P3K Kelompok',
+                            'desc' => 'Pengumpulan obat & lapor obat pribadi',
+                            'badge' => null,
+                        ],
+                        [
                             'route' => route('peserta.riwayat'),
                             'icon' => '🏥',
                             'title' => 'Riwayat Kesehatan',
@@ -231,6 +238,13 @@
                             'desc' => 'Foto bersama rekan angkatan. Klaim +5 XP per teman!',
                             'badge' => null,
                         ],
+                        // [
+                        //     'route' => route('peserta.meet.index'), // Silakan sesuaikan nama route menu barunya di sini
+                        //     'icon' => '✨', // Silakan sesuaikan emoji icon sesuai keinginan
+                        //     'title' => 'Quest Meet The KBM Elektro',
+                        //     'desc' => 'Bertemu dan Foto Bersama KBM Elektro.',
+                        //     'badge' => null, // Badge hijau penanda fitur baru (opsional, ganti null jika tidak dipakai)
+                        // ],
                     ];
                 @endphp
 
@@ -238,7 +252,7 @@
                     <a href="{{ $menu['route'] }}"
                         style="text-decoration:none; background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 1.5rem; padding: 1.75rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; gap: 1.25rem; position: relative; box-shadow: 0 8px 32px 0 rgba(0, 47, 69, 0.05);"
                         onmouseover="this.style.background='rgba(255, 255, 255, 0.4)'; this.style.transform='translateY(-5px)';"
-                        onmouseout="this.style.background='rgba(255, 255, 255, 0.25)'; this.style.transform='translateY(0)';"	>
+                        onmouseout="this.style.background='rgba(255, 255, 255, 0.25)'; this.style.transform='translateY(0)';">
                         @if ($menu['badge'])
                             <span
                                 style="position:absolute; top:1rem; right:1.25rem; background:{{ $menu['badge']['color'] }}; color:white; font-size:0.7rem; font-weight:700; padding:0.25rem 0.75rem; border-radius:999px;">
@@ -260,7 +274,7 @@
                 @endforeach
             </div>
 
-            {{-- 🌟 TOMBOL BARU: Akses Balik ke Dashboard Pilihan Peran Utama 🌟 --}}
+            {{-- 🌟 TOMBOL: Akses Balik ke Dashboard Pilihan Peran Utama 🌟 --}}
             <div style="margin-top: 2.5rem;">
                 <a href="{{ url('/dashboard') }}"
                     style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 1.1rem; background: #002f45; border-radius: 1.25rem; text-decoration: none; color: #e0decd; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 15px rgba(0,47,69,0.15); transition: all 0.3s ease;"

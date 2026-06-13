@@ -19,7 +19,13 @@
                 </p>
             </div>
             <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-                {{-- Dropdown atau Tombol Grup untuk Import Peserta --}}
+                {{-- 🟢 PERBAIKAN DI SINI: Mengubah route lama ke route admin baru --}}
+                <a href="{{ route('admin.abang.import') }}"
+                    style="padding:0.6rem 1.25rem; background:#bdd1d3; color:#002f45; border-radius:0.6rem; 
+                      text-decoration:none; font-size:0.875rem; font-weight:700; border:2px solid #bdd1d3;">
+                    ⬆ Import Abang KBMS
+                </a>
+                
                 <a href="{{ route('admin.import.peserta') }}"
                     style="padding:0.6rem 1.25rem; background:#d2c296; color:#002f45; border-radius:0.6rem; 
                       text-decoration:none; font-size:0.875rem; font-weight:700; border:2px solid #d2c296;">
@@ -32,6 +38,7 @@
                 </a>
             </div>
         </div>
+
         {{-- Form Pencarian --}}
         <div
             style="margin-bottom: 2rem; background: #f4f7f8; padding: 1.5rem; border-radius: 1rem; border: 1px solid #bdd1d3;">
@@ -149,7 +156,6 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {{-- Variabel $pesertaList didapat dari controller --}}
                     @forelse($pesertaList ?? [] as $peserta)
                         <tr style="border-bottom:1px solid #e0decd; {{ $loop->even ? 'background:#fdfbf7;' : '' }}">
                             <td style="padding:0.875rem 1rem;">
@@ -166,7 +172,6 @@
                                 {{ $peserta->gender == 'L' ? 'Laki-laki' : 'Perempuan' }}
                             </td>
                             <td style="padding:0.875rem 1rem; text-align:center;">
-                                {{-- Tombol Reset Khusus Peserta --}}
                                 <form method="POST" action="{{ route('admin.peserta.reset', $peserta->id) }}"
                                     style="display:inline;">
                                     @csrf

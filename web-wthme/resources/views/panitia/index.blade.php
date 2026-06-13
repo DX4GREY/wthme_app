@@ -25,7 +25,6 @@
             </div>
 
             {{-- Statistik Grid (Glassmorphism Style) --}}
-            {{-- Statistik Grid (Glassmorphism Style) --}}
             <div
                 style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">
                 <div class="stat-glass">
@@ -104,28 +103,6 @@
                             }
                         }
                     </script>
-
-                    <script>
-                        function toggleDetailKelompok() {
-                            const container = document.getElementById('detail-kelompok-container');
-                            const arrow = document.getElementById('arrow-kelompok');
-                            const btn = document.getElementById('btn-toggle-kelompok');
-
-                            if (container.style.maxHeight === '0px' || !container.style.maxHeight) {
-                                // Buka dropdown (Menyesuaikan dengan total tinggi konten dinamis)
-                                container.style.marginTop = '0.5rem';
-                                container.style.maxHeight = container.scrollHeight + "px";
-                                arrow.style.transform = 'rotate(90deg)';
-                                btn.style.color = '#002f45';
-                            } else {
-                                // Tutup dropdown
-                                container.style.maxHeight = '0px';
-                                container.style.marginTop = '0px';
-                                arrow.style.transform = 'rotate(0deg)';
-                                btn.style.color = '#6b705c';
-                            }
-                        }
-                    </script>
                 </div>
                 <div class="stat-glass">
                     <span class="stat-label">Panitia Hadir</span>
@@ -145,12 +122,12 @@
                                 'desc' => 'Pantau jadwal & planning event',
                                 'role' => 'korlap',
                             ],
-                            [
-                                'route' => 'panitia.absen',
-                                'icon' => '📷',
-                                'title' => 'Absen Saya',
-                                'desc' => 'Scan QR kehadiran panitia',
-                            ],
+                            // [
+                            //     'route' => 'panitia.absen',
+                            //     'icon' => '📷',
+                            //     'title' => 'Absen Saya',
+                            //     'desc' => 'Scan QR kehadiran panitia',
+                            // ],
                             [
                                 'route' => 'panitia.absen.face.gate',
                                 'icon' => '🤖',
@@ -170,20 +147,19 @@
                                 'title' => 'Data Absensi Peserta',
                                 'desc' => 'Rekap & export kehadiran peserta',
                             ],
-                            [
-                                'route' => 'panitia.absensi.panitia',
-                                'icon' => '📊',
-                                'title' => 'Data Absensi Panitia',
-                                'desc' => 'Rekap & export kehadiran panitia',
-                            ],
+                            // [
+                            //     'route' => 'panitia.absensi.panitia',
+                            //     'icon' => '📊',
+                            //     'title' => 'Data Absensi Panitia',
+                            //     'desc' => 'Rekap & export kehadiran panitia',
+                            // ],
                             [
                                 'route' => 'panitia.leaderboard.input',
                                 'icon' => '✨',
                                 'title' => 'Input Poin Peserta',
-                                'desc' => 'Input poin absensi, tugas, dan keaktifan leaderboard',
+                                'desc' => 'Input poin absensi, tugas, and keaktifan leaderboard',
                                 'restricted_to' => 'acara_and_admin',
                             ],
-                            // 🟢 MENU BARU: VALIDASI QUEST LAB ELEKTRO
                             [
                                 'route' => 'panitia.quest.index',
                                 'icon' => '🧪',
@@ -191,11 +167,25 @@
                                 'desc' => 'Cek dan setujui bukti selfie laboratorium peserta',
                                 'restricted_to' => 'acara_and_admin',
                             ],
+                            // 🟢 MENU BARU: VALIDASI SUBMISI MEET KBM (ACC/TOLAK BUKTI MEET)
+                            [
+                                'route' => 'panitia.meet.index',
+                                'icon' => '👥',
+                                'title' => 'Validasi Meet KBM',
+                                'desc' => 'Antrean verifikasi acc/tolak bukti meet abang tingkat peserta',
+                                'restricted_to' => 'acara_and_admin',
+                            ],
                             [
                                 'route' => 'panitia.kesehatan.index',
                                 'icon' => '🩺',
                                 'title' => 'Kesehatan Peserta',
                                 'desc' => 'Pantau riwayat penyakit & alergi',
+                            ],
+                            [
+                                'route' => 'panitia.p3k.index',
+                                'icon' => '🩹',
+                                'title' => 'Pengumpulan Barang P3K',
+                                'desc' => 'Pantau status logistik medis & obat pribadi',
                             ],
                             [
                                 'route' => 'panitia.tugas.index',
@@ -215,12 +205,12 @@
                                 'title' => 'Pengumpulan Barang',
                                 'desc' => 'Pantau status barang bawaan per kelompok',
                             ],
-                            [
-                                'route' => 'panitia.notulensi.index',
-                                'icon' => '✍️',
-                                'title' => 'Notulensi Rapat',
-                                'desc' => 'Catat hasil & poin pembahasan',
-                            ],
+                            // [
+                            //     'route' => 'panitia.notulensi.index',
+                            //     'icon' => '✍️',
+                            //     'title' => 'Notulensi Rapat',
+                            //     'desc' => 'Catat hasil & poin pembahasan',
+                            // ],
                             [
                                 'route' => 'panitia.mentoring.index',
                                 'icon' => '🤝',
@@ -246,7 +236,7 @@
                                     $isAllowed = false;
                                 }
                             }
-                            // --- PINTU 2: CEK MENU INPUT POIN & QUEST LAB (TERMASUK MENU BARU) ---
+                            // --- PINTU 2: CEK MENU AKSES TERBATAS (INPUT POIN, QUEST LAB, & MEET KBM) ---
                             elseif (isset($menu['restricted_to']) && $menu['restricted_to'] === 'acara_and_admin') {
                                 if ($userRole === 'admin' || $userDivisi === 'acara') {
                                     $isAllowed = true;
@@ -262,7 +252,7 @@
                             }
                         @endphp
 
-                        {{-- Eksekusi: Jika tidak diizinkan, skip ke menu berikutnya --}}
+                        {{-- Jika tidak diizinkan, bypass komponen render card --}}
                         @if (!$isAllowed)
                             @continue
                         @endif
@@ -276,7 +266,7 @@
                         </a>
                     @endforeach
 
-                    {{-- Special Bendahara Card --}}
+                    {{-- Special Bendahara Card
                     @if (auth()->user()->isPanitia())
                         <a href="{{ route('panitia.kas.index') }}" class="action-card bendahara-theme">
                             <div class="icon-box" style="background: rgba(210,194,150,0.2);">📒</div>
@@ -287,7 +277,7 @@
                             <span class="role-badge"
                                 style="background: rgba(210,194,150,0.2); color: #d2c296; border-color: rgba(210,194,150,0.3);">BENDAHARA</span>
                         </a>
-                    @endif
+                    @endif --}}
                 </div>
 
                 {{-- Kolom Kanan: Sidebar --}}
@@ -306,7 +296,7 @@
 
                         {{-- List Link yang sudah ada --}}
                         @foreach ($links as $link)
-                            <div style="position: relative; group">
+                            <div style="position: relative;">
                                 <a href="{{ $link->url }}" target="_blank" class="resource-link">
                                     <span style="font-size: 1.25rem;">
                                         @if ($link->ikon === 'folder')
