@@ -49,11 +49,7 @@ class P3kBarangController extends Controller
         ]);
 
         P3kBarangKebutuhan::create($request->only(
-            'nama_barang',
-            'kategori',
-            'jumlah_kebutuhan',
-            'satuan',
-            'keterangan'
+            'nama_barang', 'kategori', 'jumlah_kebutuhan', 'satuan', 'keterangan'
         ));
 
         return back()->with('success', 'Barang P3K berhasil ditambahkan.');
@@ -72,11 +68,7 @@ class P3kBarangController extends Controller
 
         $barang = P3kBarangKebutuhan::findOrFail($id);
         $barang->update($request->only(
-            'nama_barang',
-            'kategori',
-            'jumlah_kebutuhan',
-            'satuan',
-            'keterangan'
+            'nama_barang', 'kategori', 'jumlah_kebutuhan', 'satuan', 'keterangan'
         ));
 
         return back()->with('success', 'Barang P3K berhasil diupdate.');
@@ -123,6 +115,9 @@ class P3kBarangController extends Controller
 
     public function panitiaIndex()
     {
+        // Semua panitia boleh melihat halaman ini
+        $this->authorizeAnyPanitia();
+
         $kelompoksData = User::where('role', 'peserta')
             ->whereNotNull('kelompok')
             ->distinct()
@@ -133,10 +128,12 @@ class P3kBarangController extends Controller
 
         $user = Auth::user();
 
-        // Jika PJ P3K (bukan admin/koordinator), hanya tampilkan kelompok binaannya
-        if (!$user->isAdmin() && strtoupper($user->divisi ?? '') === 'P3K') {
+        // Jika PJ P3K (bukan admin), hanya tampilkan kelompok binaannya
+        if ($user->role !== 'admin' && strtoupper($user->divisi ?? '') === 'P3K') {
             $binaan = P3kPjKelompok::kelompokUntukPj($user->id);
-            $kelompoksData = array_values(array_intersect($kelompoksData, $binaan));
+            if (!empty($binaan)) {
+                $kelompoksData = array_values(array_intersect($kelompoksData, $binaan));
+            }
         }
 
         $kelompoks = collect($kelompoksData);
@@ -201,7 +198,9 @@ class P3kBarangController extends Controller
 
     public function panitiaKelompok($kelompok)
     {
-        $this->authorizeKelompokAccess($kelompok);
+        // Semua panitia boleh melihat halaman kelompok
+        // Aksi write (validasi, terpakai) di method masing-masing sudah dilindungi authorizeKelompokAccess()
+        $this->authorizeAnyPanitia();
 
         $barangsKelompok = P3kBarangKebutuhan::kelompok()->where('aktif', true)->orderBy('nama_barang')->get();
         $barangsIndividu = P3kBarangKebutuhan::individu()->where('aktif', true)->orderBy('nama_barang')->get();
@@ -279,12 +278,7 @@ class P3kBarangController extends Controller
         $obatPribadi = P3kObatPribadi::where('kelompok', $kelompok)->with('peserta', 'pj')->get();
 
         return view('panitia.p3k.kelompok', compact(
-            'kelompok',
-            'dataKelompok',
-            'dataIndividu',
-            'barangsIndividu',
-            'summaryIndividuKelompok',
-            'obatPribadi'
+            'kelompok', 'dataKelompok', 'dataIndividu', 'barangsIndividu', 'summaryIndividuKelompok', 'obatPribadi'
         ));
     }
 
@@ -424,6 +418,9 @@ class P3kBarangController extends Controller
 
     public function panitiaRekap()
     {
+        // Semua panitia boleh melihat rekap
+        $this->authorizeAnyPanitia();
+
         $kelompoksData = User::where('role', 'peserta')
             ->whereNotNull('kelompok')
             ->distinct()
@@ -510,19 +507,16 @@ class P3kBarangController extends Controller
         $obatPribadi = P3kObatPribadi::with('peserta', 'pj')->orderBy('kelompok')->get();
 
         return view('panitia.p3k.rekap', compact(
-            'kelompoks',
-            'barangsKelompok',
-            'barangsIndividu',
-            'rekapKelompok',
-            'rekapIndividu',
-            'summaryIndividuPerKelompok',
-            'stokIndividu',
-            'obatPribadi'
+            'kelompoks', 'barangsKelompok', 'barangsIndividu', 'rekapKelompok', 'rekapIndividu',
+            'summaryIndividuPerKelompok', 'stokIndividu', 'obatPribadi'
         ));
     }
 
     public function exportRekap()
     {
+        // Semua panitia boleh export rekap
+        $this->authorizeAnyPanitia();
+
         $kelompoksData = User::where('role', 'peserta')
             ->whereNotNull('kelompok')
             ->distinct()
@@ -607,7 +601,7 @@ class P3kBarangController extends Controller
             $r++;
         }
 
-        foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $col) {
+        foreach (['A','B','C','D','E','F'] as $col) {
             $sheet3->getColumnDimension($col)->setWidth(20);
         }
 
@@ -688,7 +682,7 @@ class P3kBarangController extends Controller
 
         $sheet->getColumnDimension('A')->setWidth(6);
         $sheet->getColumnDimension('B')->setWidth(28);
-        foreach (['C', 'D', 'E', 'F'] as $col) {
+        foreach (['C','D','E','F'] as $col) {
             $sheet->getColumnDimension($col)->setWidth(14);
         }
     }
@@ -851,7 +845,7 @@ class P3kBarangController extends Controller
 
         $sheet->getColumnDimension('A')->setWidth(6);
         $sheet->getColumnDimension('B')->setWidth(28);
-        foreach (['C', 'D', 'E'] as $col) {
+        foreach (['C','D','E'] as $col) {
             $sheet->getColumnDimension($col)->setWidth(16);
         }
     }
@@ -1148,32 +1142,57 @@ class P3kBarangController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Helpers
+    // Helpers: Authorization
     // ─────────────────────────────────────────────────────────────
 
+    /**
+     * Hanya admin atau divisi P3K yang boleh melakukan aksi tulis
+     * (manage barang, validasi, update terpakai, stok, obat, dsb.)
+     */
     private function authorizeP3k()
     {
         $user = Auth::user();
         if ($user->role !== 'admin' && strtoupper($user->divisi ?? '') !== 'P3K') {
-            abort(403, 'Hanya divisi P3K yang dapat mengelola data ini.');
+            abort(403, 'Hanya admin atau divisi P3K yang dapat mengelola data ini.');
         }
     }
 
-    // PJ P3K hanya boleh akses kelompok binaannya, admin/koordinator bebas
+    /**
+     * Semua panitia (role = 'panitia' atau 'admin') boleh mengakses
+     * halaman view-only (index, kelompok, rekap).
+     * Middleware 'panitia' sudah memastikan user adalah panitia,
+     * jadi cukup pastikan bukan peserta yang bypass.
+     */
+    private function authorizeAnyPanitia()
+    {
+        $user = Auth::user();
+        // Middleware 'panitia' sudah handle ini, tapi double-check role
+        if ($user->role === 'peserta') {
+            abort(403, 'Akses ditolak.');
+        }
+    }
+
+    /**
+     * Untuk aksi write per kelompok: hanya admin atau divisi P3K,
+     * dan jika PJ P3K, hanya untuk kelompok binaannya.
+     */
     private function authorizeKelompokAccess($kelompok)
     {
         $user = Auth::user();
 
-        if ($user->role === 'admin' || $user->id == 611) {
+        // Admin: akses penuh ke semua kelompok
+        if ($user->role === 'admin') {
             return;
         }
 
+        // Harus divisi P3K untuk bisa write per kelompok
         if (strtoupper($user->divisi ?? '') !== 'P3K') {
-            abort(403, 'Hanya divisi P3K yang dapat mengakses data ini.');
+            abort(403, 'Hanya admin atau divisi P3K yang dapat mengakses data ini.');
         }
 
+        // PJ P3K: hanya boleh akses kelompok binaannya
         $binaan = P3kPjKelompok::kelompokUntukPj($user->id);
-        if (!in_array($kelompok, $binaan)) {
+        if (!empty($binaan) && !in_array($kelompok, $binaan)) {
             abort(403, 'Anda bukan PJ P3K untuk kelompok ini.');
         }
     }
