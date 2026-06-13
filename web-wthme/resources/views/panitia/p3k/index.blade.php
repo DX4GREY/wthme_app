@@ -20,17 +20,23 @@
                 </p>
             </div>
             <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                {{-- Tombol Kelola & Rekap untuk Admin atau Divisi P3K --}}
                 @if(auth()->user()->role === 'admin' || strtoupper(auth()->user()->divisi ?? '') === 'P3K')
                     <a href="{{ route('panitia.p3k.manage') }}"
                         style="text-decoration:none; background: rgba(255, 255, 255, 0.5); color:#002f45; border:1px solid rgba(0, 47, 69, 0.2); padding:0.75rem 1.25rem; border-radius:1rem; font-size:0.85rem; font-weight:700;">
                         ⚙️ Kelola Barang & PJ
                     </a>
-                @endif
-                @if(auth()->user()->role === 'admin' || auth()->user()->isKorlap())
-                <a href="{{ route('panitia.p3k.rekap') }}"
-                    style="text-decoration:none; background: rgba(0, 47, 69, 0.85); color:#d2c296; padding:0.75rem 1.25rem; border-radius:1rem; font-size:0.85rem; font-weight:700;">
-                    📊 Rekap Seluruh
-                </a>
+                    
+                    <a href="{{ route('panitia.p3k.rekap') }}"
+                        style="text-decoration:none; background: rgba(0, 47, 69, 0.85); color:#d2c296; padding:0.75rem 1.25rem; border-radius:1rem; font-size:0.85rem; font-weight:700;">
+                        📊 Rekap Seluruh
+                    </a>
+                {{-- Jika dia bukan P3K/Admin tetapi dia Korlap, dia hanya bisa melihat Rekap Seluruh --}}
+                @elseif(auth()->user()->isKorlap())
+                    <a href="{{ route('panitia.p3k.rekap') }}"
+                        style="text-decoration:none; background: rgba(0, 47, 69, 0.85); color:#d2c296; padding:0.75rem 1.25rem; border-radius:1rem; font-size:0.85rem; font-weight:700;">
+                        📊 Rekap Seluruh
+                    </a>
                 @endif
             </div>
         </div>
@@ -66,7 +72,7 @@
             <div style="background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border-radius:1.5rem; padding:4rem; text-align:center; border:2px dashed rgba(0, 47, 69, 0.2);">
                 <div style="font-size:3.5rem; margin-bottom:1rem; opacity:0.5;">👥</div>
                 <p style="color:#002f45; font-weight:600; opacity:0.6;">
-                    @if(auth()->user()->role !== 'admin' && !auth()->user()->isKorlap())
+                    @if(auth()->user()->role !== 'admin' && strtoupper(auth()->user()->divisi ?? '') !== 'P3K')
                         Belum ada kelompok yang menjadi tanggung jawab Anda. Hubungi koordinator P3K untuk pengaturan PJ.
                     @else
                         Belum ada data kelompok peserta.
