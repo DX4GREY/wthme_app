@@ -81,10 +81,10 @@
 
                 {{-- Progress bar terpakai --}}
                 <div style="margin-bottom:{{ $canEdit ? '1rem' : '0' }};">
-                    <div style="display:flex; justify-content:space-between; font-size:0.62rem; color:#002f45; opacity:0.45; margin-bottom:0.3rem;">
+                    {{-- <div style="display:flex; justify-content:space-between; font-size:0.62rem; color:#002f45; opacity:0.45; margin-bottom:0.3rem;">
                         <span>{{ $pctTerpakai }}% terpakai</span>
                         <span>{{ $pctSisa }}% tersisa</span>
-                    </div>
+                    </div> --}}
                     <div style="background:rgba(0,47,69,0.08); border-radius:999px; height:7px; overflow:hidden; display:flex;">
                         {{-- Bagian terpakai --}}
                         @if($pctTerpakai > 0)
