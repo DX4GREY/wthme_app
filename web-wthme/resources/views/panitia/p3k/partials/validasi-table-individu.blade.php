@@ -79,7 +79,7 @@
                     </div>
                 </div>
 
-                Progress bar terpakai
+                
                 {{-- <div style="margin-bottom:{{ $canEdit ? '1rem' : '0' }};">
                     <div style="display:flex; justify-content:space-between; font-size:0.62rem; color:#002f45; opacity:0.45; margin-bottom:0.3rem;">
                         <span>{{ $pctTerpakai }}% terpakai</span>
