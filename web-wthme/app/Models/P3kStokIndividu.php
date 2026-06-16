@@ -13,6 +13,7 @@ class P3kStokIndividu extends Model
 
     protected $fillable = [
         'p3k_barang_kebutuhan_id',
+        'kelompok',
         'total_terkumpul',
         'total_terpakai',
         'updated_by',
@@ -33,12 +34,26 @@ class P3kStokIndividu extends Model
         return max(0, $this->total_terkumpul - $this->total_terpakai);
     }
 
-    // Recalculate total_terkumpul = SUM(jumlah_dibawa) dari semua peserta untuk barang ini
-    public static function recalcTerkumpul($barangId): self
+    /**
+     * Recalculate total_terkumpul untuk barang ini di kelompok tertentu.
+     * total_terkumpul = SUM(jumlah_dibawa) dari semua peserta di kelompok tsb.
+     */
+    public static function recalcTerkumpul($barangId, $kelompok): self
     {
-        $sum = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $barangId)->sum('jumlah_dibawa');
+        // Ambil semua user_id yang merupakan anggota kelompok ini
+        $anggotaIds = \App\Models\User::where('role', 'peserta')
+            ->where('kelompok', $kelompok)
+            ->pluck('id');
 
-        $stok = static::firstOrCreate(['p3k_barang_kebutuhan_id' => $barangId]);
+        $sum = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $barangId)
+            ->whereIn('user_id', $anggotaIds)
+            ->sum('jumlah_dibawa');
+
+        $stok = static::firstOrCreate([
+            'p3k_barang_kebutuhan_id' => $barangId,
+            'kelompok'                => $kelompok,
+        ]);
+
         $stok->total_terkumpul = $sum;
 
         // total_terpakai tidak boleh melebihi total_terkumpul setelah recalc
@@ -49,5 +64,19 @@ class P3kStokIndividu extends Model
         $stok->save();
 
         return $stok;
+    }
+
+    /**
+     * Ambil aggregat global (lintas semua kelompok) untuk satu barang.
+     * Dipakai di halaman index untuk tampilan read-only.
+     */
+    public static function globalSummary($barangId): array
+    {
+        $rows = static::where('p3k_barang_kebutuhan_id', $barangId)->get();
+        return [
+            'total_terkumpul' => $rows->sum('total_terkumpul'),
+            'total_terpakai'  => $rows->sum('total_terpakai'),
+            'total_sisa'      => $rows->sum(fn($r) => max(0, $r->total_terkumpul - $r->total_terpakai)),
+        ];
     }
 }

@@ -182,14 +182,14 @@ class P3kBarangController extends Controller
             ];
         }
 
-        // Stok global barang individu (pool, lintas kelompok)
+        // Stok global barang individu — aggregat lintas semua kelompok, hanya untuk tampilan
         $stokIndividu = $barangsIndividu->map(function ($b) {
-            $stok = P3kStokIndividu::where('p3k_barang_kebutuhan_id', $b->id)->first();
+            $global = P3kStokIndividu::globalSummary($b->id);
             return [
                 'barang'          => $b,
-                'total_terkumpul' => $stok ? $stok->total_terkumpul : 0,
-                'total_terpakai'  => $stok ? $stok->total_terpakai : 0,
-                'total_sisa'      => $stok ? $stok->total_sisa : 0,
+                'total_terkumpul' => $global['total_terkumpul'],
+                'total_terpakai'  => $global['total_terpakai'],
+                'total_sisa'      => $global['total_sisa'],
             ];
         });
 
@@ -252,8 +252,8 @@ class P3kBarangController extends Controller
             ];
         });
 
-        // ── Summary Barang Individu per KELOMPOK (total terkumpul oleh kelompok ini) ──
-        $summaryIndividuKelompok = $barangsIndividu->map(function ($b) use ($anggota) {
+        // ── Summary Barang Individu per KELOMPOK (total terkumpul + stok terpakai kelompok ini) ──
+        $summaryIndividuKelompok = $barangsIndividu->map(function ($b) use ($anggota, $kelompok) {
             $anggotaIds = $anggota->pluck('id');
             $totalKelompok = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $b->id)
                 ->whereIn('user_id', $anggotaIds)
@@ -261,17 +261,19 @@ class P3kBarangController extends Controller
 
             $targetKelompok = $b->jumlah_kebutuhan * $anggota->count();
 
-            // Stok global untuk info tambahan (total terpakai/sisa lintas semua kelompok)
-            $stok = P3kStokIndividu::where('p3k_barang_kebutuhan_id', $b->id)->first();
+            // Stok per kelompok ini (terpakai dikontrol di halaman kelompok)
+            $stok = P3kStokIndividu::where('p3k_barang_kebutuhan_id', $b->id)
+                ->where('kelompok', $kelompok)
+                ->first();
 
             return [
-                'barang'          => $b,
-                'total_kelompok'  => $totalKelompok,
-                'target_kelompok' => $targetKelompok,
-                'is_lengkap'      => $totalKelompok >= $targetKelompok,
-                'total_global'    => $stok ? $stok->total_terkumpul : 0,
-                'terpakai_global' => $stok ? $stok->total_terpakai : 0,
-                'sisa_global'     => $stok ? $stok->total_sisa : 0,
+                'barang'           => $b,
+                'total_kelompok'   => $totalKelompok,
+                'target_kelompok'  => $targetKelompok,
+                'is_lengkap'       => $totalKelompok >= $targetKelompok,
+                'total_terkumpul'  => $stok ? $stok->total_terkumpul : $totalKelompok,
+                'total_terpakai'   => $stok ? $stok->total_terpakai : 0,
+                'total_sisa'       => $stok ? $stok->total_sisa : $totalKelompok,
             ];
         });
 
@@ -325,56 +327,55 @@ class P3kBarangController extends Controller
     // PANITIA P3K: Validasi & update barang INDIVIDU per peserta
     // ─────────────────────────────────────────────────────────────
 
-    // Update jumlah terpakai dari STOK GLOBAL barang individu (pool, lintas kelompok)
-    // Hanya panitia P3K (admin/korlap/divisi P3K manapun) yang boleh akses, tidak terikat kelompok tertentu
-    public function updateStokTerpakai(Request $request, $barangId)
+    // Update jumlah terpakai dari STOK barang individu — per kelompok
+    public function updateStokTerpakai(Request $request, $barangId, $kelompok)
     {
-        $user = Auth::user();
-        if ($user->role !== 'admin' && strtoupper($user->divisi ?? '') !== 'P3K' && !$user->isKorlap()) {
-            abort(403, 'Hanya panitia P3K yang dapat mengubah stok barang.');
-        }
+        $this->authorizeKelompokAccess($kelompok);
 
         $request->validate([
             'total_terpakai' => 'required|integer|min:0',
         ]);
 
         $barang = P3kBarangKebutuhan::findOrFail($barangId);
-        $stok = P3kStokIndividu::firstOrCreate(['p3k_barang_kebutuhan_id' => $barang->id]);
+        $stok = P3kStokIndividu::firstOrCreate([
+            'p3k_barang_kebutuhan_id' => $barang->id,
+            'kelompok'                => $kelompok,
+        ]);
 
         if ($request->total_terpakai > $stok->total_terkumpul) {
-            return back()->withErrors(['error' => 'Jumlah terpakai tidak boleh melebihi total terkumpul.']);
+            return back()->withErrors(['error' => 'Jumlah terpakai tidak boleh melebihi total terkumpul kelompok ini.']);
         }
 
         $stok->total_terpakai = $request->total_terpakai;
-        $stok->updated_by = $user->id;
+        $stok->updated_by = Auth::id();
         $stok->save();
 
-        return back()->with('success', "Stok '{$barang->nama_barang}' berhasil diperbarui.");
+        return back()->with('success', "Stok '{$barang->nama_barang}' Kelompok {$kelompok} berhasil diperbarui.");
     }
 
-    // Tambah/kurangi stok terpakai secara cepat (increment/decrement) dari pool global
-    public function adjustStokTerpakai(Request $request, $barangId)
+    // Tambah/kurangi stok terpakai secara cepat (increment/decrement) — per kelompok
+    public function adjustStokTerpakai(Request $request, $barangId, $kelompok)
     {
-        $user = Auth::user();
-        if ($user->role !== 'admin' && strtoupper($user->divisi ?? '') !== 'P3K' && !$user->isKorlap()) {
-            abort(403, 'Hanya panitia P3K yang dapat mengubah stok barang.');
-        }
+        $this->authorizeKelompokAccess($kelompok);
 
         $request->validate([
             'delta' => 'required|integer', // bisa positif (pakai) atau negatif (batal pakai)
         ]);
 
         $barang = P3kBarangKebutuhan::findOrFail($barangId);
-        $stok = P3kStokIndividu::firstOrCreate(['p3k_barang_kebutuhan_id' => $barang->id]);
+        $stok = P3kStokIndividu::firstOrCreate([
+            'p3k_barang_kebutuhan_id' => $barang->id,
+            'kelompok'                => $kelompok,
+        ]);
 
         $baru = $stok->total_terpakai + $request->delta;
         $baru = max(0, min($baru, $stok->total_terkumpul));
 
         $stok->total_terpakai = $baru;
-        $stok->updated_by = $user->id;
+        $stok->updated_by = Auth::id();
         $stok->save();
 
-        return back()->with('success', "Stok '{$barang->nama_barang}' diperbarui menjadi {$baru} terpakai.");
+        return back()->with('success', "Stok '{$barang->nama_barang}' Kelompok {$kelompok}: {$baru} terpakai.");
     }
 
     // ACC barang individu milik satu peserta (saat pengumpulan)
@@ -493,14 +494,14 @@ class P3kBarangController extends Controller
             $summaryIndividuPerKelompok[$k] = $rows;
         }
 
-        // Stok global barang individu (pool, lintas kelompok)
+        // Stok global barang individu — aggregat dari semua kelompok (per-kelompok disimpan terpisah)
         $stokIndividu = $barangsIndividu->map(function ($b) {
-            $stok = P3kStokIndividu::where('p3k_barang_kebutuhan_id', $b->id)->first();
+            $global = P3kStokIndividu::globalSummary($b->id);
             return [
                 'barang'          => $b,
-                'total_terkumpul' => $stok ? $stok->total_terkumpul : 0,
-                'total_terpakai'  => $stok ? $stok->total_terpakai : 0,
-                'total_sisa'      => $stok ? $stok->total_sisa : 0,
+                'total_terkumpul' => $global['total_terkumpul'],
+                'total_terpakai'  => $global['total_terpakai'],
+                'total_sisa'      => $global['total_sisa'],
             ];
         });
 
@@ -1037,8 +1038,8 @@ class P3kBarangController extends Controller
 
         $pengumpulan->save();
 
-        // Recalculate stok global (total terkumpul = sum semua peserta untuk barang ini)
-        P3kStokIndividu::recalcTerkumpul($barang->id);
+        // Recalculate stok per kelompok peserta ini
+        P3kStokIndividu::recalcTerkumpul($barang->id, $user->kelompok);
 
         return back()->with('success', 'Data barang individu berhasil diperbarui.');
     }
@@ -1083,8 +1084,8 @@ class P3kBarangController extends Controller
 
         $pengumpulan->delete();
 
-        // Recalculate stok global setelah data peserta dihapus
-        P3kStokIndividu::recalcTerkumpul($barang->id);
+        // Recalculate stok per kelompok setelah data peserta dihapus
+        P3kStokIndividu::recalcTerkumpul($barang->id, $user->kelompok);
 
         return back()->with('success', 'Data berhasil direset.');
     }

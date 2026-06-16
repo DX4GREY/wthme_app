@@ -20,23 +20,17 @@
                 </p>
             </div>
             <div style="display:flex; gap:1rem; flex-wrap:wrap;">
-                {{-- Tombol Kelola & Rekap untuk Admin atau Divisi P3K --}}
                 @if(auth()->user()->role === 'admin' || strtoupper(auth()->user()->divisi ?? '') === 'P3K')
                     <a href="{{ route('panitia.p3k.manage') }}"
                         style="text-decoration:none; background: rgba(255, 255, 255, 0.5); color:#002f45; border:1px solid rgba(0, 47, 69, 0.2); padding:0.75rem 1.25rem; border-radius:1rem; font-size:0.85rem; font-weight:700;">
                         ⚙️ Kelola Barang & PJ
                     </a>
-                    
-                    <a href="{{ route('panitia.p3k.rekap') }}"
-                        style="text-decoration:none; background: rgba(0, 47, 69, 0.85); color:#d2c296; padding:0.75rem 1.25rem; border-radius:1rem; font-size:0.85rem; font-weight:700;">
-                        📊 Rekap Seluruh
-                    </a>
-                {{-- Jika dia bukan P3K/Admin tetapi dia Korlap, dia hanya bisa melihat Rekap Seluruh --}}
-                @elseif(auth()->user()->isKorlap())
-                    <a href="{{ route('panitia.p3k.rekap') }}"
-                        style="text-decoration:none; background: rgba(0, 47, 69, 0.85); color:#d2c296; padding:0.75rem 1.25rem; border-radius:1rem; font-size:0.85rem; font-weight:700;">
-                        📊 Rekap Seluruh
-                    </a>
+                @endif
+                @if(auth()->user()->role === 'admin' || auth()->user()->isKorlap())
+                <a href="{{ route('panitia.p3k.rekap') }}"
+                    style="text-decoration:none; background: rgba(0, 47, 69, 0.85); color:#d2c296; padding:0.75rem 1.25rem; border-radius:1rem; font-size:0.85rem; font-weight:700;">
+                    📊 Rekap Seluruh
+                </a>
                 @endif
             </div>
         </div>
@@ -72,7 +66,7 @@
             <div style="background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border-radius:1.5rem; padding:4rem; text-align:center; border:2px dashed rgba(0, 47, 69, 0.2);">
                 <div style="font-size:3.5rem; margin-bottom:1rem; opacity:0.5;">👥</div>
                 <p style="color:#002f45; font-weight:600; opacity:0.6;">
-                    @if(auth()->user()->role !== 'admin' && strtoupper(auth()->user()->divisi ?? '') !== 'P3K')
+                    @if(auth()->user()->role !== 'admin' && !auth()->user()->isKorlap())
                         Belum ada kelompok yang menjadi tanggung jawab Anda. Hubungi koordinator P3K untuk pengaturan PJ.
                     @else
                         Belum ada data kelompok peserta.
@@ -123,70 +117,50 @@
             </div>
         @endif
 
-        {{-- Stok Global Barang Individu (pool, lintas kelompok) --}}
+        {{-- Stok Global Barang Individu — read-only, kontrol ada di halaman per kelompok --}}
         @if($stokIndividu->isNotEmpty())
         <h3 style="font-family:'Playfair Display',serif; color:#002f45; font-size:1.3rem; font-weight:800; margin:2.5rem 0 1rem; padding-left:0.5rem;">📊 Stok Global Barang Individu</h3>
         <p style="color:#002f45; opacity:0.5; font-size:0.8rem; margin-top:-0.6rem; margin-bottom:1.25rem; padding-left:0.5rem;">
-            Total terkumpul dari seluruh peserta (semua kelompok). Kurangi stok saat barang dipakai untuk operasional P3K.
+            Rekap agregat lintas semua kelompok. Untuk mengatur terpakai, buka halaman masing-masing kelompok.
         </p>
 
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:1.25rem;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:1.25rem;">
             @foreach($stokIndividu as $s)
             @php
                 $b = $s['barang'];
                 $pctSisa = $s['total_terkumpul'] > 0 ? round(($s['total_sisa'] / $s['total_terkumpul']) * 100) : 0;
-                $colorSisa = $s['total_sisa'] > 0 ? '#16a34a' : '#dc2626';
+                $colorSisa = $s['total_sisa'] > 0 ? '#16a34a' : ($s['total_terkumpul'] > 0 ? '#dc2626' : '#94a3b8');
             @endphp
             <div style="background: rgba(255, 255, 255, 0.3); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 1.25rem; padding: 1.25rem 1.5rem;">
-                <div style="color:#002f45; font-weight:800; font-size:0.95rem; margin-bottom:0.75rem;">{{ $b->nama_barang }}</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+                    <span style="color:#002f45; font-weight:800; font-size:0.95rem;">{{ $b->nama_barang }}</span>
+                    <span style="background:rgba(0,47,69,0.06); color:#002f45; opacity:0.45; font-size:0.6rem; font-weight:700; padding:0.2rem 0.5rem; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em;">Global</span>
+                </div>
 
                 <div style="display:flex; justify-content:space-between; gap:0.75rem; margin-bottom:0.85rem;">
                     <div style="text-align:center; flex:1;">
                         <div style="color:#002f45; opacity:0.45; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.04em;">Terkumpul</div>
                         <div style="color:#002f45; font-size:1.3rem; font-weight:800;">{{ $s['total_terkumpul'] }}</div>
+                        <div style="color:#002f45; opacity:0.3; font-size:0.6rem;">{{ $b->satuan }}</div>
                     </div>
                     <div style="text-align:center; flex:1; border-left:1px solid rgba(0,47,69,0.08); border-right:1px solid rgba(0,47,69,0.08);">
                         <div style="color:#002f45; opacity:0.45; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.04em;">Terpakai</div>
                         <div style="color:#d97706; font-size:1.3rem; font-weight:800;">{{ $s['total_terpakai'] }}</div>
+                        <div style="color:#002f45; opacity:0.3; font-size:0.6rem;">{{ $b->satuan }}</div>
                     </div>
                     <div style="text-align:center; flex:1;">
                         <div style="color:#002f45; opacity:0.45; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.04em;">Sisa</div>
                         <div style="color:{{ $colorSisa }}; font-size:1.3rem; font-weight:800;">{{ $s['total_sisa'] }}</div>
+                        <div style="color:#002f45; opacity:0.3; font-size:0.6rem;">{{ $b->satuan }}</div>
                     </div>
                 </div>
 
-                <div style="background: rgba(0,47,69,0.06); border-radius:999px; height:8px; overflow:hidden; margin-bottom:1rem;">
-                    <div style="background:{{ $colorSisa }}; height:100%; border-radius:999px; width:{{ $pctSisa }}%;"></div>
+                <div style="background: rgba(0,47,69,0.06); border-radius:999px; height:8px; overflow:hidden;">
+                    <div style="background:{{ $colorSisa }}; height:100%; border-radius:999px; width:{{ $pctSisa }}%; transition:width 0.4s ease;"></div>
                 </div>
-
-                {{-- Kontrol cepat: +1 / -1 pakai --}}
-                <div style="display:flex; gap:0.5rem; align-items:center;">
-                    <form action="{{ route('panitia.p3k.stok.adjust', $b->id) }}" method="POST" style="flex:1;">
-                        @csrf
-                        <input type="hidden" name="delta" value="1">
-                        <button type="submit" {{ $s['total_sisa'] <= 0 ? 'disabled' : '' }}
-                            style="width:100%; background: rgba(217,119,6,0.1); color:#92400e; border:1px solid rgba(217,119,6,0.2); padding:0.5rem; border-radius:0.7rem; font-size:0.75rem; font-weight:800; cursor:pointer; {{ $s['total_sisa'] <= 0 ? 'opacity:0.4; cursor:not-allowed;' : '' }}">
-                            − Pakai 1
-                        </button>
-                    </form>
-                    <form action="{{ route('panitia.p3k.stok.adjust', $b->id) }}" method="POST" style="flex:1;">
-                        @csrf
-                        <input type="hidden" name="delta" value="-1">
-                        <button type="submit" {{ $s['total_terpakai'] <= 0 ? 'disabled' : '' }}
-                            style="width:100%; background: rgba(0,47,69,0.06); color:#002f45; border:1px solid rgba(0,47,69,0.15); padding:0.5rem; border-radius:0.7rem; font-size:0.75rem; font-weight:700; cursor:pointer; {{ $s['total_terpakai'] <= 0 ? 'opacity:0.4; cursor:not-allowed;' : '' }}">
-                            ↺ Batal Pakai
-                        </button>
-                    </form>
+                <div style="color:#002f45; opacity:0.35; font-size:0.65rem; margin-top:0.4rem; text-align:right;">
+                    {{ $pctSisa }}% sisa dari total terkumpul
                 </div>
-
-                {{-- Set manual --}}
-                <form action="{{ route('panitia.p3k.stok.terpakai', $b->id) }}" method="POST" style="display:flex; align-items:center; gap:0.5rem; margin-top:0.5rem;">
-                    @csrf
-                    <span style="color:#002f45; opacity:0.5; font-size:0.7rem; font-weight:700; white-space:nowrap;">Set terpakai:</span>
-                    <input type="number" name="total_terpakai" value="{{ $s['total_terpakai'] }}" min="0" max="{{ $s['total_terkumpul'] }}"
-                        style="width:60px; padding:0.3rem 0.4rem; border:1px solid rgba(0,47,69,0.15); border-radius:0.5rem; text-align:center; font-size:0.75rem; background:rgba(255,255,255,0.7);">
-                    <button type="submit" style="background: rgba(0,47,69,0.08); color:#002f45; border:none; padding:0.3rem 0.7rem; border-radius:0.5rem; font-size:0.7rem; font-weight:700; cursor:pointer;">Simpan</button>
-                </form>
             </div>
             @endforeach
         </div>

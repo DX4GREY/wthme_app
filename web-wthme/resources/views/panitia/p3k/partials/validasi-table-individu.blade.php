@@ -52,9 +52,48 @@
             <div style="background:{{ $colorKlp }}; height:100%; border-radius:999px; width:{{ min(100, $pctKlp) }}%;"></div>
         </div>
 
-        <div style="border-top:1px solid rgba(0,47,69,0.06); padding-top:0.6rem; display:flex; justify-content:space-between; font-size:0.7rem; color:#002f45; opacity:0.6;">
-            <span>Stok Global: <strong>{{ $s['total_global'] }}</strong></span>
-            <span>Sisa: <strong>{{ $s['sisa_global'] }}</strong></span>
+        {{-- Stok terpakai per kelompok ini --}}
+        <div style="border-top:1px solid rgba(0,47,69,0.08); padding-top:0.7rem; margin-top:0.2rem;">
+            <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:#002f45; opacity:0.55; margin-bottom:0.45rem;">
+                <span>Terkumpul kelompok: <strong>{{ $s['total_terkumpul'] }}</strong></span>
+                <span>Sisa: <strong style="color:{{ $s['total_sisa'] > 0 ? '#16a34a' : '#dc2626' }};">{{ $s['total_sisa'] }}</strong></span>
+            </div>
+
+            {{-- Kontrol terpakai (hanya untuk admin & divisi P3K) --}}
+            @php $canEdit = auth()->user()->role === 'admin' || strtoupper(auth()->user()->divisi ?? '') === 'P3K'; @endphp
+            @if($canEdit)
+            <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                <form action="{{ route('panitia.p3k.stok.adjust', [$b->id, $kelompok]) }}" method="POST" style="flex:1; min-width:70px;">
+                    @csrf
+                    <input type="hidden" name="delta" value="1">
+                    <button type="submit" {{ $s['total_sisa'] <= 0 ? 'disabled' : '' }}
+                        style="width:100%; background: rgba(217,119,6,0.1); color:#92400e; border:1px solid rgba(217,119,6,0.2); padding:0.35rem 0.4rem; border-radius:0.6rem; font-size:0.68rem; font-weight:800; cursor:pointer; {{ $s['total_sisa'] <= 0 ? 'opacity:0.4; cursor:not-allowed;' : '' }}">
+                        − Pakai 1
+                    </button>
+                </form>
+                <form action="{{ route('panitia.p3k.stok.adjust', [$b->id, $kelompok]) }}" method="POST" style="flex:1; min-width:70px;">
+                    @csrf
+                    <input type="hidden" name="delta" value="-1">
+                    <button type="submit" {{ $s['total_terpakai'] <= 0 ? 'disabled' : '' }}
+                        style="width:100%; background: rgba(0,47,69,0.06); color:#002f45; border:1px solid rgba(0,47,69,0.12); padding:0.35rem 0.4rem; border-radius:0.6rem; font-size:0.68rem; font-weight:700; cursor:pointer; {{ $s['total_terpakai'] <= 0 ? 'opacity:0.4; cursor:not-allowed;' : '' }}">
+                        ↺ Batal
+                    </button>
+                </form>
+                <form action="{{ route('panitia.p3k.stok.terpakai', [$b->id, $kelompok]) }}" method="POST" style="display:flex; align-items:center; gap:0.3rem; flex:2; min-width:120px;">
+                    @csrf
+                    <input type="number" name="total_terpakai" value="{{ $s['total_terpakai'] }}" min="0" max="{{ $s['total_terkumpul'] }}"
+                        style="width:52px; padding:0.3rem 0.35rem; border:1px solid rgba(0,47,69,0.15); border-radius:0.5rem; text-align:center; font-size:0.7rem; background:rgba(255,255,255,0.8); flex-shrink:0;">
+                    <button type="submit"
+                        style="background: rgba(0,47,69,0.08); color:#002f45; border:none; padding:0.3rem 0.6rem; border-radius:0.5rem; font-size:0.65rem; font-weight:700; cursor:pointer; white-space:nowrap;">
+                        Set
+                    </button>
+                </form>
+            </div>
+            @else
+            <div style="font-size:0.68rem; color:#002f45; opacity:0.45;">
+                Terpakai: <strong>{{ $s['total_terpakai'] }}</strong> {{ $b->satuan }}
+            </div>
+            @endif
         </div>
     </div>
     @endforeach

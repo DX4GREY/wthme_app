@@ -105,7 +105,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/approve/{id}', [QuestLabController::class, 'approveQuest'])->name('approve');
             Route::post('/reject/{id}', [QuestLabController::class, 'rejectQuest'])->name('reject');
         });
-        // P3K BARANG (PANITIA)
+         // P3K BARANG (PANITIA)
         Route::prefix('p3k')->name('p3k.')->group(function () {
             Route::get('/', [P3kBarangController::class, 'panitiaIndex'])->name('index');
             Route::get('/kelompok/{kelompok}', [P3kBarangController::class, 'panitiaKelompok'])->name('kelompok');
@@ -119,9 +119,9 @@ Route::middleware(['auth'])->group(function () {
             // Validasi - BARANG INDIVIDU (per peserta, saat pengumpulan)
             Route::post('/individu/validasi/{barangId}/{userId}', [P3kBarangController::class, 'toggleValidasiIndividu'])->name('individu.validasi');
 
-            // Stok GLOBAL barang individu (pool, lintas kelompok) - dipakai/dikurangi oleh panitia
-            Route::post('/stok/{barangId}/terpakai', [P3kBarangController::class, 'updateStokTerpakai'])->name('stok.terpakai');
-            Route::post('/stok/{barangId}/adjust', [P3kBarangController::class, 'adjustStokTerpakai'])->name('stok.adjust');
+            // Stok terpakai barang INDIVIDU — per kelompok (dikontrol dari halaman kelompok)
+            Route::post('/stok/{barangId}/{kelompok}/terpakai', [P3kBarangController::class, 'updateStokTerpakai'])->name('stok.terpakai');
+            Route::post('/stok/{barangId}/{kelompok}/adjust', [P3kBarangController::class, 'adjustStokTerpakai'])->name('stok.adjust');
 
             Route::post('/obat/{id}/toggle', [P3kBarangController::class, 'obatToggleDiserahkan'])->name('obat.toggle');
 
@@ -258,9 +258,6 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/barang/{barangId}/foto', [BarangController::class, 'pesertaHapusFoto'])->name('barang.hapus-foto');
         Route::delete('/barang/{barangId}', [BarangController::class, 'pesertaReset'])->name('barang.reset');
         Route::delete('/peserta/barang/{id}/foto', [BarangController::class, 'deleteFoto'])->name('barang.foto.destroy');
-
-        // P3K Barang (Peserta)
-        Route::get('/p3k', [P3kBarangController::class, 'pesertaIndex'])->name('p3k');
 
         // P3K Barang (Peserta)
         Route::get('/p3k', [P3kBarangController::class, 'pesertaIndex'])->name('p3k');
