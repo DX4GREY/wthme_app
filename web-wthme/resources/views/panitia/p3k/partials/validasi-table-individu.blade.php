@@ -79,23 +79,23 @@
                     </div>
                 </div>
 
-                {{-- Progress bar terpakai --}}
-                <div style="margin-bottom:{{ $canEdit ? '1rem' : '0' }};">
-                    {{-- <div style="display:flex; justify-content:space-between; font-size:0.62rem; color:#002f45; opacity:0.45; margin-bottom:0.3rem;">
+                Progress bar terpakai
+                {{-- <div style="margin-bottom:{{ $canEdit ? '1rem' : '0' }};">
+                    <div style="display:flex; justify-content:space-between; font-size:0.62rem; color:#002f45; opacity:0.45; margin-bottom:0.3rem;">
                         <span>{{ $pctTerpakai }}% terpakai</span>
                         <span>{{ $pctSisa }}% tersisa</span>
-                    </div> --}}
+                    </div>
                     <div style="background:rgba(0,47,69,0.08); border-radius:999px; height:7px; overflow:hidden; display:flex;">
-                        {{-- Bagian terpakai --}}
+                       
                         @if($pctTerpakai > 0)
                         <div style="background:#d97706; width:{{ $pctTerpakai }}%; height:100%; border-radius:{{ $pctSisa > 0 ? '999px 0 0 999px' : '999px' }};"></div>
                         @endif
-                        {{-- Bagian sisa --}}
+                     
                         @if($pctSisa > 0)
                         <div style="background:{{ $sisaColor }}; width:{{ $pctSisa }}%; height:100%; border-radius:{{ $pctTerpakai > 0 ? '0 999px 999px 0' : '999px' }};"></div>
                         @endif
                     </div>
-                </div>
+                </div> --}}
 
                 {{-- Kontrol — hanya admin & divisi P3K --}}
                 @if($canEdit)
