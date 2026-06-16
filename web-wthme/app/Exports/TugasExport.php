@@ -12,12 +12,10 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithMapping;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Style\Color;
 
 class TugasExport implements WithMultipleSheets
 {
@@ -28,11 +26,11 @@ class TugasExport implements WithMultipleSheets
         // 1. Sheet Ringkasan di depan
         $sheets[] = new TugasRingkasanSheet();
 
-        // 2. Sheet per kelompok
+        // 2. Sheet per kelompok (Diurutkan secara numerik/angka)
         $kelompoks = User::where('role', 'peserta')
             ->whereNotNull('kelompok')
             ->distinct()
-            ->orderBy('kelompok')
+            ->orderByRaw('CAST(kelompok AS UNSIGNED) ASC') // Mengurutkan nomor kelompok (1, 2, 3... dst)
             ->pluck('kelompok');
 
         foreach ($kelompoks as $kelompok) {
@@ -74,7 +72,7 @@ class TugasPerKelompokSheet implements FromCollection, WithHeadings, WithTitle, 
             foreach ($this->tugasList as $tugas) {
                 $kumpul = $pengumpulanMap[$p->id][$tugas->id] ?? null;
                 if ($kumpul) {
-                    $row[] = strtoupper($kumpul->status); 
+                    $row[] = strtoupper(str_replace('_', ' ', $kumpul->status)); 
                 } else {
                     $row[] = 'BELUM';
                 }
@@ -117,18 +115,29 @@ class TugasPerKelompokSheet implements FromCollection, WithHeadings, WithTitle, 
                 $cellCoord = $currentCol . $currentRow;
                 
                 if ($kumpul) {
-                    // Beri warna hijau untuk Tepat Waktu, Kuning/Orange untuk Terlambat
-                    if ($kumpul->status === 'tepat waktu') {
+                    // Fix: Sesuaikan string status 'tepat_waktu' dengan database Anda
+                    if ($kumpul->status === 'tepat_waktu') {
                         $sheet->getStyle($cellCoord)->getFont()->getColor()->setRGB('166534');
                     } else {
                         $sheet->getStyle($cellCoord)->getFont()->getColor()->setRGB('991b1b');
                     }
 
-                    // Tambahkan LINK jika ada file
+                    // Tambahkan LINK jika ada file (Mendukung format JSON array berkas)
                     if ($kumpul->file_path) {
-                        $url = url(Storage::url($kumpul->file_path));
-                        $sheet->getCell($cellCoord)->getHyperlink()->setUrl($url);
-                        $sheet->getStyle($cellCoord)->getFont()->setUnderline(true);
+                        $files = json_decode($kumpul->file_path, true);
+                        $pathUntukLink = null;
+
+                        if (is_array($files) && isset($files[0]['path'])) {
+                            $pathUntukLink = $files[0]['path']; // Ambil file pertama jika ada banyak file
+                        } elseif (!is_array($files)) {
+                            $pathUntukLink = $kumpul->file_path; // Jika format lama berupa string path biasa
+                        }
+
+                        if ($pathUntukLink) {
+                            $url = url(Storage::url($pathUntukLink));
+                            $sheet->getCell($cellCoord)->getHyperlink()->setUrl($url);
+                            $sheet->getStyle($cellCoord)->getFont()->setUnderline(true);
+                        }
                     }
                 } else {
                     $sheet->getStyle($cellCoord)->getFont()->getColor()->setRGB('94a3b8'); // Abu-abu untuk BELUM
@@ -163,7 +172,7 @@ class TugasRingkasanSheet implements FromCollection, WithHeadings, WithTitle, Wi
             return [
                 $i + 1,
                 $tugas->nama_tugas,
-                $tugas->deadline?->format('d/m/Y H:i') ?? '-',
+                $tugas->deadline ? date('d/m/Y H:i', strtotime($tugas->deadline)) : '-',
                 $tugas->aktif ? 'AKTIF' : 'NONAKTIF',
                 $sudah,
                 $sudah - $terlambat,
@@ -189,16 +198,19 @@ class TugasRingkasanSheet implements FromCollection, WithHeadings, WithTitle, Wi
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
         ]);
 
-        // Format progress bar warna-warni (Conditional Formatting sederhana via loop)
         $lastRow = $sheet->getHighestRow();
         for ($i = 2; $i <= $lastRow; $i++) {
-            $val = (float) $sheet->getCell("I$i")->getValue();
+            $val = (float) str_replace('%', '', $sheet->getCell("I$i")->getValue());
             if ($val == 100) {
                 $sheet->getStyle("I$i")->getFont()->getColor()->setRGB('166534');
                 $sheet->getStyle("I$i")->getFont()->setBold(true);
             }
         }
 
-        return [];
+        return [
+            "A1:I{$lastRow}" => [
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'BDD1D3']]],
+            ],
+        ];
     }
 }
