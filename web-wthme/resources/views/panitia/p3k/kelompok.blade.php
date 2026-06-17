@@ -36,8 +36,8 @@
         @include('panitia.p3k.partials.validasi-table', ['data' => $dataKelompok, 'kelompok' => $kelompok, 'withTerpakai' => true])
 
         {{-- Barang Individu --}}
-        <h3 style="font-family:'Playfair Display',serif; color:#002f45; font-size:1.3rem; font-weight:800; margin:2rem 0 1rem; padding-left:0.5rem;">🎒 Barang Individu (Bawaan Pribadi Tiap Peserta)</h3>
-        @include('panitia.p3k.partials.validasi-table-individu', ['dataIndividu' => $dataIndividu, 'barangsIndividu' => $barangsIndividu, 'summaryIndividuKelompok' => $summaryIndividuKelompok, 'kelompok' => $kelompok])
+        <h3 style="font-family:'Playfair Display',serif; color:#002f45; font-size:1.3rem; font-weight:800; margin:2rem 0 1rem; padding-left:0.5rem;">🎒 Barang Individu (Pengumpulan Kolektif via Perwakilan)</h3>
+        @include('panitia.p3k.partials.validasi-table-individu', ['pengumpulanKolektif' => $pengumpulanKolektif, 'anggotaBelumTercakup' => $anggotaBelumTercakup, 'barangsIndividu' => $barangsIndividu, 'summaryIndividuKelompok' => $summaryIndividuKelompok, 'kelompok' => $kelompok])
 
         {{-- Obat Pribadi --}}
         <h3 style="font-family:'Playfair Display',serif; color:#002f45; font-size:1.3rem; font-weight:800; margin:2rem 0 1rem; padding-left:0.5rem;">💊 Obat Pribadi Peserta</h3>

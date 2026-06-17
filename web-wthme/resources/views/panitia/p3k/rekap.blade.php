@@ -90,52 +90,91 @@
 
     {{-- Barang Individu per Kelompok --}}
     @if($barangsIndividu->isNotEmpty() && $kelompoks->isNotEmpty())
-    <h3 style="font-family:'Playfair Display',serif; color:#002f45; font-size:1.3rem; font-weight:800; margin-bottom:1rem; padding-left:0.5rem;">🎒 Barang Individu — Bawaan Tiap Peserta</h3>
+    <h3 style="font-family:'Playfair Display',serif; color:#002f45; font-size:1.3rem; font-weight:800; margin-bottom:1rem; padding-left:0.5rem;">🎒 Barang Individu — Pengumpulan Kolektif per Kelompok</h3>
 
     @foreach($kelompoks as $k)
     <div style="background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 1.5rem; overflow:hidden; margin-bottom:1.5rem;">
-        <div style="background: rgba(0, 47, 69, 0.8); padding:0.85rem 1.5rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
-            <span style="color:#d2c296; font-weight:800; font-size:0.9rem;">Kelompok {{ $k }}</span>
-            <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-                @foreach($summaryIndividuPerKelompok[$k] as $sum)
-                @php $b = $sum['barang']; @endphp
-                <span style="background: rgba(255,255,255,0.1); color:{{ $sum['is_lengkap'] ? '#86efac' : '#fcd34d' }}; font-size:0.7rem; font-weight:700; padding:0.25rem 0.6rem; border-radius:0.5rem;">
-                    {{ $b->nama_barang }}: {{ $sum['total_kelompok'] }}/{{ $sum['target_kelompok'] }}
-                </span>
-                @endforeach
+        <div style="background: rgba(0, 47, 69, 0.8); padding:0.85rem 1.5rem;">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+                <span style="color:#d2c296; font-weight:800; font-size:0.9rem;">Kelompok {{ $k }}</span>
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                    @foreach($summaryIndividuPerKelompok[$k] as $sum)
+                    @php $b = $sum['barang']; @endphp
+                    <span style="background: rgba(255,255,255,0.1); color:{{ $sum['is_lengkap'] ? '#86efac' : '#fcd34d' }}; font-size:0.7rem; font-weight:700; padding:0.25rem 0.6rem; border-radius:0.5rem;">
+                        {{ $b->nama_barang }}: {{ $sum['total_kelompok'] }}/{{ $sum['target_kelompok'] }}
+                    </span>
+                    @endforeach
+                </div>
             </div>
+            @if($anggotaBelumTercakupPerKelompok[$k]->isNotEmpty())
+            <div style="margin-top:0.6rem; font-size:0.7rem; color:#fca5a5; font-weight:700;">
+                ⚠️ Belum tercakup: {{ $anggotaBelumTercakupPerKelompok[$k]->pluck('name')->implode(', ') }}
+            </div>
+            @endif
         </div>
         <div style="overflow-x:auto;">
         <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
             <thead>
                 <tr style="background: rgba(255, 255, 255, 0.1); border-bottom: 2px solid rgba(0, 47, 69, 0.1);">
-                    <th style="padding:0.85rem; text-align:left; color:#002f45; font-weight:800; position:sticky; left:0; background:rgba(224, 222, 205, 0.95); z-index:10;">Nama Peserta</th>
+                    <th style="padding:0.85rem; text-align:left; color:#002f45; font-weight:800; position:sticky; left:0; background:rgba(224, 222, 205, 0.95); z-index:10; min-width:200px;">Perwakilan & Anggota</th>
                     @foreach($barangsIndividu as $b)
                     <th style="padding:0.85rem; text-align:center; color:#002f45; font-weight:700; min-width:120px;">
                         <div style="font-size:0.8rem;">{{ $b->nama_barang }}</div>
-                        <div style="color:#002f45; opacity:0.5; font-weight:500; font-size:0.65rem;">Target: {{ $b->jumlah_kebutuhan }} {{ $b->satuan }}</div>
+                        <div style="color:#002f45; opacity:0.5; font-weight:500; font-size:0.65rem;">{{ $b->jumlah_kebutuhan }} {{ $b->satuan }}/orang</div>
                     </th>
                     @endforeach
+                    <th style="padding:0.85rem; text-align:center; color:#002f45; font-weight:700; min-width:100px;">Status ACC</th>
                 </tr>
             </thead>
             <tbody>
-            @forelse($rekapIndividu[$k] as $row)
+            @forelse($pengumpulanKolektifPerKelompok[$k] as $p)
+            @php
+                $namaAnggotaLain = $p->anggota->pluck('peserta.name')->reject(fn($n) => $n === $p->perwakilan->name)->values();
+            @endphp
             <tr style="border-bottom: 1px solid rgba(0, 0, 0, 0.05);">
-                <td style="padding:0.85rem; font-weight:700; color:#002f45; position:sticky; left:0; background:rgba(255, 255, 255, 0.85); z-index:5;">{{ $row['peserta']->name }}</td>
-                @foreach($row['items'] as $item)
+                <td style="padding:0.85rem; font-weight:700; color:#002f45; position:sticky; left:0; background:rgba(255, 255, 255, 0.85); z-index:5;">
+                    {{ $p->perwakilan->name }}
+                    <span style="font-size:0.6rem; font-weight:700; color:#002f45; opacity:0.45; background:rgba(0,47,69,0.06); padding:0.1rem 0.4rem; border-radius:4px; margin-left:0.25rem;">Perwakilan</span>
+                    @if($namaAnggotaLain->isNotEmpty())
+                        <table style="width:100%; border-collapse:collapse; margin-top:0.35rem;">
+                            @foreach($namaAnggotaLain as $i => $nama)
+                            <tr>
+                                <td style="padding:0.08rem 0.3rem 0.08rem 0; font-size:0.62rem; color:#002f45; opacity:0.4; width:14px; vertical-align:top;">{{ $i + 1 }}.</td>
+                                <td style="padding:0.08rem 0; font-size:0.65rem; color:#002f45; opacity:0.65; font-weight:500;">{{ $nama }}</td>
+                            </tr>
+                            @endforeach
+                        </table>
+                    @else
+                        <div style="font-size:0.65rem; opacity:0.4; font-weight:600; font-style:italic; margin-top:0.15rem;">mengumpulkan sendiri</div>
+                    @endif
+                </td>
+                @foreach($barangsIndividu as $b)
                 @php
-                    $bgStatus = $item['is_lengkap'] ? 'rgba(34, 197, 94, 0.15)' : ($item['jumlah_dibawa'] > 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.08)');
-                    $colorTxt = $item['is_lengkap'] ? '#166534' : ($item['jumlah_dibawa'] > 0 ? '#92400e' : '#991b1b');
+                    $dibawa = $p->jumlahDibawaUntuk($b->id);
+                    $target = $p->targetUntuk($b);
+                    $lengkap = $dibawa >= $target;
+                    $bgStatus = $lengkap ? 'rgba(34, 197, 94, 0.15)' : ($dibawa > 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.08)');
+                    $colorTxt = $lengkap ? '#166534' : ($dibawa > 0 ? '#92400e' : '#991b1b');
                 @endphp
                 <td style="padding:0.85rem; text-align:center; background:{{ $bgStatus }};">
                     <span style="color:{{ $colorTxt }}; font-weight:800;">
-                        {{ $item['jumlah_dibawa'] }} / {{ $item['barang']->jumlah_kebutuhan }}
+                        {{ $dibawa }} / {{ $target }}
                     </span>
                 </td>
                 @endforeach
+                <td style="padding:0.85rem; text-align:center;">
+                    @if($p->is_validated)
+                    <span style="background: rgba(34, 197, 94, 0.15); color:#166534; font-size:0.65rem; font-weight:800; padding:0.3rem 0.6rem; border-radius:8px;">✓ ACC</span>
+                    @if($p->updatedBy)
+                    <div style="font-size:0.6rem; color:#002f45; opacity:0.45; margin-top:0.25rem;">oleh {{ $p->updatedBy->name }}</div>
+                    @endif
+                    @else
+                    <span style="background: rgba(245, 158, 11, 0.15); color:#92400e; font-size:0.65rem; font-weight:800; padding:0.3rem 0.6rem; border-radius:8px;">Belum ACC</span>
+                    @endif
+                </td>
             </tr>
             @empty
-            <tr><td colspan="{{ $barangsIndividu->count() + 1 }}" style="padding:1.5rem; text-align:center; color:#002f45; opacity:0.5;">Belum ada peserta di kelompok ini.</td></tr>
+            <tr><td colspan="{{ $barangsIndividu->count() + 2 }}" style="padding:1.5rem; text-align:center; color:#002f45; opacity:0.5;">Belum ada pengumpulan dari kelompok ini.</td></tr>
             @endforelse
             </tbody>
         </table>

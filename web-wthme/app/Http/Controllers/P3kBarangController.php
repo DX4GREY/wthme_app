@@ -4,13 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\P3kBarangKebutuhan;
 use App\Models\P3kPengumpulanBarang;
-use App\Models\P3kPengumpulanIndividu;
+use App\Models\P3kPengumpulanKolektif;
+use App\Models\P3kPengumpulanKolektifAnggota;
+use App\Models\P3kPengumpulanKolektifItem;
 use App\Models\P3kStokIndividu;
 use App\Models\P3kObatPribadi;
 use App\Models\P3kPjKelompok;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -140,6 +143,12 @@ class P3kBarangController extends Controller
         $barangsKelompok = P3kBarangKebutuhan::kelompok()->where('aktif', true)->get();
         $barangsIndividu = P3kBarangKebutuhan::individu()->where('aktif', true)->get();
 
+        // Tarik sekali semua item pengumpulan kolektif (lintas kelompok), lalu kelompokkan
+        // di PHP supaya tidak query berulang per kelompok x per barang.
+        $itemKolektifByKelompok = P3kPengumpulanKolektifItem::with('pengumpulan')
+            ->get()
+            ->groupBy(fn($item) => $item->pengumpulan->kelompok ?? '');
+
         $summary = [];
         foreach ($kelompoks as $k) {
             $totalKelompok = $barangsKelompok->count();
@@ -156,17 +165,15 @@ class P3kBarangController extends Controller
             $lengkapIndividu = 0;
 
             // Anggota kelompok ini
-            $anggotaIds = User::where('role', 'peserta')->where('kelompok', $k)->pluck('id');
-            $jumlahAnggota = $anggotaIds->count();
+            $jumlahAnggota = User::where('role', 'peserta')->where('kelompok', $k)->count();
+            $itemsKelompok = $itemKolektifByKelompok->get($k, collect());
 
-            foreach ($barangsIndividu as $b) {
-                if ($jumlahAnggota === 0) continue;
-                $jumlahSudahBawa = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $b->id)
-                    ->whereIn('user_id', $anggotaIds)
-                    ->where('jumlah_dibawa', '>=', $b->jumlah_kebutuhan)
-                    ->count();
-                if ($jumlahSudahBawa >= $jumlahAnggota) {
-                    $lengkapIndividu++;
+            if ($jumlahAnggota > 0) {
+                foreach ($barangsIndividu as $b) {
+                    $totalDibawa = $itemsKelompok->where('p3k_barang_kebutuhan_id', $b->id)->sum('jumlah_dibawa');
+                    if ($totalDibawa >= $b->jumlah_kebutuhan * $jumlahAnggota) {
+                        $lengkapIndividu++;
+                    }
                 }
             }
 
@@ -226,39 +233,22 @@ class P3kBarangController extends Controller
             ];
         });
 
-        // ── Barang Individu (per peserta dalam kelompok) ──
+        // ── Barang Individu: Pengumpulan Kolektif (per perwakilan) ──
         $anggota = User::where('role', 'peserta')->where('kelompok', $kelompok)->orderBy('name')->get();
 
-        // peserta x barang individu -> data pengumpulan
-        $dataIndividu = $anggota->map(function ($peserta) use ($barangsIndividu) {
-            $items = $barangsIndividu->map(function ($b) use ($peserta) {
-                $p = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $b->id)
-                    ->where('user_id', $peserta->id)
-                    ->first();
+        $pengumpulanKolektif = P3kPengumpulanKolektif::where('kelompok', $kelompok)
+            ->withCount('anggota')
+            ->with(['perwakilan', 'anggota.peserta', 'items.barang', 'updatedBy'])
+            ->orderBy('created_at')
+            ->get();
 
-                return [
-                    'barang'           => $b,
-                    'pengumpulan'      => $p,
-                    'jumlah_dibawa'    => $p ? $p->jumlah_dibawa : 0,
-                    'foto'             => $p && $p->foto_bukti ? Storage::url($p->foto_bukti) : null,
-                    'is_lengkap'       => $p && $p->jumlah_dibawa >= $b->jumlah_kebutuhan,
-                    'is_validated'     => $p ? $p->is_validated : false,
-                ];
-            });
-
-            return [
-                'peserta' => $peserta,
-                'items'   => $items,
-            ];
-        });
+        // Anggota kelompok yang BELUM tercakup di pengumpulan manapun (punya milik sendiri / dititipkan)
+        $userIdTercakup = $pengumpulanKolektif->flatMap(fn($p) => $p->anggota->pluck('user_id'));
+        $anggotaBelumTercakup = $anggota->reject(fn($p) => $userIdTercakup->contains($p->id))->values();
 
         // ── Summary Barang Individu per KELOMPOK (total terkumpul + stok terpakai kelompok ini) ──
-        $summaryIndividuKelompok = $barangsIndividu->map(function ($b) use ($anggota, $kelompok) {
-            $anggotaIds = $anggota->pluck('id');
-            $totalKelompok = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $b->id)
-                ->whereIn('user_id', $anggotaIds)
-                ->sum('jumlah_dibawa');
-
+        $summaryIndividuKelompok = $barangsIndividu->map(function ($b) use ($pengumpulanKolektif, $anggota, $kelompok) {
+            $totalKelompok = $pengumpulanKolektif->sum(fn($p) => $p->jumlahDibawaUntuk($b->id));
             $targetKelompok = $b->jumlah_kebutuhan * $anggota->count();
 
             // Stok per kelompok ini (terpakai dikontrol di halaman kelompok)
@@ -270,7 +260,7 @@ class P3kBarangController extends Controller
                 'barang'           => $b,
                 'total_kelompok'   => $totalKelompok,
                 'target_kelompok'  => $targetKelompok,
-                'is_lengkap'       => $totalKelompok >= $targetKelompok,
+                'is_lengkap'       => $anggota->count() > 0 && $totalKelompok >= $targetKelompok,
                 'total_terkumpul'  => $stok ? $stok->total_terkumpul : $totalKelompok,
                 'total_terpakai'   => $stok ? $stok->total_terpakai : 0,
                 'total_sisa'       => $stok ? $stok->total_sisa : $totalKelompok,
@@ -280,7 +270,8 @@ class P3kBarangController extends Controller
         $obatPribadi = P3kObatPribadi::where('kelompok', $kelompok)->with('peserta', 'pj')->get();
 
         return view('panitia.p3k.kelompok', compact(
-            'kelompok', 'dataKelompok', 'dataIndividu', 'barangsIndividu', 'summaryIndividuKelompok', 'obatPribadi'
+            'kelompok', 'dataKelompok', 'pengumpulanKolektif', 'anggotaBelumTercakup',
+            'barangsIndividu', 'summaryIndividuKelompok', 'obatPribadi'
         ));
     }
 
@@ -378,21 +369,19 @@ class P3kBarangController extends Controller
         return back()->with('success', "Stok '{$barang->nama_barang}' Kelompok {$kelompok}: {$baru} terpakai.");
     }
 
-    // ACC barang individu milik satu peserta (saat pengumpulan)
-    public function toggleValidasiIndividu(Request $request, $barangId, $userId)
+    // ACC pengumpulan kolektif barang individu milik satu perwakilan (mencakup semua barang sekaligus)
+    public function toggleValidasiKolektif(Request $request, $pengumpulanId)
     {
-        $pengumpulan = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $barangId)
-            ->where('user_id', $userId)
-            ->firstOrFail();
+        $pengumpulan = P3kPengumpulanKolektif::findOrFail($pengumpulanId);
 
-        $peserta = User::findOrFail($userId);
-        $this->authorizeKelompokAccess($peserta->kelompok);
+        $this->authorizeKelompokAccess($pengumpulan->kelompok);
 
         $pengumpulan->is_validated = !$pengumpulan->is_validated;
+        $pengumpulan->updated_by = Auth::id();
         $pengumpulan->save();
 
         $statusPesan = $pengumpulan->is_validated ? 'berhasil di-ACC.' : 'batal di-ACC.';
-        return back()->with('success', "Status barang individu {$statusPesan}");
+        return back()->with('success', "Pengumpulan atas nama {$pengumpulan->perwakilan->name} {$statusPesan}");
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -435,7 +424,8 @@ class P3kBarangController extends Controller
         $barangsIndividu = P3kBarangKebutuhan::individu()->where('aktif', true)->orderBy('nama_barang')->get();
 
         $rekapKelompok = [];
-        $rekapIndividu = []; // per kelompok -> list peserta dengan status tiap barang individu
+        $pengumpulanKolektifPerKelompok = []; // per kelompok -> list pengumpulan kolektif (per perwakilan)
+        $anggotaBelumTercakupPerKelompok = []; // per kelompok -> peserta yang belum tercakup pengumpulan manapun
 
         foreach ($kelompoks as $k) {
             $rowsK = [];
@@ -449,39 +439,30 @@ class P3kBarangController extends Controller
             }
             $rekapKelompok[$k] = $rowsK;
 
-            // Rekap individu: per peserta di kelompok ini
+            // Rekap individu: per pengumpulan kolektif (perwakilan) di kelompok ini
             $anggota = User::where('role', 'peserta')->where('kelompok', $k)->orderBy('name')->get();
-            $rowsI = [];
-            foreach ($anggota as $peserta) {
-                $itemBarang = [];
-                foreach ($barangsIndividu as $b) {
-                    $p = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $b->id)
-                        ->where('user_id', $peserta->id)->first();
-                    $itemBarang[] = [
-                        'barang'          => $b,
-                        'jumlah_dibawa'   => $p ? $p->jumlah_dibawa : 0,
-                        'is_lengkap'      => $p && $p->jumlah_dibawa >= $b->jumlah_kebutuhan,
-                    ];
-                }
-                $rowsI[] = [
-                    'peserta' => $peserta,
-                    'items'   => $itemBarang,
-                ];
-            }
-            $rekapIndividu[$k] = $rowsI;
+
+            $pengumpulanKelompokIni = P3kPengumpulanKolektif::where('kelompok', $k)
+                ->withCount('anggota')
+                ->with(['perwakilan', 'anggota.peserta', 'items.barang', 'updatedBy'])
+                ->orderBy('created_at')
+                ->get();
+
+            $pengumpulanKolektifPerKelompok[$k] = $pengumpulanKelompokIni;
+
+            $userIdTercakup = $pengumpulanKelompokIni->flatMap(fn($p) => $p->anggota->pluck('user_id'));
+            $anggotaBelumTercakupPerKelompok[$k] = $anggota->reject(fn($p) => $userIdTercakup->contains($p->id))->values();
         }
 
         // Summary barang individu per kelompok (total terkumpul vs target kelompok)
         $summaryIndividuPerKelompok = [];
         foreach ($kelompoks as $k) {
-            $anggotaIds = User::where('role', 'peserta')->where('kelompok', $k)->pluck('id');
-            $jumlahAnggota = $anggotaIds->count();
+            $jumlahAnggota = User::where('role', 'peserta')->where('kelompok', $k)->count();
+            $pengumpulanKelompokIni = $pengumpulanKolektifPerKelompok[$k];
 
             $rows = [];
             foreach ($barangsIndividu as $b) {
-                $totalKelompok = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $b->id)
-                    ->whereIn('user_id', $anggotaIds)
-                    ->sum('jumlah_dibawa');
+                $totalKelompok = $pengumpulanKelompokIni->sum(fn($p) => $p->jumlahDibawaUntuk($b->id));
                 $targetKelompok = $b->jumlah_kebutuhan * $jumlahAnggota;
 
                 $rows[] = [
@@ -508,7 +489,8 @@ class P3kBarangController extends Controller
         $obatPribadi = P3kObatPribadi::with('peserta', 'pj')->orderBy('kelompok')->get();
 
         return view('panitia.p3k.rekap', compact(
-            'kelompoks', 'barangsKelompok', 'barangsIndividu', 'rekapKelompok', 'rekapIndividu',
+            'kelompoks', 'barangsKelompok', 'barangsIndividu', 'rekapKelompok',
+            'pengumpulanKolektifPerKelompok', 'anggotaBelumTercakupPerKelompok',
             'summaryIndividuPerKelompok', 'stokIndividu', 'obatPribadi'
         ));
     }
@@ -688,11 +670,13 @@ class P3kBarangController extends Controller
         }
     }
 
-    // Sheet barang individu: per peserta (1 blok per kelompok, baris = peserta x barang)
+    // Sheet barang individu: per kelompok, dipecah per PENGUMPULAN (perwakilan + anggota yang dititipkan)
     private function writeBarangIndividuSheet($sheet, $kelompoks, $barangsIndividu, $navyHex, $tealHex, $greenHex, $redHex, $whiteHex)
     {
         $row = 1;
-        $lastCol = chr(65 + 1 + $barangsIndividu->count()); // kolom: Nama Peserta + tiap barang
+        // Kolom: Perwakilan & Anggota | Jumlah Anggota | tiap barang | Status ACC
+        $lastColIndex = 2 + $barangsIndividu->count();
+        $lastCol = chr(65 + $lastColIndex);
 
         foreach ($kelompoks as $kelompok) {
             $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
@@ -705,18 +689,16 @@ class P3kBarangController extends Controller
             $sheet->getRowDimension($row)->setRowHeight(28);
             $row++;
 
-            // Header: Nama Peserta | Barang1 (target) | Barang2 (target) | ...
-            $sheet->setCellValue("A{$row}", 'Nama Peserta');
-            $sheet->getStyle("A{$row}")->applyFromArray([
-                'font' => ['bold' => true, 'color' => ['rgb' => $navyHex], 'name' => 'Arial'],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $tealHex]],
-                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
-            ]);
+            // Header
+            $headerLabels = ['Perwakilan & Anggota Dititipkan', 'Jml Anggota'];
+            foreach ($barangsIndividu as $b) {
+                $headerLabels[] = $b->nama_barang . ' (' . $b->jumlah_kebutuhan . ' ' . $b->satuan . '/orang)';
+            }
+            $headerLabels[] = 'Status ACC';
 
-            foreach ($barangsIndividu as $i => $b) {
-                $col = chr(65 + 1 + $i);
-                $sheet->setCellValue("{$col}{$row}", $b->nama_barang . ' (' . $b->jumlah_kebutuhan . ' ' . $b->satuan . ')');
+            foreach ($headerLabels as $i => $h) {
+                $col = chr(65 + $i);
+                $sheet->setCellValue("{$col}{$row}", $h);
                 $sheet->getStyle("{$col}{$row}")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => $navyHex], 'name' => 'Arial', 'size' => 9],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $tealHex]],
@@ -726,29 +708,48 @@ class P3kBarangController extends Controller
             }
             $row++;
 
-            $anggota = User::where('role', 'peserta')->where('kelompok', $kelompok)->orderBy('name')->get();
+            $anggotaKelompok = User::where('role', 'peserta')->where('kelompok', $kelompok)->orderBy('name')->get();
+
+            $pengumpulanKelompokIni = P3kPengumpulanKolektif::where('kelompok', $kelompok)
+                ->withCount('anggota')
+                ->with(['perwakilan', 'anggota.peserta', 'items', 'updatedBy'])
+                ->orderBy('created_at')
+                ->get();
 
             $totalPerBarang = array_fill(0, $barangsIndividu->count(), 0);
 
-            foreach ($anggota as $peserta) {
-                $sheet->setCellValue("A{$row}", $peserta->name);
+            foreach ($pengumpulanKelompokIni as $p) {
+                $namaAnggotaLain = $p->anggota->pluck('peserta.name')
+                    ->reject(fn($n) => $n === $p->perwakilan->name)
+                    ->implode(', ');
+
+                $labelPerwakilan = $p->perwakilan->name
+                    . ($namaAnggotaLain !== '' ? " (mewakili: {$namaAnggotaLain})" : ' (mengumpulkan sendiri)');
+
+                $sheet->setCellValue("A{$row}", $labelPerwakilan);
                 $sheet->getStyle("A{$row}")->applyFromArray([
-                    'font' => ['name' => 'Arial', 'size' => 10, 'bold' => true],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
+                    'font' => ['name' => 'Arial', 'size' => 9, 'bold' => true],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'wrapText' => true],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
+                ]);
+
+                $sheet->setCellValue("B{$row}", $p->jumlah_anggota);
+                $sheet->getStyle("B{$row}")->applyFromArray([
+                    'font' => ['name' => 'Arial', 'size' => 9],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
                 ]);
 
                 foreach ($barangsIndividu as $i => $b) {
-                    $col = chr(65 + 1 + $i);
-                    $p = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $b->id)
-                        ->where('user_id', $peserta->id)->first();
-                    $dibawa  = $p ? $p->jumlah_dibawa : 0;
-                    $lengkap = $dibawa >= $b->jumlah_kebutuhan;
+                    $col = chr(67 + $i); // mulai dari kolom C
+                    $dibawa  = $p->jumlahDibawaUntuk($b->id);
+                    $target  = $p->targetUntuk($b);
+                    $lengkap = $dibawa >= $target;
                     $bg = $lengkap ? $greenHex : ($dibawa > 0 ? 'fff3cd' : $redHex);
 
                     $totalPerBarang[$i] += $dibawa;
 
-                    $sheet->setCellValue("{$col}{$row}", "{$dibawa}/{$b->jumlah_kebutuhan}");
+                    $sheet->setCellValue("{$col}{$row}", "{$dibawa}/{$target}");
                     $sheet->getStyle("{$col}{$row}")->applyFromArray([
                         'font' => ['name' => 'Arial', 'size' => 9],
                         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bg]],
@@ -756,20 +757,34 @@ class P3kBarangController extends Controller
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
                     ]);
                 }
+
+                $colStatus = chr(67 + $barangsIndividu->count());
+                $statusText = $p->is_validated
+                    ? 'Sudah ACC' . ($p->updatedBy ? " (oleh {$p->updatedBy->name})" : '')
+                    : 'Belum ACC';
+                $sheet->setCellValue("{$colStatus}{$row}", $statusText);
+                $sheet->getStyle("{$colStatus}{$row}")->applyFromArray([
+                    'font' => ['name' => 'Arial', 'size' => 9, 'bold' => true],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $p->is_validated ? $greenHex : $redHex]],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
+                ]);
+
                 $row++;
             }
 
             // Baris TOTAL KELOMPOK
             $sheet->setCellValue("A{$row}", "TOTAL KELOMPOK $kelompok");
+            $sheet->mergeCells("A{$row}:B{$row}");
             $sheet->getStyle("A{$row}")->applyFromArray([
-                'font' => ['bold' => true, 'color' => ['rgb' => $navyHex], 'name' => 'Arial', 'size' => 10],
+                'font' => ['bold' => true, 'color' => ['rgb' => $navyHex], 'name' => 'Arial', 'size' => 9],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $tealHex]],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
             ]);
             foreach ($barangsIndividu as $i => $b) {
-                $col = chr(65 + 1 + $i);
-                $target = $b->jumlah_kebutuhan * $anggota->count();
+                $col = chr(67 + $i);
+                $target = $b->jumlah_kebutuhan * $anggotaKelompok->count();
                 $sheet->setCellValue("{$col}{$row}", "{$totalPerBarang[$i]}/{$target}");
                 $sheet->getStyle("{$col}{$row}")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => $navyHex], 'name' => 'Arial', 'size' => 9],
@@ -780,14 +795,30 @@ class P3kBarangController extends Controller
             }
             $row++;
 
+            // Baris ANGGOTA BELUM TERCAKUP
+            $userIdTercakup = $pengumpulanKelompokIni->flatMap(fn($p) => $p->anggota->pluck('user_id'));
+            $belumTercakup = $anggotaKelompok->reject(fn($p) => $userIdTercakup->contains($p->id))->pluck('name')->implode(', ');
+
+            $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+            $sheet->setCellValue("A{$row}", 'Belum Tercakup Pengumpulan: ' . ($belumTercakup !== '' ? $belumTercakup : '— Semua anggota sudah tercakup —'));
+            $sheet->getStyle("A{$row}")->applyFromArray([
+                'font' => ['italic' => true, 'color' => ['rgb' => $belumTercakup !== '' ? '991b1b' : '166534'], 'name' => 'Arial', 'size' => 9],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $belumTercakup !== '' ? $redHex : $greenHex]],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'wrapText' => true],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'cccccc']]],
+            ]);
+            $row++;
+
             $row += 2;
         }
 
-        $sheet->getColumnDimension('A')->setWidth(28);
+        $sheet->getColumnDimension('A')->setWidth(36);
+        $sheet->getColumnDimension('B')->setWidth(12);
         for ($i = 0; $i < $barangsIndividu->count(); $i++) {
-            $col = chr(65 + 1 + $i);
-            $sheet->getColumnDimension($col)->setWidth(18);
+            $col = chr(67 + $i);
+            $sheet->getColumnDimension($col)->setWidth(16);
         }
+        $sheet->getColumnDimension($lastCol)->setWidth(14);
     }
 
     // Sheet stok global barang individu: pool lintas kelompok (terkumpul/terpakai/sisa)
@@ -883,25 +914,35 @@ class P3kBarangController extends Controller
             ];
         });
 
-        // Barang individu (milik peserta yang login)
-        $dataIndividu = $barangsIndividu->map(function ($b) use ($user) {
-            $p = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $b->id)
-                ->where('user_id', $user->id)->first();
+        // Barang individu — kini berbasis Pengumpulan Kolektif (per perwakilan kelompok)
+        $anggotaSaya = P3kPengumpulanKolektifAnggota::where('user_id', $user->id)->first();
+        $pengumpulanSaya = null;
+        $isPerwakilanSaya = false;
+
+        if ($anggotaSaya) {
+            $pengumpulanSaya = P3kPengumpulanKolektif::withCount('anggota')
+                ->with(['perwakilan', 'items'])
+                ->find($anggotaSaya->pengumpulan_kolektif_id);
+            $isPerwakilanSaya = $pengumpulanSaya && $pengumpulanSaya->perwakilan_user_id === $user->id;
+        }
+
+        $dataIndividu = $barangsIndividu->map(function ($b) use ($pengumpulanSaya) {
+            $dibawa = $pengumpulanSaya ? $pengumpulanSaya->jumlahDibawaUntuk($b->id) : 0;
+            $target = $pengumpulanSaya ? $pengumpulanSaya->targetUntuk($b) : $b->jumlah_kebutuhan;
             return [
-                'barang'          => $b,
-                'pengumpulan'     => $p,
-                'jumlah_dibawa'   => $p ? $p->jumlah_dibawa : 0,
-                'foto_url'        => $p && $p->foto_bukti ? Storage::url($p->foto_bukti) : null,
-                'is_lengkap'      => $p && $p->jumlah_dibawa >= $b->jumlah_kebutuhan,
-                'is_validated'    => $p ? $p->is_validated : false,
-                'updated_by_name' => $p && $p->updatedBy ? $p->updatedBy->name : null,
-                'updated_at'      => $p ? $p->updated_at : null,
+                'barang'       => $b,
+                'jumlah_dibawa' => $dibawa,
+                'target'        => $target,
+                'is_lengkap'    => $pengumpulanSaya !== null && $dibawa >= $target,
+                'is_validated'  => $pengumpulanSaya ? $pengumpulanSaya->is_validated : false,
             ];
         });
 
         $obatPribadiSaya = P3kObatPribadi::where('user_id', $user->id)->get();
 
-        return view('peserta.p3k', compact('kelompok', 'dataKelompok', 'dataIndividu', 'pj', 'obatPribadiSaya'));
+        return view('peserta.p3k', compact(
+            'kelompok', 'dataKelompok', 'dataIndividu', 'pengumpulanSaya', 'isPerwakilanSaya', 'pj', 'obatPribadiSaya'
+        ));
     }
 
     // ── Barang KELOMPOK (agregat per kelompok) ──
@@ -996,98 +1037,248 @@ class P3kBarangController extends Controller
         return back()->with('success', 'Data berhasil direset.');
     }
 
-    // ── Barang INDIVIDU (milik peserta sendiri) ──
+    // ─────────────────────────────────────────────────────────────
+    // PESERTA: Pengumpulan Kolektif barang INDIVIDU (via perwakilan kelompok)
+    // ─────────────────────────────────────────────────────────────
 
-    public function pesertaUpdateIndividu(Request $request, $barangId)
+    public function pesertaIndividuForm()
     {
-        $request->validate([
-            'jumlah_dibawa' => 'required|integer|min:0',
-            'foto_bukti'    => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
-        ]);
+        $user     = Auth::user();
+        $kelompok = $user->kelompok;
 
-        $user   = Auth::user();
-        $barang = P3kBarangKebutuhan::findOrFail($barangId);
+        $barangsIndividu = P3kBarangKebutuhan::individu()->where('aktif', true)->orderBy('nama_barang')->get();
 
-        $pengumpulan = P3kPengumpulanIndividu::firstOrNew([
-            'p3k_barang_kebutuhan_id' => $barang->id,
-            'user_id'                 => $user->id,
-        ]);
+        $anggotaSaya  = P3kPengumpulanKolektifAnggota::where('user_id', $user->id)->first();
+        $pengumpulan  = null;
+        $isPerwakilan = false;
 
-        if ($pengumpulan->is_validated && $pengumpulan->jumlah_dibawa >= $barang->jumlah_kebutuhan) {
-            return back()->withErrors(['error' => 'Data sudah lengkap dan di-ACC P3K, tidak dapat diubah lagi.']);
+        if ($anggotaSaya) {
+            $pengumpulan = P3kPengumpulanKolektif::withCount('anggota')
+                ->with(['perwakilan', 'anggota.peserta', 'items.barang'])
+                ->find($anggotaSaya->pengumpulan_kolektif_id);
+            $isPerwakilan = $pengumpulan && $pengumpulan->perwakilan_user_id === $user->id;
         }
 
-        if ($pengumpulan->is_validated && $request->jumlah_dibawa < $pengumpulan->jumlah_dibawa) {
-            return back()->withErrors(['error' => 'Jumlah barang tidak boleh lebih kecil dari jumlah yang sudah di-ACC sebelumnya.']);
-        }
+        $rekanSekelompok = User::where('role', 'peserta')
+            ->where('kelompok', $kelompok)
+            ->where('id', '!=', $user->id)
+            ->orderBy('name')
+            ->get();
 
-        $pengumpulan->jumlah_dibawa = $request->jumlah_dibawa;
-        $pengumpulan->updated_by    = $user->id;
+        $userIdTercakup = P3kPengumpulanKolektifAnggota::pluck('user_id');
+        $idAnggotaSaya  = $pengumpulan ? $pengumpulan->anggota->pluck('user_id') : collect();
 
-        if ($pengumpulan->is_validated && $request->jumlah_dibawa > $pengumpulan->getOriginal('jumlah_dibawa')) {
-            $pengumpulan->is_validated = false;
-        }
+        // Kandidat yang bisa dicheck: belum tercakup pengumpulan manapun, ATAU sedang tercakup di pengumpulan SAYA
+        $kandidatChecklist = $rekanSekelompok->filter(function ($p) use ($userIdTercakup, $idAnggotaSaya) {
+            return !$userIdTercakup->contains($p->id) || $idAnggotaSaya->contains($p->id);
+        })->values();
 
-        if ($request->hasFile('foto_bukti')) {
-            if ($pengumpulan->foto_bukti) {
-                Storage::disk('public')->delete($pengumpulan->foto_bukti);
-            }
-            $path = $request->file('foto_bukti')->store('p3k-individu-bukti', 'public');
-            $pengumpulan->foto_bukti = $path;
-        }
+        // Sudah tercakup di pengumpulan ORANG LAIN — ditampilkan read-only agar tidak salah pilih
+        $tercakupDiLain = $rekanSekelompok->filter(function ($p) use ($userIdTercakup, $idAnggotaSaya) {
+            return $userIdTercakup->contains($p->id) && !$idAnggotaSaya->contains($p->id);
+        })->values();
 
-        $pengumpulan->save();
-
-        // Recalculate stok per kelompok peserta ini
-        P3kStokIndividu::recalcTerkumpul($barang->id, $user->kelompok);
-
-        return back()->with('success', 'Data barang individu berhasil diperbarui.');
+        return view('peserta.p3k-individu', compact(
+            'kelompok', 'barangsIndividu', 'pengumpulan', 'isPerwakilan', 'kandidatChecklist', 'tercakupDiLain'
+        ));
     }
 
-    public function pesertaHapusFotoIndividu($barangId)
+    public function pesertaIndividuStore(Request $request)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'anggota_ids'     => 'nullable|array',
+            'anggota_ids.*'   => 'integer|exists:users,id',
+            'jumlah_dibawa'   => 'nullable|array',
+            'jumlah_dibawa.*' => 'integer|min:0',
+            'foto_bukti'      => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
+        ]);
+
+        $pengumpulan = P3kPengumpulanKolektif::where('perwakilan_user_id', $user->id)->first();
+
+        if (!$pengumpulan) {
+            $sudahJadiAnggotaOrang = P3kPengumpulanKolektifAnggota::where('user_id', $user->id)->exists();
+            if ($sudahJadiAnggotaOrang) {
+                return back()->withErrors(['error' => 'Anda sudah dititipkan ke pengumpulan milik orang lain dan tidak bisa membuat pengumpulan baru. Gunakan tombol "Keluar dari Pengumpulan" jika ingin pindah.']);
+            }
+        } elseif ($pengumpulan->is_validated) {
+            return back()->withErrors(['error' => 'Pengumpulan Anda sudah di-ACC oleh P3K, tidak dapat diubah lagi. Hubungi panitia P3K jika ada kesalahan data.']);
+        }
+
+        $anggotaIdsDicheck = collect($request->input('anggota_ids', []))
+            ->map(fn ($v) => (int) $v)
+            ->filter(fn ($v) => $v !== $user->id)
+            ->unique()
+            ->values();
+
+        if ($anggotaIdsDicheck->isNotEmpty()) {
+            $kandidatValidCount = User::where('role', 'peserta')
+                ->where('kelompok', $user->kelompok)
+                ->whereIn('id', $anggotaIdsDicheck)
+                ->count();
+
+            if ($kandidatValidCount !== $anggotaIdsDicheck->count()) {
+                return back()->withErrors(['error' => 'Ada nama yang dipilih tidak valid atau bukan dari kelompok Anda.']);
+            }
+
+            $pengumpulanIdSaya = $pengumpulan?->id;
+            $bentrok = P3kPengumpulanKolektifAnggota::whereIn('user_id', $anggotaIdsDicheck)
+                ->when($pengumpulanIdSaya, fn ($q) => $q->where('pengumpulan_kolektif_id', '!=', $pengumpulanIdSaya))
+                ->with('peserta')
+                ->get();
+
+            if ($bentrok->isNotEmpty()) {
+                $namaBentrok = $bentrok->pluck('peserta.name')->filter()->implode(', ');
+                return back()->withErrors(['error' => "Nama berikut sudah terdaftar di pengumpulan lain: {$namaBentrok}. Minta mereka keluar dari pengumpulan tersebut dulu, atau hubungi panitia P3K."]);
+            }
+        }
+
+        $barangsIndividu = P3kBarangKebutuhan::individu()->where('aktif', true)->get();
+
+        // Jumlah anggota SETELAH disimpan (termasuk diri sendiri) — dipakai untuk membatasi
+        // input agar tidak melebihi target (jumlah_kebutuhan x jumlah_anggota).
+        $jumlahAnggotaBaru = $anggotaIdsDicheck->count() + 1;
+
+        $jumlahInputMentah = $request->input('jumlah_dibawa', []);
+        $pesanKelebihan = [];
+        foreach ($barangsIndividu as $b) {
+            $jumlahInput = (int) ($jumlahInputMentah[$b->id] ?? 0);
+            $targetMaksimal = $b->jumlah_kebutuhan * $jumlahAnggotaBaru;
+            if ($jumlahInput > $targetMaksimal) {
+                $pesanKelebihan[] = "{$b->nama_barang} (maks. {$targetMaksimal} {$b->satuan} untuk {$jumlahAnggotaBaru} orang, Anda isi {$jumlahInput})";
+            }
+        }
+
+        if (!empty($pesanKelebihan)) {
+            return back()->withErrors(['error' => 'Jumlah dibawa tidak boleh melebihi target: ' . implode('; ', $pesanKelebihan) . '.'])->withInput();
+        }
+
+        DB::transaction(function () use (&$pengumpulan, $user, $anggotaIdsDicheck, $barangsIndividu, $request) {
+            if (!$pengumpulan) {
+                $pengumpulan = P3kPengumpulanKolektif::create([
+                    'perwakilan_user_id' => $user->id,
+                    'kelompok'           => $user->kelompok,
+                ]);
+            }
+
+            $idsSeharusnya = $anggotaIdsDicheck->concat([$user->id])->unique()->values();
+
+            $pengumpulan->anggota()->whereNotIn('user_id', $idsSeharusnya)->delete();
+
+            $idsSudahAda = $pengumpulan->anggota()->pluck('user_id');
+            $idsBaru = $idsSeharusnya->diff($idsSudahAda);
+
+            foreach ($idsBaru as $uid) {
+                $pengumpulan->anggota()->create(['user_id' => $uid]);
+            }
+
+            $jumlahInput = $request->input('jumlah_dibawa', []);
+            foreach ($barangsIndividu as $b) {
+                $jumlah = (int) ($jumlahInput[$b->id] ?? 0);
+                P3kPengumpulanKolektifItem::updateOrCreate(
+                    ['pengumpulan_kolektif_id' => $pengumpulan->id, 'p3k_barang_kebutuhan_id' => $b->id],
+                    ['jumlah_dibawa' => $jumlah]
+                );
+            }
+
+            if ($request->hasFile('foto_bukti')) {
+                if ($pengumpulan->foto_bukti) {
+                    Storage::disk('public')->delete($pengumpulan->foto_bukti);
+                }
+                $pengumpulan->foto_bukti = $request->file('foto_bukti')->store('p3k-individu-bukti', 'public');
+            }
+
+            $pengumpulan->updated_by = $user->id;
+            $pengumpulan->save();
+        });
+
+        foreach ($barangsIndividu as $b) {
+            P3kStokIndividu::recalcTerkumpul($b->id, $user->kelompok);
+        }
+
+        return redirect()->route('peserta.p3k.individu')->with('success', 'Pengumpulan barang individu berhasil disimpan.');
+    }
+
+    public function pesertaIndividuHapusFoto()
     {
         $user        = Auth::user();
-        $barang      = P3kBarangKebutuhan::findOrFail($barangId);
-        $pengumpulan = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $barangId)
-            ->where('user_id', $user->id)
-            ->firstOrFail();
+        $pengumpulan = P3kPengumpulanKolektif::where('perwakilan_user_id', $user->id)->first();
 
-        if ($pengumpulan->is_validated && $pengumpulan->jumlah_dibawa >= $barang->jumlah_kebutuhan) {
-            return back()->withErrors(['error' => 'Data sudah di-ACC P3K sepenuhnya.']);
+        if (!$pengumpulan) {
+            return back()->withErrors(['error' => 'Anda belum memiliki pengumpulan.']);
+        }
+
+        if ($pengumpulan->is_validated) {
+            return back()->withErrors(['error' => 'Pengumpulan sudah di-ACC P3K, tidak dapat diubah.']);
         }
 
         if ($pengumpulan->foto_bukti) {
             Storage::disk('public')->delete($pengumpulan->foto_bukti);
             $pengumpulan->foto_bukti = null;
-            $pengumpulan->is_validated = false;
             $pengumpulan->save();
         }
 
         return back()->with('success', 'Foto bukti berhasil dihapus.');
     }
 
-    public function pesertaResetIndividu($barangId)
+    // Anggota (bukan perwakilan) keluar dari pengumpulan yang dititipinya
+    public function pesertaIndividuKeluar()
+    {
+        $user    = Auth::user();
+        $anggota = P3kPengumpulanKolektifAnggota::where('user_id', $user->id)->first();
+
+        if (!$anggota) {
+            return back()->withErrors(['error' => 'Anda belum terdaftar di pengumpulan manapun.']);
+        }
+
+        $pengumpulan = $anggota->pengumpulan;
+
+        if ($pengumpulan->perwakilan_user_id === $user->id) {
+            return back()->withErrors(['error' => 'Anda adalah perwakilan pengumpulan ini. Gunakan tombol "Bubarkan Pengumpulan" jika ingin keluar.']);
+        }
+
+        if ($pengumpulan->is_validated) {
+            return back()->withErrors(['error' => 'Pengumpulan ini sudah di-ACC oleh P3K. Hubungi panitia P3K jika ingin pindah.']);
+        }
+
+        $kelompok = $pengumpulan->kelompok;
+        $anggota->delete();
+
+        foreach (P3kBarangKebutuhan::individu()->where('aktif', true)->pluck('id') as $barangId) {
+            P3kStokIndividu::recalcTerkumpul($barangId, $kelompok);
+        }
+
+        return redirect()->route('peserta.p3k.individu')->with('success', 'Anda berhasil keluar dari pengumpulan tersebut. Sekarang Anda bisa membuat pengumpulan sendiri atau dititipkan ke perwakilan lain.');
+    }
+
+    // Perwakilan membubarkan pengumpulannya sendiri (membebaskan semua anggota yang dititipkan)
+    public function pesertaIndividuBubarkan()
     {
         $user        = Auth::user();
-        $barang      = P3kBarangKebutuhan::findOrFail($barangId);
-        $pengumpulan = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $barangId)
-            ->where('user_id', $user->id)
-            ->firstOrFail();
+        $pengumpulan = P3kPengumpulanKolektif::where('perwakilan_user_id', $user->id)->first();
 
-        if ($pengumpulan->is_validated && $pengumpulan->jumlah_dibawa >= $barang->jumlah_kebutuhan) {
-            return back()->withErrors(['error' => 'Data sudah di-ACC P3K sepenuhnya.']);
+        if (!$pengumpulan) {
+            return back()->withErrors(['error' => 'Anda belum memiliki pengumpulan.']);
         }
+
+        if ($pengumpulan->is_validated) {
+            return back()->withErrors(['error' => 'Pengumpulan sudah di-ACC P3K, tidak dapat dibubarkan. Hubungi panitia P3K jika ada kesalahan.']);
+        }
+
+        $kelompok = $pengumpulan->kelompok;
 
         if ($pengumpulan->foto_bukti) {
             Storage::disk('public')->delete($pengumpulan->foto_bukti);
         }
 
-        $pengumpulan->delete();
+        $pengumpulan->delete(); // cascade: anggota & item ikut terhapus
 
-        // Recalculate stok per kelompok setelah data peserta dihapus
-        P3kStokIndividu::recalcTerkumpul($barang->id, $user->kelompok);
+        foreach (P3kBarangKebutuhan::individu()->where('aktif', true)->pluck('id') as $barangId) {
+            P3kStokIndividu::recalcTerkumpul($barangId, $kelompok);
+        }
 
-        return back()->with('success', 'Data berhasil direset.');
+        return redirect()->route('peserta.p3k.individu')->with('success', 'Pengumpulan berhasil dibubarkan. Semua nama yang tadinya dititipkan kini bebas untuk gabung ke pengumpulan lain.');
     }
 
     // ─────────────────────────────────────────────────────────────

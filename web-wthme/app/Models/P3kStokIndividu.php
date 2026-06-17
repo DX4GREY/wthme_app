@@ -36,17 +36,15 @@ class P3kStokIndividu extends Model
 
     /**
      * Recalculate total_terkumpul untuk barang ini di kelompok tertentu.
-     * total_terkumpul = SUM(jumlah_dibawa) dari semua peserta di kelompok tsb.
+     * total_terkumpul = SUM(jumlah_dibawa) dari semua pengumpulan kolektif
+     * yang berasal dari kelompok tsb (lintas semua perwakilan kelompok itu).
      */
     public static function recalcTerkumpul($barangId, $kelompok): self
     {
-        // Ambil semua user_id yang merupakan anggota kelompok ini
-        $anggotaIds = \App\Models\User::where('role', 'peserta')
-            ->where('kelompok', $kelompok)
-            ->pluck('id');
-
-        $sum = P3kPengumpulanIndividu::where('p3k_barang_kebutuhan_id', $barangId)
-            ->whereIn('user_id', $anggotaIds)
+        $sum = P3kPengumpulanKolektifItem::where('p3k_barang_kebutuhan_id', $barangId)
+            ->whereHas('pengumpulan', function ($q) use ($kelompok) {
+                $q->where('kelompok', $kelompok);
+            })
             ->sum('jumlah_dibawa');
 
         $stok = static::firstOrCreate([

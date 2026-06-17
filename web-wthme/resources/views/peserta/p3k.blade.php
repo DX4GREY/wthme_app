@@ -67,8 +67,8 @@
 
         {{-- Barang Individu --}}
         <h3 style="font-family:'Playfair Display',serif; color:#002f45; font-size:1.3rem; font-weight:800; margin:2rem 0 1rem; padding-left:0.5rem;">🎒 Barang Individu (Bawaan Pribadi)</h3>
-        <p style="color:#002f45; opacity:0.5; font-size:0.8rem; margin-top:-0.5rem; margin-bottom:1rem; padding-left:0.5rem;">Barang ini wajib dibawa sendiri oleh Anda (bukan diwakilkan kelompok).</p>
-        @include('peserta.partials.p3k-table-individu', ['data' => $dataIndividu])
+        <p style="color:#002f45; opacity:0.5; font-size:0.8rem; margin-top:-0.5rem; margin-bottom:1rem; padding-left:0.5rem;">Dikumpulkan lewat 1 perwakilan per kelompok — Anda bisa jadi perwakilan atau menitipkan ke perwakilan lain.</p>
+        @include('peserta.partials.p3k-individu-status', ['dataIndividu' => $dataIndividu, 'pengumpulanSaya' => $pengumpulanSaya, 'isPerwakilanSaya' => $isPerwakilanSaya])
 
         {{-- Obat Pribadi --}}
         <h3 style="font-family:'Playfair Display',serif; color:#002f45; font-size:1.3rem; font-weight:800; margin:2rem 0 1rem; padding-left:0.5rem;">💊 Obat Pribadi</h3>
