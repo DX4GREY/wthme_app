@@ -213,7 +213,7 @@
                         [
                             'route' => route('peserta.p3k'),
                             'icon' => '📦',
-                            'title' => 'Pengumpulan Barang WTHME 2025',
+                            'title' => 'Pengumpulan Barang Peserta',
                             'desc' => 'Pengumpulan barang Logistik, Konsumsi, P3K',
                             'badge' => null,
                         ],

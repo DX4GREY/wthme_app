@@ -183,9 +183,9 @@
                             ],
                             [
                                 'route' => 'panitia.p3k.index',
-                                'icon' => '🩹',
-                                'title' => 'Pengumpulan Barang P3K',
-                                'desc' => 'Pantau status logistik medis & obat pribadi',
+                                'icon' => '📦',
+                                'title' => 'Pengumpulan Barang',
+                                'desc' => 'Pantau status barang bawaan per kelompok',
                             ],
                             [
                                 'route' => 'panitia.tugas.index',
@@ -199,12 +199,12 @@
                                 'title' => 'Broadcast Peserta',
                                 'desc' => 'Kirim pengumuman/link ke portal peserta',
                             ],
-                            [
-                                'route' => 'panitia.barang.index',
-                                'icon' => '📦',
-                                'title' => 'Pengumpulan Barang',
-                                'desc' => 'Pantau status barang bawaan per kelompok',
-                            ],
+                            // [
+                            //     'route' => 'panitia.barang.index',
+                            //     'icon' => '📦',
+                            //     'title' => 'Pengumpulan Barang',
+                            //     'desc' => 'Pantau status barang bawaan per kelompok',
+                            // ],
                             // [
                             //     'route' => 'panitia.notulensi.index',
                             //     'icon' => '✍️',
