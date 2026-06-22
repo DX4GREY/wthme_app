@@ -28,18 +28,29 @@ class P3kBarangController extends Controller
     private const MENU_LABELS = ['logistik' => '🎒 Logistik', 'konsumsi' => '🥘 Konsumsi', 'p3k' => '🩹 P3K'];
     private const MENU_ICONS  = ['logistik' => '🎒', 'konsumsi' => '🥘', 'p3k' => '🩹'];
 
+    /**
+     * Mapping menu → divisi yang berwenang mengelola menu tersebut.
+     * Divisi disimpan case-insensitive; perbandingan pakai strtoupper().
+     */
+    private const MENU_DIVISI = [
+        'logistik' => 'LOGISTIK',
+        'konsumsi'  => 'KONSUMSI',
+        'p3k'       => 'P3K',
+    ];
+
     private function validasiMenu(string $menu): void
     {
         abort_unless(in_array($menu, self::MENUS, true), 404);
     }
 
     // ─────────────────────────────────────────────────────────────
-    // PANITIA P3K: Manage daftar barang kebutuhan (kelompok & individu)
+    // PANITIA: Manage daftar barang kebutuhan (kelompok & individu)
+    // Hanya ADMIN yang boleh tambah/edit/hapus barang
     // ─────────────────────────────────────────────────────────────
 
     public function manageIndex()
     {
-        $this->authorizeP3k();
+        $this->authorizeAdmin();
 
         $semuaBarangs = P3kBarangKebutuhan::orderBy('menu')->orderBy('tipe')->orderBy('nama_barang')->get();
 
@@ -60,7 +71,7 @@ class P3kBarangController extends Controller
 
     public function manageStore(Request $request)
     {
-        $this->authorizeP3k();
+        $this->authorizeAdmin();
         $request->validate([
             'nama_barang'      => 'required|string|max:255',
             'tipe'             => 'required|in:kelompok,individu',
@@ -79,7 +90,7 @@ class P3kBarangController extends Controller
 
     public function manageUpdate(Request $request, $id)
     {
-        $this->authorizeP3k();
+        $this->authorizeAdmin();
         $request->validate([
             'nama_barang'      => 'required|string|max:255',
             'tipe'             => 'required|in:kelompok,individu',
@@ -99,7 +110,7 @@ class P3kBarangController extends Controller
 
     public function manageDestroy($id)
     {
-        $this->authorizeP3k();
+        $this->authorizeAdmin();
         $barang = P3kBarangKebutuhan::findOrFail($id);
 
         foreach ($barang->pengumpulan as $p) {
@@ -113,12 +124,13 @@ class P3kBarangController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────
-    // PANITIA P3K: Atur mapping PJ per kelompok
+    // PANITIA: Atur mapping PJ per kelompok
+    // Hanya ADMIN
     // ─────────────────────────────────────────────────────────────
 
     public function pjStore(Request $request)
     {
-        $this->authorizeP3k();
+        $this->authorizeAdmin();
         $request->validate([
             'kelompok'  => 'required|string',
             'pj_p3k_id' => 'required|exists:users,id',
@@ -133,12 +145,12 @@ class P3kBarangController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────
-    // PANITIA P3K: Lihat list kelompok & rekap
+    // PANITIA: Lihat list kelompok & rekap
+    // Semua panitia (admin, logistik, konsumsi, p3k) boleh lihat
     // ─────────────────────────────────────────────────────────────
 
     public function panitiaIndex()
     {
-        // Semua panitia boleh melihat halaman ini
         $this->authorizeAnyPanitia();
 
         $kelompoksData = User::where('role', 'peserta')
@@ -151,8 +163,8 @@ class P3kBarangController extends Controller
 
         $user = Auth::user();
 
-        // Jika PJ P3K (bukan admin), hanya tampilkan kelompok binaannya
-        if ($user->role !== 'admin' && strtoupper($user->divisi ?? '') === 'P3K') {
+        // Jika PJ salah satu divisi (bukan admin), hanya tampilkan kelompok binaannya
+        if ($user->role !== 'admin') {
             $binaan = P3kPjKelompok::kelompokUntukPj($user->id);
             if (!empty($binaan)) {
                 $kelompoksData = array_values(array_intersect($kelompoksData, $binaan));
@@ -163,8 +175,6 @@ class P3kBarangController extends Controller
         $barangsKelompok = P3kBarangKebutuhan::kelompok()->where('aktif', true)->get();
         $barangsIndividu = P3kBarangKebutuhan::individu()->where('aktif', true)->get();
 
-        // Tarik sekali semua item pengumpulan kolektif (lintas kelompok), lalu kelompokkan
-        // di PHP supaya tidak query berulang per kelompok x per barang.
         $itemKolektifByKelompok = P3kPengumpulanKolektifItem::with('pengumpulan')
             ->get()
             ->groupBy(fn($item) => $item->pengumpulan->kelompok ?? '');
@@ -184,7 +194,6 @@ class P3kBarangController extends Controller
             $totalIndividu = $barangsIndividu->count();
             $lengkapIndividu = 0;
 
-            // Anggota kelompok ini
             $jumlahAnggota = User::where('role', 'peserta')->where('kelompok', $k)->count();
             $itemsKelompok = $itemKolektifByKelompok->get($k, collect());
 
@@ -197,30 +206,27 @@ class P3kBarangController extends Controller
                 }
             }
 
-            // Obat pribadi dari kelompok ini yang belum diserahkan
             $obatBelum = P3kObatPribadi::where('kelompok', $k)->where('sudah_diserahkan', false)->count();
             $obatTotal = P3kObatPribadi::where('kelompok', $k)->count();
 
             $summary[$k] = [
-                'total'    => $totalKelompok + $totalIndividu,
-                'lengkap'  => $lengkapKelompok + $lengkapIndividu,
+                'total'      => $totalKelompok + $totalIndividu,
+                'lengkap'    => $lengkapKelompok + $lengkapIndividu,
                 'obat_total' => $obatTotal,
                 'obat_belum' => $obatBelum,
             ];
         }
 
-        // Stok global barang individu — terkumpul dari sum per-kelompok, terpakai dari tabel global
-        $allKelompoks = User::where('role', 'peserta')->whereNotNull('kelompok')->distinct()->pluck('kelompok');
         $stokIndividuByMenu = [];
         foreach (self::MENUS as $menu) {
             $barangsMenu = $barangsIndividu->where('menu', $menu)->values();
             if ($barangsMenu->isEmpty()) continue;
 
             $stokIndividuByMenu[$menu] = $barangsMenu->map(function ($b) {
-                $global     = P3kStokIndividu::globalSummary($b->id);   // total_terkumpul dari per-kelompok
-                $stokGlob   = P3kStokGlobal::firstOrCreate(['p3k_barang_kebutuhan_id' => $b->id]);
-                $terpakai   = $stokGlob->total_terpakai;
-                $sisa       = max(0, $global['total_terkumpul'] - $terpakai);
+                $global   = P3kStokIndividu::globalSummary($b->id);
+                $stokGlob = P3kStokGlobal::firstOrCreate(['p3k_barang_kebutuhan_id' => $b->id]);
+                $terpakai = $stokGlob->total_terpakai;
+                $sisa     = max(0, $global['total_terkumpul'] - $terpakai);
 
                 return [
                     'barang'          => $b,
@@ -240,7 +246,7 @@ class P3kBarangController extends Controller
     {
         $this->authorizeAnyPanitia();
 
-        $menus  = self::MENUS;
+        $menus   = self::MENUS;
         $anggota = User::where('role', 'peserta')->where('kelompok', $kelompok)->orderBy('name')->get();
 
         // ── Barang Kelompok grouped by menu ──
@@ -290,13 +296,13 @@ class P3kBarangController extends Controller
         $anggotaBelumTercakupByMenu = [];
         $summaryIndividuByMenu = [];
         foreach ($menus as $menu) {
-            $pengMenu = $pengumpulanByMenu[$menu];
+            $pengMenu       = $pengumpulanByMenu[$menu];
             $userIdTercakup = $pengMenu->flatMap(fn($p) => $p->anggota->pluck('user_id'));
             $anggotaBelumTercakupByMenu[$menu] = $anggota->reject(fn($p) => $userIdTercakup->contains($p->id))->values();
 
             $barangsMenu = $barangsIndividuByMenu[$menu];
             $summaryIndividuByMenu[$menu] = $barangsMenu->map(function ($b) use ($pengMenu, $anggota, $kelompok) {
-                $totalKelompok = $pengMenu->sum(fn($p) => $p->jumlahDibawaUntuk($b->id));
+                $totalKelompok  = $pengMenu->sum(fn($p) => $p->jumlahDibawaUntuk($b->id));
                 $targetKelompok = $b->jumlah_kebutuhan * $anggota->count();
                 $stok = P3kStokIndividu::where('p3k_barang_kebutuhan_id', $b->id)->where('kelompok', $kelompok)->first();
                 return [
@@ -322,9 +328,11 @@ class P3kBarangController extends Controller
         ));
     }
 
+    // ACC barang KELOMPOK — hanya divisi yang sesuai menu atau admin
     public function toggleValidasi(Request $request, $barangId, $kelompok)
     {
-        $this->authorizeKelompokAccess($kelompok);
+        $barang = P3kBarangKebutuhan::findOrFail($barangId);
+        $this->authorizeMenuAccess($barang->menu, $kelompok);
 
         $pengumpulan = P3kPengumpulanBarang::where('p3k_barang_kebutuhan_id', $barangId)
             ->where('kelompok', $kelompok)
@@ -337,10 +345,11 @@ class P3kBarangController extends Controller
         return back()->with('success', "Status progress barang {$statusPesan}");
     }
 
-    // Update jumlah terpakai untuk barang KELOMPOK (agregat) selama acara berjalan
+    // Update jumlah terpakai untuk barang KELOMPOK — hanya divisi menu atau admin
     public function updateTerpakai(Request $request, $barangId, $kelompok)
     {
-        $this->authorizeKelompokAccess($kelompok);
+        $barang = P3kBarangKebutuhan::findOrFail($barangId);
+        $this->authorizeMenuAccess($barang->menu, $kelompok);
 
         $request->validate([
             'jumlah_terpakai' => 'required|integer|min:0',
@@ -362,17 +371,17 @@ class P3kBarangController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────
-    // PANITIA P3K: Validasi & update barang INDIVIDU per peserta
+    // PANITIA: Validasi & update barang INDIVIDU per peserta
     // ─────────────────────────────────────────────────────────────
 
     // Update jumlah terpakai dari STOK barang individu — per kelompok
     public function updateStokTerpakai(Request $request, $barangId, $kelompok)
     {
-        $this->authorizeKelompokAccess($kelompok);
+        $barang = P3kBarangKebutuhan::findOrFail($barangId);
+        $this->authorizeMenuAccess($barang->menu, $kelompok);
 
         $request->validate(['total_terpakai' => 'required|integer|min:0']);
 
-        $barang = P3kBarangKebutuhan::findOrFail($barangId);
         $stok = P3kStokIndividu::firstOrCreate([
             'p3k_barang_kebutuhan_id' => $barang->id,
             'kelompok'                => $kelompok,
@@ -403,11 +412,11 @@ class P3kBarangController extends Controller
     // Tambah/kurangi stok terpakai secara cepat (increment/decrement) — per kelompok
     public function adjustStokTerpakai(Request $request, $barangId, $kelompok)
     {
-        $this->authorizeKelompokAccess($kelompok);
+        $barang = P3kBarangKebutuhan::findOrFail($barangId);
+        $this->authorizeMenuAccess($barang->menu, $kelompok);
 
         $request->validate(['delta' => 'required|integer']);
 
-        $barang = P3kBarangKebutuhan::findOrFail($barangId);
         $stok = P3kStokIndividu::firstOrCreate([
             'p3k_barang_kebutuhan_id' => $barang->id,
             'kelompok'                => $kelompok,
@@ -429,16 +438,17 @@ class P3kBarangController extends Controller
         return back()->with('success', "Stok '{$barang->nama_barang}' Kelompok {$kelompok}: {$baru} terpakai.");
     }
 
-    // ── Global stok terpakai (tidak per-kelompok) ─────────────────────────────
+    // ── Global stok terpakai (tidak per-kelompok) — hanya divisi menu atau admin ──
 
     public function globalAdjustStok(Request $request, $barangId)
     {
-        $this->authorizeP3k();
+        $barang = P3kBarangKebutuhan::findOrFail($barangId);
+        $this->authorizeMenuAccess($barang->menu);
+
         $request->validate(['delta' => 'required|integer']);
 
-        $barang  = P3kBarangKebutuhan::findOrFail($barangId);
-        $stok    = P3kStokGlobal::firstOrCreate(['p3k_barang_kebutuhan_id' => $barangId]);
-        $global  = P3kStokIndividu::globalSummary($barangId);
+        $stok   = P3kStokGlobal::firstOrCreate(['p3k_barang_kebutuhan_id' => $barangId]);
+        $global = P3kStokIndividu::globalSummary($barangId);
 
         $baru = max(0, min($stok->total_terpakai + (int) $request->delta, $global['total_terkumpul']));
         $stok->total_terpakai = $baru;
@@ -458,12 +468,13 @@ class P3kBarangController extends Controller
 
     public function globalSetStok(Request $request, $barangId)
     {
-        $this->authorizeP3k();
+        $barang = P3kBarangKebutuhan::findOrFail($barangId);
+        $this->authorizeMenuAccess($barang->menu);
+
         $request->validate(['total_terpakai' => 'required|integer|min:0']);
 
-        $barang  = P3kBarangKebutuhan::findOrFail($barangId);
-        $stok    = P3kStokGlobal::firstOrCreate(['p3k_barang_kebutuhan_id' => $barangId]);
-        $global  = P3kStokIndividu::globalSummary($barangId);
+        $stok   = P3kStokGlobal::firstOrCreate(['p3k_barang_kebutuhan_id' => $barangId]);
+        $global = P3kStokIndividu::globalSummary($barangId);
 
         if ($request->total_terpakai > $global['total_terkumpul']) {
             if ($request->expectsJson()) return response()->json(['error' => 'Melebihi total terkumpul.'], 422);
@@ -485,12 +496,11 @@ class P3kBarangController extends Controller
         return back()->with('success', "Stok '{$barang->nama_barang}' berhasil diperbarui.");
     }
 
-    // ACC pengumpulan kolektif barang individu milik satu perwakilan (mencakup semua barang sekaligus)
+    // ACC pengumpulan kolektif barang individu — hanya divisi menu tersebut atau admin
     public function toggleValidasiKolektif(Request $request, $pengumpulanId)
     {
         $pengumpulan = P3kPengumpulanKolektif::findOrFail($pengumpulanId);
-
-        $this->authorizeKelompokAccess($pengumpulan->kelompok);
+        $this->authorizeMenuAccess($pengumpulan->menu, $pengumpulan->kelompok);
 
         $pengumpulan->is_validated = !$pengumpulan->is_validated;
         $pengumpulan->updated_by = Auth::id();
@@ -502,12 +512,13 @@ class P3kBarangController extends Controller
 
     // ─────────────────────────────────────────────────────────────
     // PANITIA P3K: Obat pribadi - tandai sudah diserahkan
+    // Hanya divisi P3K atau admin (obat adalah domain P3K)
     // ─────────────────────────────────────────────────────────────
 
     public function obatToggleDiserahkan($id)
     {
         $obat = P3kObatPribadi::findOrFail($id);
-        $this->authorizeKelompokAccess($obat->kelompok);
+        $this->authorizeMenuAccess('p3k', $obat->kelompok);
 
         $obat->sudah_diserahkan = !$obat->sudah_diserahkan;
         if ($obat->sudah_diserahkan) {
@@ -519,7 +530,7 @@ class P3kBarangController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────
-    // PANITIA P3K: Rekap global (semua kelompok) - khusus admin/koordinator
+    // PANITIA: Rekap global (semua kelompok)
     // ─────────────────────────────────────────────────────────────
 
     public function panitiaRekap()
@@ -532,19 +543,17 @@ class P3kBarangController extends Controller
 
         $menus = self::MENUS;
 
-        // Semua barang kelompok dan individu
         $allBarangsKelompok = P3kBarangKebutuhan::kelompok()->where('aktif', true)->orderBy('menu')->orderBy('nama_barang')->get();
         $allBarangsIndividu = P3kBarangKebutuhan::individu()->where('aktif', true)->orderBy('menu')->orderBy('nama_barang')->get();
 
-        $rekapKelompokByMenu = [];     // [kelompok][menu] => rows
-        $pengumpulanByKelompokMenu = []; // [kelompok][menu] => collection of P3kPengumpulanKolektif
+        $rekapKelompokByMenu = [];
+        $pengumpulanByKelompokMenu = [];
         $anggotaBelumTercakupByKelompokMenu = [];
         $summaryIndividuByKelompokMenu = [];
 
         foreach ($kelompoks as $k) {
             $jumlahAnggota = User::where('role', 'peserta')->where('kelompok', $k)->orderBy('name')->get();
 
-            // Barang kelompok per menu
             foreach ($menus as $menu) {
                 $barangsMenu = $allBarangsKelompok->where('menu', $menu)->values();
                 $rekapKelompokByMenu[$k][$menu] = $barangsMenu->map(function ($b) use ($k) {
@@ -553,7 +562,6 @@ class P3kBarangController extends Controller
                 });
             }
 
-            // Pengumpulan kolektif per menu
             $allPengKelompok = P3kPengumpulanKolektif::where('kelompok', $k)
                 ->withCount('anggota')->with(['perwakilan', 'anggota.peserta', 'items.barang', 'updatedBy'])
                 ->orderBy('menu')->orderBy('created_at')->get();
@@ -565,22 +573,20 @@ class P3kBarangController extends Controller
                 $userIdTercakup = $pengMenu->flatMap(fn($p) => $p->anggota->pluck('user_id'));
                 $anggotaBelumTercakupByKelompokMenu[$k][$menu] = $jumlahAnggota->reject(fn($p) => $userIdTercakup->contains($p->id))->values();
 
-                $barangsMenu = $allBarangsIndividu->where('menu', $menu)->values();
+                $barangsMenu  = $allBarangsIndividu->where('menu', $menu)->values();
                 $countAnggota = $jumlahAnggota->count();
                 $summaryIndividuByKelompokMenu[$k][$menu] = $barangsMenu->map(function ($b) use ($pengMenu, $countAnggota) {
-                    $total = $pengMenu->sum(fn($p) => $p->jumlahDibawaUntuk($b->id));
+                    $total  = $pengMenu->sum(fn($p) => $p->jumlahDibawaUntuk($b->id));
                     $target = $b->jumlah_kebutuhan * $countAnggota;
                     return ['barang' => $b, 'total_kelompok' => $total, 'target_kelompok' => $target, 'is_lengkap' => $countAnggota > 0 && $total >= $target];
                 });
             }
         }
 
-        // Stok global per barang individu, grouped by menu
         $stokIndividuByMenu = [];
         foreach ($menus as $menu) {
             $stokIndividuByMenu[$menu] = $allBarangsIndividu->where('menu', $menu)->values()->map(function ($b) use ($kelompoks) {
-                $global = P3kStokIndividu::globalSummary($b->id);
-                // Per-kelompok: hanya kelompok yang sudah ada terkumpul
+                $global      = P3kStokIndividu::globalSummary($b->id);
                 $stokRecords = P3kStokIndividu::where('p3k_barang_kebutuhan_id', $b->id)->get()->keyBy('kelompok');
                 $perKelompok = $kelompoks->map(function ($k) use ($stokRecords) {
                     $s = $stokRecords->get($k);
@@ -605,9 +611,9 @@ class P3kBarangController extends Controller
             'stokIndividuByMenu', 'obatPribadi'
         ));
     }
+
     public function exportRekap()
     {
-        // Semua panitia boleh export rekap
         $this->authorizeAnyPanitia();
 
         $kelompoksData = User::where('role', 'peserta')
@@ -631,22 +637,18 @@ class P3kBarangController extends Controller
         $redHex   = 'f8d7da';
         $whiteHex = 'FFFFFF';
 
-        // ── Sheet 1: Barang Kelompok ──
         $sheet1 = $spreadsheet->createSheet();
         $sheet1->setTitle('Barang Kelompok');
         $this->writeBarangSheet($sheet1, $kelompoks, $barangsKelompok, $navyHex, $tealHex, $greenHex, $redHex, $whiteHex, false);
 
-        // ── Sheet 2: Barang Individu (per peserta, terkumpul/terpakai/sisa) ──
         $sheet2 = $spreadsheet->createSheet();
         $sheet2->setTitle('Barang Individu');
         $this->writeBarangIndividuSheet($sheet2, $kelompoks, $barangsIndividu, $navyHex, $tealHex, $greenHex, $redHex, $whiteHex);
 
-        // ── Sheet 2b: Stok Global Barang Individu (pool, lintas kelompok) ──
         $sheetStok = $spreadsheet->createSheet();
         $sheetStok->setTitle('Stok Global Individu');
         $this->writeStokGlobalSheet($sheetStok, $barangsIndividu, $navyHex, $tealHex, $greenHex, $redHex, $whiteHex);
 
-        // ── Sheet 3: Obat Pribadi ──
         $sheet3 = $spreadsheet->createSheet();
         $sheet3->setTitle('Obat Pribadi');
         $sheet3->mergeCells('A1:F1');
@@ -780,11 +782,9 @@ class P3kBarangController extends Controller
         }
     }
 
-    // Sheet barang individu: per kelompok, dipecah per PENGUMPULAN (perwakilan + anggota yang dititipkan)
     private function writeBarangIndividuSheet($sheet, $kelompoks, $barangsIndividu, $navyHex, $tealHex, $greenHex, $redHex, $whiteHex)
     {
         $row = 1;
-        // Kolom: Perwakilan & Anggota | Jumlah Anggota | tiap barang | Status ACC
         $lastColIndex = 2 + $barangsIndividu->count();
         $lastCol = chr(65 + $lastColIndex);
 
@@ -799,7 +799,6 @@ class P3kBarangController extends Controller
             $sheet->getRowDimension($row)->setRowHeight(28);
             $row++;
 
-            // Header
             $headerLabels = ['Perwakilan & Anggota Dititipkan', 'Jml Anggota'];
             foreach ($barangsIndividu as $b) {
                 $headerLabels[] = $b->nama_barang . ' (' . $b->jumlah_kebutuhan . ' ' . $b->satuan . '/orang)';
@@ -851,9 +850,9 @@ class P3kBarangController extends Controller
                 ]);
 
                 foreach ($barangsIndividu as $i => $b) {
-                    $col = chr(67 + $i); // mulai dari kolom C
-                    $dibawa  = $p->jumlahDibawaUntuk($b->id);
-                    $target  = $p->targetUntuk($b);
+                    $col    = chr(67 + $i);
+                    $dibawa = $p->jumlahDibawaUntuk($b->id);
+                    $target = $p->targetUntuk($b);
                     $lengkap = $dibawa >= $target;
                     $bg = $lengkap ? $greenHex : ($dibawa > 0 ? 'fff3cd' : $redHex);
 
@@ -868,7 +867,7 @@ class P3kBarangController extends Controller
                     ]);
                 }
 
-                $colStatus = chr(67 + $barangsIndividu->count());
+                $colStatus  = chr(67 + $barangsIndividu->count());
                 $statusText = $p->is_validated
                     ? 'Sudah ACC' . ($p->updatedBy ? " (oleh {$p->updatedBy->name})" : '')
                     : 'Belum ACC';
@@ -883,7 +882,6 @@ class P3kBarangController extends Controller
                 $row++;
             }
 
-            // Baris TOTAL KELOMPOK
             $sheet->setCellValue("A{$row}", "TOTAL KELOMPOK $kelompok");
             $sheet->mergeCells("A{$row}:B{$row}");
             $sheet->getStyle("A{$row}")->applyFromArray([
@@ -893,7 +891,7 @@ class P3kBarangController extends Controller
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => $navyHex]]],
             ]);
             foreach ($barangsIndividu as $i => $b) {
-                $col = chr(67 + $i);
+                $col    = chr(67 + $i);
                 $target = $b->jumlah_kebutuhan * $anggotaKelompok->count();
                 $sheet->setCellValue("{$col}{$row}", "{$totalPerBarang[$i]}/{$target}");
                 $sheet->getStyle("{$col}{$row}")->applyFromArray([
@@ -905,9 +903,8 @@ class P3kBarangController extends Controller
             }
             $row++;
 
-            // Baris ANGGOTA BELUM TERCAKUP
             $userIdTercakup = $pengumpulanKelompokIni->flatMap(fn($p) => $p->anggota->pluck('user_id'));
-            $belumTercakup = $anggotaKelompok->reject(fn($p) => $userIdTercakup->contains($p->id))->pluck('name')->implode(', ');
+            $belumTercakup  = $anggotaKelompok->reject(fn($p) => $userIdTercakup->contains($p->id))->pluck('name')->implode(', ');
 
             $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
             $sheet->setCellValue("A{$row}", 'Belum Tercakup Pengumpulan: ' . ($belumTercakup !== '' ? $belumTercakup : '— Semua anggota sudah tercakup —'));
@@ -931,7 +928,6 @@ class P3kBarangController extends Controller
         $sheet->getColumnDimension($lastCol)->setWidth(14);
     }
 
-    // Sheet stok global barang individu: pool lintas kelompok (terkumpul/terpakai/sisa)
     private function writeStokGlobalSheet($sheet, $barangsIndividu, $navyHex, $tealHex, $greenHex, $redHex, $whiteHex)
     {
         $sheet->mergeCells('A1:E1');
@@ -957,7 +953,7 @@ class P3kBarangController extends Controller
 
         $row = 3;
         foreach ($barangsIndividu as $idx => $b) {
-            $stok = P3kStokIndividu::where('p3k_barang_kebutuhan_id', $b->id)->first();
+            $stok      = P3kStokIndividu::where('p3k_barang_kebutuhan_id', $b->id)->first();
             $terkumpul = $stok ? $stok->total_terkumpul : 0;
             $terpakai  = $stok ? $stok->total_terpakai : 0;
             $sisa      = $stok ? $stok->total_sisa : 0;
@@ -1004,7 +1000,6 @@ class P3kBarangController extends Controller
         $pjId = P3kPjKelompok::pjUntukKelompok($kelompok);
         $pj   = $pjId ? User::find($pjId) : null;
 
-        // ── Barang Kelompok grouped by menu ──
         $allBarangsKelompok = P3kBarangKebutuhan::kelompok()->where('aktif', true)
             ->orderBy('menu')->orderBy('nama_barang')->get();
         $dataKelompokByMenu = [];
@@ -1024,17 +1019,16 @@ class P3kBarangController extends Controller
             });
         }
 
-        // ── Barang Individu: status per menu ──
         $allBarangsIndividu = P3kBarangKebutuhan::individu()->where('aktif', true)
             ->orderBy('menu')->orderBy('nama_barang')->get();
 
-        $pengumpulanSayaByMenu = [];
+        $pengumpulanSayaByMenu  = [];
         $isPerwakilanSayaByMenu = [];
-        $dataIndividuByMenu = [];
+        $dataIndividuByMenu     = [];
 
         foreach (self::MENUS as $menu) {
-            $anggotaSaya = P3kPengumpulanKolektifAnggota::where('user_id', $user->id)->where('menu', $menu)->first();
-            $pengumpulan = null;
+            $anggotaSaya  = P3kPengumpulanKolektifAnggota::where('user_id', $user->id)->where('menu', $menu)->first();
+            $pengumpulan  = null;
             $isPerwakilan = false;
 
             if ($anggotaSaya) {
@@ -1061,8 +1055,8 @@ class P3kBarangController extends Controller
             });
         }
 
-        $menus = self::MENUS;
-        $menuLabels = self::MENU_LABELS;
+        $menus          = self::MENUS;
+        $menuLabels     = self::MENU_LABELS;
         $obatPribadiSaya = P3kObatPribadi::where('user_id', $user->id)->get();
 
         return view('peserta.p3k', compact(
@@ -1073,8 +1067,6 @@ class P3kBarangController extends Controller
         ));
     }
 
-    // ── Barang KELOMPOK (agregat per kelompok) ──
-
     public function pesertaUpdateKelompok(Request $request, $barangId)
     {
         $request->validate([
@@ -1082,17 +1074,15 @@ class P3kBarangController extends Controller
             'foto_bukti'       => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
         ]);
 
-        $user    = Auth::user();
-        $barang  = P3kBarangKebutuhan::findOrFail($barangId);
+        $user   = Auth::user();
+        $barang = P3kBarangKebutuhan::findOrFail($barangId);
 
-        // Tidak boleh melebihi kebutuhan — mencegah input melebihi target
         if ((int) $request->jumlah_terkumpul > $barang->jumlah_kebutuhan) {
             return back()->withErrors(['error' =>
                 "Jumlah {$barang->nama_barang} tidak boleh melebihi target ({$barang->jumlah_kebutuhan} {$barang->satuan})."
             ])->withInput();
         }
 
-        // PJ ditentukan otomatis dari mapping kelompok, peserta tidak memilih
         $pjId = P3kPjKelompok::pjUntukKelompok($user->kelompok);
 
         $pengumpulan = P3kPengumpulanBarang::firstOrNew([
@@ -1143,7 +1133,7 @@ class P3kBarangController extends Controller
 
         if ($pengumpulan->foto_bukti) {
             Storage::disk('public')->delete($pengumpulan->foto_bukti);
-            $pengumpulan->foto_bukti = null;
+            $pengumpulan->foto_bukti   = null;
             $pengumpulan->is_validated = false;
             $pengumpulan->save();
         }
@@ -1173,7 +1163,7 @@ class P3kBarangController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────
-    // PESERTA: Pengumpulan Kolektif barang INDIVIDU (via perwakilan kelompok, per menu)
+    // PESERTA: Pengumpulan Kolektif barang INDIVIDU
     // ─────────────────────────────────────────────────────────────
 
     public function pesertaIndividuForm(string $menu)
@@ -1262,7 +1252,7 @@ class P3kBarangController extends Controller
             }
         }
 
-        $barangsIndividu = P3kBarangKebutuhan::individu()->where('menu', $menu)->where('aktif', true)->get();
+        $barangsIndividu   = P3kBarangKebutuhan::individu()->where('menu', $menu)->where('aktif', true)->get();
         $jumlahAnggotaBaru = $anggotaIdsDicheck->count() + 1;
 
         $pesanKelebihan = [];
@@ -1323,7 +1313,7 @@ class P3kBarangController extends Controller
         $user        = Auth::user();
         $pengumpulan = P3kPengumpulanKolektif::where('perwakilan_user_id', $user->id)->where('menu', $menu)->first();
 
-        if (!$pengumpulan)           return back()->withErrors(['error' => 'Anda belum memiliki pengumpulan.']);
+        if (!$pengumpulan)              return back()->withErrors(['error' => 'Anda belum memiliki pengumpulan.']);
         if ($pengumpulan->is_validated) return back()->withErrors(['error' => 'Pengumpulan sudah di-ACC, tidak dapat diubah.']);
 
         if ($pengumpulan->foto_bukti) {
@@ -1382,7 +1372,6 @@ class P3kBarangController extends Controller
         return redirect()->route('peserta.p3k.individu', $menu)->with('success', 'Pengumpulan berhasil dibubarkan.');
     }
 
-
     // ─────────────────────────────────────────────────────────────
     // PESERTA: Lapor obat pribadi
     // ─────────────────────────────────────────────────────────────
@@ -1440,54 +1429,63 @@ class P3kBarangController extends Controller
     // ─────────────────────────────────────────────────────────────
 
     /**
-     * Hanya admin atau divisi P3K yang boleh melakukan aksi tulis
-     * (manage barang, validasi, update terpakai, stok, obat, dsb.)
+     * Hanya admin yang boleh mengelola master data barang
+     * (tambah, edit, hapus dari halaman Kelola Barang).
      */
-    private function authorizeP3k()
+    private function authorizeAdmin(): void
     {
-        $user = Auth::user();
-        if ($user->role !== 'admin' && strtoupper($user->divisi ?? '') !== 'P3K') {
-            abort(403, 'Hanya admin atau divisi P3K yang dapat mengelola data ini.');
+        if (Auth::user()->role !== 'admin') {
+            abort(403, 'Hanya admin yang dapat mengelola master data barang.');
         }
     }
 
     /**
      * Semua panitia (role = 'panitia' atau 'admin') boleh mengakses
-     * halaman view-only (index, kelompok, rekap).
-     * Middleware 'panitia' sudah memastikan user adalah panitia,
-     * jadi cukup pastikan bukan peserta yang bypass.
+     * halaman view-only (index, kelompok, rekap, export).
      */
-    private function authorizeAnyPanitia()
+    private function authorizeAnyPanitia(): void
     {
-        $user = Auth::user();
-        // Middleware 'panitia' sudah handle ini, tapi double-check role
-        if ($user->role === 'peserta') {
+        if (Auth::user()->role === 'peserta') {
             abort(403, 'Akses ditolak.');
         }
     }
 
     /**
-     * Untuk aksi write per kelompok: hanya admin atau divisi P3K,
-     * dan jika PJ P3K, hanya untuk kelompok binaannya.
+     * Untuk aksi write pada suatu menu (validasi, ACC, update stok):
+     * - Admin: boleh semua menu & semua kelompok.
+     * - Divisi Logistik: hanya menu 'logistik'.
+     * - Divisi Konsumsi: hanya menu 'konsumsi'.
+     * - Divisi P3K: hanya menu 'p3k'.
+     *
+     * Jika $kelompok diberikan, juga dicek bahwa user adalah PJ
+     * untuk kelompok tersebut (kecuali admin).
+     *
+     * @param  string       $menu     'logistik' | 'konsumsi' | 'p3k'
+     * @param  string|null  $kelompok Opsional; jika ada, validasi PJ binaan juga dicek.
      */
-    private function authorizeKelompokAccess($kelompok)
+    private function authorizeMenuAccess(string $menu, ?string $kelompok = null): void
     {
         $user = Auth::user();
 
-        // Admin: akses penuh ke semua kelompok
+        // Admin: akses penuh
         if ($user->role === 'admin') {
             return;
         }
 
-        // Harus divisi P3K untuk bisa write per kelompok
-        if (strtoupper($user->divisi ?? '') !== 'P3K') {
-            abort(403, 'Hanya admin atau divisi P3K yang dapat mengakses data ini.');
+        // Pastikan divisi user sesuai dengan menu yang diakses
+        $divisiYangDibutuhkan = self::MENU_DIVISI[$menu] ?? null;
+        $divisiUser           = strtoupper($user->divisi ?? '');
+
+        if (!$divisiYangDibutuhkan || $divisiUser !== $divisiYangDibutuhkan) {
+            abort(403, "Divisi {$divisiUser} tidak berwenang mengelola menu {$menu}.");
         }
 
-        // PJ P3K: hanya boleh akses kelompok binaannya
-        $binaan = P3kPjKelompok::kelompokUntukPj($user->id);
-        if (!empty($binaan) && !in_array($kelompok, $binaan)) {
-            abort(403, 'Anda bukan PJ P3K untuk kelompok ini.');
+        // Jika ada kelompok, cek PJ binaan
+        if ($kelompok !== null) {
+            $binaan = P3kPjKelompok::kelompokUntukPj($user->id);
+            if (!empty($binaan) && !in_array($kelompok, $binaan)) {
+                abort(403, 'Anda bukan PJ untuk kelompok ini.');
+            }
         }
     }
 }
