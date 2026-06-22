@@ -119,7 +119,7 @@
         $userDivisi = strtoupper(auth()->user()->divisi ?? '');
         $canEditStokByMenu = [
             'logistik' => auth()->user()->role === 'admin' || $userDivisi === 'LOGISTIK',
-            'konsumsi'  => auth()->user()->role === 'admin' || $userDivisi === 'KONSUMSI',
+            'konsumsi'  => auth()->user()->role === 'admin' || $userDivisi === 'KONSUM',
             'p3k'       => auth()->user()->role === 'admin' || $userDivisi === 'P3K',
         ];
     @endphp

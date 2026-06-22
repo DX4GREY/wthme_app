@@ -24,9 +24,9 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class P3kBarangController extends Controller
 {
-    private const MENUS = ['logistik', 'konsumsi', 'p3k'];
-    private const MENU_LABELS = ['logistik' => '🎒 Logistik', 'konsumsi' => '🥘 Konsumsi', 'p3k' => '🩹 P3K'];
-    private const MENU_ICONS  = ['logistik' => '🎒', 'konsumsi' => '🥘', 'p3k' => '🩹'];
+    private const MENUS = ['logistik', 'konsum', 'p3k'];
+    private const MENU_LABELS = ['logistik' => '🎒 Logistik', 'konsum' => '🥘 Konsum', 'p3k' => '🩹 P3K'];
+    private const MENU_ICONS  = ['logistik' => '🎒', 'konsum' => '🥘', 'p3k' => '🩹'];
 
     /**
      * Mapping menu → divisi yang berwenang mengelola menu tersebut.
@@ -34,7 +34,7 @@ class P3kBarangController extends Controller
      */
     private const MENU_DIVISI = [
         'logistik' => 'LOGISTIK',
-        'konsumsi'  => 'KONSUMSI',
+        'konsumsi'  => 'KONSUM',
         'p3k'       => 'P3K',
     ];
 
