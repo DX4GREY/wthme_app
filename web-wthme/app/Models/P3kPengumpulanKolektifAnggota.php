@@ -14,6 +14,7 @@ class P3kPengumpulanKolektifAnggota extends Model
     protected $fillable = [
         'pengumpulan_kolektif_id',
         'user_id',
+        'menu',   // denormalized dari pengumpulan induk untuk unique constraint per menu
     ];
 
     public function pengumpulan()

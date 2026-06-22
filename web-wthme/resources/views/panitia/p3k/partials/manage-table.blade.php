@@ -45,15 +45,22 @@
                 <tr id="edit-row-{{ $b->id }}" style="display:none; background: rgba(255, 255, 255, 0.5);">
                     <td colspan="4" style="padding:1.5rem;">
                         <form method="POST" action="{{ route('panitia.p3k.manage.update', $b->id) }}"
-                              style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 2fr auto; gap:1rem; align-items:end;">
+                              style="display:grid; grid-template-columns: 2fr 0.8fr 0.8fr 0.8fr 0.8fr 1.5fr auto; gap:0.75rem; align-items:end;">
                             @csrf @method('PUT')
                             <div>
                                 <input type="text" name="nama_barang" value="{{ $b->nama_barang }}" style="width:100%; padding:0.6rem; border:1px solid #002f45; border-radius:0.6rem; font-size:0.85rem;">
                             </div>
                             <div>
-                                <select name="kategori" style="width:100%; padding:0.6rem; border:1px solid #002f45; border-radius:0.6rem; font-size:0.85rem;">
-                                    <option value="kelompok" {{ $b->kategori=='kelompok'?'selected':'' }}>Kelompok</option>
-                                    <option value="individu" {{ $b->kategori=='individu'?'selected':'' }}>Individu</option>
+                                <select name="menu" style="width:100%; padding:0.6rem; border:1px solid #002f45; border-radius:0.6rem; font-size:0.85rem;">
+                                    <option value="logistik" {{ $b->menu=='logistik'?'selected':'' }}>🎒 Logistik</option>
+                                    <option value="konsumsi"  {{ $b->menu=='konsumsi' ?'selected':'' }}>🥘 Konsumsi</option>
+                                    <option value="p3k"       {{ $b->menu=='p3k'      ?'selected':'' }}>🩹 P3K</option>
+                                </select>
+                            </div>
+                            <div>
+                                <select name="tipe" style="width:100%; padding:0.6rem; border:1px solid #002f45; border-radius:0.6rem; font-size:0.85rem;">
+                                    <option value="kelompok" {{ $b->tipe=='kelompok'?'selected':'' }}>Kelompok</option>
+                                    <option value="individu"  {{ $b->tipe=='individu' ?'selected':'' }}>Individu</option>
                                 </select>
                             </div>
                             <div>
@@ -61,7 +68,7 @@
                             </div>
                             <div>
                                 <select name="satuan" style="width:100%; padding:0.6rem; border:1px solid #002f45; border-radius:0.6rem; font-size:0.85rem;">
-                                    @foreach(['buah','botol','lembar','pasang','set','sachet','pcs','kotak'] as $s)
+                                    @foreach(['buah','botol','lembar','pasang','set','sachet','pcs','kotak','pack','liter','strip','bungkus'] as $s)
                                     <option value="{{ $s }}" {{ $b->satuan==$s?'selected':'' }}>{{ $s }}</option>
                                     @endforeach
                                 </select>

@@ -203,18 +203,18 @@
                                     : 'Semua tugas sudah dikumpulkan ✓',
                             'badge' => $tugasBelum > 0 ? ['val' => $tugasBelum, 'color' => '#ef4444'] : null,
                         ],
-                        [
-                            'route' => route('peserta.barang'),
-                            'icon' => '📦',
-                            'title' => 'Pengumpulan Barang',
-                            'desc' => 'Input & update barang bawaan kelompok',
-                            'badge' => null,
-                        ],
+                        // [
+                        //     'route' => route('peserta.barang'),
+                        //     'icon' => '📦',
+                        //     'title' => 'Pengumpulan Barang',
+                        //     'desc' => 'Input & update barang bawaan kelompok',
+                        //     'badge' => null,
+                        // ],
                         [
                             'route' => route('peserta.p3k'),
-                            'icon' => '🩹',
-                            'title' => 'P3K Kelompok',
-                            'desc' => 'Pengumpulan obat & lapor obat pribadi',
+                            'icon' => '📦',
+                            'title' => 'Pengumpulan Barang WTHME 2025',
+                            'desc' => 'Pengumpulan barang Logistik, Konsumsi, P3K',
                             'badge' => null,
                         ],
                         [

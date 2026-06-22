@@ -122,6 +122,9 @@ Route::middleware(['auth'])->group(function () {
             // Stok terpakai barang INDIVIDU — per kelompok (dikontrol dari halaman kelompok)
             Route::post('/stok/{barangId}/{kelompok}/terpakai', [P3kBarangController::class, 'updateStokTerpakai'])->name('stok.terpakai');
             Route::post('/stok/{barangId}/{kelompok}/adjust', [P3kBarangController::class, 'adjustStokTerpakai'])->name('stok.adjust');
+            // Global stok (tidak per-kelompok) — untuk kontrol di halaman index
+            Route::post('/stok-global/{barangId}/adjust', [P3kBarangController::class, 'globalAdjustStok'])->name('stok.global.adjust');
+            Route::post('/stok-global/{barangId}/set', [P3kBarangController::class, 'globalSetStok'])->name('stok.global.set');
 
             Route::post('/obat/{id}/toggle', [P3kBarangController::class, 'obatToggleDiserahkan'])->name('obat.toggle');
 
@@ -267,12 +270,12 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/p3k/kelompok/{barangId}/foto', [P3kBarangController::class, 'pesertaHapusFotoKelompok'])->name('p3k.kelompok.hapus-foto');
         Route::delete('/p3k/kelompok/{barangId}', [P3kBarangController::class, 'pesertaResetKelompok'])->name('p3k.kelompok.reset');
 
-        // Barang INDIVIDU — Pengumpulan Kolektif (perwakilan kelompok)
-        Route::get('/p3k/individu', [P3kBarangController::class, 'pesertaIndividuForm'])->name('p3k.individu');
-        Route::post('/p3k/individu', [P3kBarangController::class, 'pesertaIndividuStore'])->name('p3k.individu.store');
-        Route::delete('/p3k/individu/foto', [P3kBarangController::class, 'pesertaIndividuHapusFoto'])->name('p3k.individu.hapus-foto');
-        Route::post('/p3k/individu/keluar', [P3kBarangController::class, 'pesertaIndividuKeluar'])->name('p3k.individu.keluar');
-        Route::delete('/p3k/individu', [P3kBarangController::class, 'pesertaIndividuBubarkan'])->name('p3k.individu.bubarkan');
+        // Barang INDIVIDU — Pengumpulan Kolektif per menu (logistik/konsumsi/p3k)
+        Route::get('/p3k/individu/{menu}', [P3kBarangController::class, 'pesertaIndividuForm'])->name('p3k.individu');
+        Route::post('/p3k/individu/{menu}', [P3kBarangController::class, 'pesertaIndividuStore'])->name('p3k.individu.store');
+        Route::delete('/p3k/individu/{menu}/foto', [P3kBarangController::class, 'pesertaIndividuHapusFoto'])->name('p3k.individu.hapus-foto');
+        Route::post('/p3k/individu/{menu}/keluar', [P3kBarangController::class, 'pesertaIndividuKeluar'])->name('p3k.individu.keluar');
+        Route::delete('/p3k/individu/{menu}', [P3kBarangController::class, 'pesertaIndividuBubarkan'])->name('p3k.individu.bubarkan');
 
         // Obat Pribadi (Peserta)
         Route::post('/p3k/obat', [P3kBarangController::class, 'obatStore'])->name('p3k.obat.store');

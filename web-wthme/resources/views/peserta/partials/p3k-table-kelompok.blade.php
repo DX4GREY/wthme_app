@@ -53,8 +53,9 @@
             <td style="padding:1.25rem; text-align:center;">
                 <form method="POST" action="{{ route('peserta.p3k.kelompok.update', $b->id) }}" enctype="multipart/form-data" id="{{ $formId }}">
                     @csrf @method('PATCH')
-                    <input type="number" name="jumlah_terkumpul" value="{{ $terkumpul }}" min="{{ $isValidated ? $terkumpul : 0 }}"
+                    <input type="number" name="jumlah_terkumpul" value="{{ $terkumpul }}" min="{{ $isValidated ? $terkumpul : 0 }}" max="{{ $b->jumlah_kebutuhan }}"
                         {{ $isLocked ? 'disabled' : '' }}
+                        oninput="if(parseInt(this.value)>{{ $b->jumlah_kebutuhan }}) this.value={{ $b->jumlah_kebutuhan }}"
                         style="width:75px; padding:0.4rem; background:{{ $isLocked ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.7)' }}; border:1px solid rgba(0,47,69,0.2); border-radius:0.5rem; text-align:center; font-weight:700; margin-bottom:0.5rem;">
                     <input type="file" name="foto_bukti" id="{{ $fileId }}" accept="image/*" style="display:none;" onchange="document.getElementById('{{ $formId }}').submit();">
                 </form>
