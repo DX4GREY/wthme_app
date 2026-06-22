@@ -37,7 +37,7 @@
             </p>
         </div>
         <div class="header-actions" style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-            @if(auth()->user()->role === 'admin' || strtoupper(auth()->user()->divisi ?? '') === 'P3K')
+            @if(auth()->user()->role === 'admin')
             <a href="{{ route('panitia.p3k.manage') }}"
                style="text-decoration:none; background:rgba(255,255,255,0.5); color:#002f45; border:1px solid rgba(0,47,69,0.2); padding:0.65rem 1.1rem; border-radius:1rem; font-size:0.83rem; font-weight:700;">
                 ⚙️ Kelola Barang
@@ -115,7 +115,14 @@
     @endif
 
     {{-- Stok & Pemakaian Barang Individu — CARDS, AJAX --}}
-    @php $canEditStok = auth()->user()->role==='admin' || strtoupper(auth()->user()->divisi??'')==='P3K'; @endphp
+    @php
+        $userDivisi = strtoupper(auth()->user()->divisi ?? '');
+        $canEditStokByMenu = [
+            'logistik' => auth()->user()->role === 'admin' || $userDivisi === 'LOGISTIK',
+            'konsumsi'  => auth()->user()->role === 'admin' || $userDivisi === 'KONSUMSI',
+            'p3k'       => auth()->user()->role === 'admin' || $userDivisi === 'P3K',
+        ];
+    @endphp
     @if(!empty($stokIndividuByMenu) && collect($stokIndividuByMenu)->flatten(1)->isNotEmpty())
     @php $menuConfig=['logistik'=>['label'=>'Logistik','icon'=>'🎒'],'konsumsi'=>['label'=>'Konsumsi','icon'=>'🥘'],'p3k'=>['label'=>'P3K','icon'=>'🩹']]; @endphp
 
@@ -164,7 +171,7 @@
             </div>
 
             {{-- Kontrol --}}
-            @if($canEditStok)
+            @if($canEditStokByMenu[$menu])
             <div style="padding:0.6rem 1.1rem 0.9rem; border-top:1px solid rgba(0,47,69,0.06); display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
                 <button type="button" class="btn-stok" onclick="stokAjax(this)"
                     data-url="{{ route('panitia.p3k.stok.global.adjust', $b->id) }}"
