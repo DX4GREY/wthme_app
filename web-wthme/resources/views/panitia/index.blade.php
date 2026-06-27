@@ -60,7 +60,8 @@
                                 style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out, margin-top 0.3s ease-out; font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.4rem;">
 
                                 @if (isset($detailKelompok) && $detailKelompok->count() > 0)
-                                    @foreach ($detailKelompok as $kelompok)
+                                    {{-- DI SINI DIUBAH: Menggunakan SORT_NATURAL agar urutan angkanya pas (1, 2, 3... 10) --}}
+                                    @foreach (collect($detailKelompok)->sortBy('nama', SORT_NATURAL) as $kelompok)
                                         <div
                                             style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 47, 69, 0.03); padding: 0.45rem 0.75rem; border-radius: 0.5rem; border: 1px solid rgba(0,47,69,0.02);">
                                             <span style="font-weight: 600;">{{ $kelompok['nama'] }}</span>
