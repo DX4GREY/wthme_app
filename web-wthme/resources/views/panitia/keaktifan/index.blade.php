@@ -109,7 +109,7 @@
 
                     <div class="form-group">
                         <label>Keterangan Aktivitas</label>
-                        <textarea name="keterangan" rows="3" placeholder="Contoh: Aktif menanggapi argumen pada sesi tanya jawab" required></textarea>
+                        <textarea name="keterangan" rows="3" placeholder="Contoh: Aktif menanggapi argumen pada sesi tanya jawab"></textarea>
                     </div>
 
                     <div class="form-actions">
