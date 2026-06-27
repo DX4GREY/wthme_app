@@ -27,7 +27,7 @@ class KeaktifanController extends Controller
         $request->validate([
             'peserta_id' => 'required|exists:users,id',
             'poin'       => 'required|integer',
-            // 'keterangan' => 'string|max:255',
+            'keterangan' => 'string|max:255',
         ]);
 
         // CUKUP GUNAKAN INI SAJA (Hapus DB::table agar tidak double input)
