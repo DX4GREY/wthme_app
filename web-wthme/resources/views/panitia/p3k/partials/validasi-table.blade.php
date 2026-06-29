@@ -132,7 +132,7 @@
                                         @if ($item['updated_by_name'])
                                             <div
                                                 style="font-size:0.62rem; color:#002f45; opacity:0.45; margin-top:0.35rem;">
-                                                oleh {{ $item['updated_by_name'] }}
+                                                oleh {{ $item['updated_by'] }}
                                             </div>
                                         @endif
                                     @else
