@@ -58,19 +58,16 @@ class FaceAbsensiController extends Controller
         $results = [];
 
         // 3. Proses tiap wajah yang cocok satu per satu
+
+        Log::info('DEBUG RAW RESULT', ['result' => $result]);
+
         foreach ($matches as $match) {
             $user = User::find($match['user_id'] ?? null);
-
-            Log::info('DEBUG FACE MATCH', [
-                'match_user_id' => $match['user_id'] ?? null,
-                'user_found'    => $user ? true : false,
-                'user_role'     => $user->role ?? null,
-                'is_peserta'    => $user ? $user->isPeserta() : null,
-            ]);
 
             if (!$user || !$user->isPeserta()) {
                 continue;
             }
+            // ... lanjutan kode yang sudah ada
 
             // Cek sudah absen di sesi ini
             $sudahAbsen = AbsensiPeserta::where('user_id', $user->id)
