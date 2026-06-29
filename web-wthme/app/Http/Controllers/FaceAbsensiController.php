@@ -16,7 +16,6 @@ class FaceAbsensiController extends Controller
     // ─── Halaman gate ───
     public function gate(Request $request)
     {
-        // Mengambil sesi yang aktif untuk peserta
         $sesiList = QrSession::where('aktif', true)
             ->where('untuk', 'peserta')
             ->latest()
@@ -25,7 +24,7 @@ class FaceAbsensiController extends Controller
         return view('panitia.face-gate', compact('sesiList'));
     }
 
-    // ─── Proses identifikasi + simpan absen ───
+    // ─── Proses identifikasi + simpan absen (multi wajah per frame) ───
     public function gateProcess(Request $request)
     {
         $request->validate([
@@ -33,10 +32,10 @@ class FaceAbsensiController extends Controller
             'session_id' => 'required|integer',
         ]);
 
-        // 1. Identifikasi wajah via FastAPI
+        // 1. Identifikasi semua wajah via FastAPI
         $result = $this->faceService->identifyFace($request->file('photo'));
 
-        // Wajah tidak terdeteksi / tidak cocok
+        // Tidak ada wajah / tidak ada yang cocok sama sekali
         if (empty($result['found']) || !$result['found']) {
             return response()->json([
                 'success'  => false,
@@ -45,17 +44,7 @@ class FaceAbsensiController extends Controller
             ]);
         }
 
-        // 2. Cari user
-        $user = User::find($result['user_id']);
-
-        if (!$user || !$user->isPeserta()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User tidak ditemukan atau bukan peserta.',
-            ]);
-        }
-
-        // 3. Cari sesi
+        // 2. Cari sesi
         $session = QrSession::find($request->session_id);
 
         if (!$session) {
@@ -65,52 +54,77 @@ class FaceAbsensiController extends Controller
             ]);
         }
 
-        // 4. Cek sudah absen
-        $sudahAbsen = AbsensiPeserta::where('user_id', $user->id)
-            ->where('qr_session_id', $session->id)
-            ->exists();
+        $matches = $result['matches'] ?? [];
+        $results = [];
 
-        if ($sudahAbsen) {
-            return response()->json([
-                'success'    => true,
-                'already'    => true,
-                'user_name'  => $user->name,
-                'kelompok'   => $user->kelompok,
-                'nim'        => $user->nim ?? '-',
-                'message'    => "{$user->name} sudah absen sebelumnya",
-            ]);
+        // 3. Proses tiap wajah yang cocok satu per satu
+        foreach ($matches as $match) {
+            $user = User::find($match['user_id'] ?? null);
+
+            if (!$user || !$user->isPeserta()) {
+                continue; // skip diam-diam, jangan ganggu wajah lain yang valid
+            }
+
+            // Cek sudah absen di sesi ini
+            $sudahAbsen = AbsensiPeserta::where('user_id', $user->id)
+                ->where('qr_session_id', $session->id)
+                ->exists();
+
+            if ($sudahAbsen) {
+                $results[] = [
+                    'already'    => true,
+                    'user_name'  => $user->name,
+                    'kelompok'   => $user->kelompok ?? '-',
+                    'nim'        => $user->nim ?? '-',
+                    'confidence' => $match['confidence'] ?? null,
+                ];
+                continue;
+            }
+
+            // Simpan absen — firstOrCreate + unique index di DB (lihat migration)
+            // supaya aman dari race condition kalau 2 frame beruntun nyangkut user yang sama.
+            try {
+                AbsensiPeserta::firstOrCreate(
+                    [
+                        'user_id'       => $user->id,
+                        'qr_session_id' => $session->id,
+                    ],
+                    [
+                        'metode'      => 'face',
+                        'nama'        => $user->name,
+                        'nim'         => $user->nim ?? '-',
+                        'angkatan'    => $user->angkatan ?? '-',
+                        'kelompok'    => $user->kelompok ?? '-',
+                        'status'      => 'hadir',
+                        'ip_address'  => $request->ip(),
+                        'waktu_absen' => now(),
+                    ]
+                );
+
+                $results[] = [
+                    'already'    => false,
+                    'user_name'  => $user->name,
+                    'kelompok'   => $user->kelompok ?? '-',
+                    'nim'        => $user->nim ?? '-',
+                    'confidence' => $match['confidence'] ?? null,
+                ];
+            } catch (\Exception $e) {
+                Log::error('Gagal simpan absen face (user_id ' . $user->id . '): ' . $e->getMessage());
+                // tetap lanjut proses wajah lain, jangan sampai 1 gagal ngerusak semua
+            }
         }
 
-        // 5. Simpan absen
-        try {
-            AbsensiPeserta::create([
-                'user_id'       => $user->id,
-                'qr_session_id' => $session->id,
-                'metode'        => 'face',
-                'nama'          => $user->name,
-                'nim'           => $user->nim    ?? '-',
-                'angkatan'      => $user->angkatan ?? '-',
-                'kelompok'      => $user->kelompok ?? '-',
-                'status'        => 'hadir',
-                'ip_address'    => $request->ip(),
-                'waktu_absen'   => now(),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Gagal simpan absen face: ' . $e->getMessage());
+        if (empty($results)) {
             return response()->json([
-                'success' => false,
-                'message' => 'Gagal menyimpan absen: ' . $e->getMessage(),
+                'success'  => false,
+                'fallback' => true,
+                'message'  => 'Wajah dikenali tapi tidak ada yang valid untuk diabsen.',
             ]);
         }
 
         return response()->json([
-            'success'    => true,
-            'already'    => false,
-            'user_name'  => $user->name,
-            'kelompok'   => $user->kelompok ?? '-',
-            'nim'        => $user->nim ?? '-',
-            'confidence' => $result['confidence'] ?? null,
-            'message'    => "Selamat datang, {$user->name}!",
+            'success' => true,
+            'results' => $results,
         ]);
     }
 }
