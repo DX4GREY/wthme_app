@@ -129,7 +129,7 @@
                                             {{ $lengkap ? '✓ Ter-ACC' : 'ACC Cicilan' }}
                                         </button>
                                         {{-- Tampilkan siapa yang ACC — posisi di sini, setelah tombol --}}
-                                        @if ($item['updated_by_name'])
+                                        @if ($item['updated_by'])
                                             <div
                                                 style="font-size:0.62rem; color:#002f45; opacity:0.45; margin-top:0.35rem;">
                                                 oleh {{ $item['updated_by'] }}
