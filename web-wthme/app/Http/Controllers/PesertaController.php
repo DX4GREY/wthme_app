@@ -9,6 +9,7 @@ use App\Models\TugasKategori;
 use App\Models\TugasPengumpulan;
 use App\Models\BarangKebutuhan;
 use App\Models\PengumpulanBarang;
+use App\Models\CaptureMoment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -49,6 +50,10 @@ class PesertaController extends Controller
         $allPesertas = User::where('role', 'peserta')->get();
         $rankList = [];
         $totalPoin = 0; // Default penampung poin user login
+
+        // 🟢 POIN CAPTURE MOMENT — per kelompok (sudah dinilai panitia saja yang punya poin)
+        $poinCaptureMomentPerKelompok = CaptureMoment::whereNotNull('poin')
+            ->pluck('poin', 'kelompok');
 
         foreach ($allPesertas as $peserta) {
             // Aspek 1: Absensi (+300 poin per hadir)
@@ -92,7 +97,10 @@ class PesertaController extends Controller
                 }
             }
 
-            $totalSkor = $poinAbsen + $poinKeaktifan + $poinTugas;
+            // Aspek 4: 🟢 Capture Moment — diwariskan ke semua anggota kelompoknya
+            $poinCapture = $poinCaptureMomentPerKelompok[$peserta->kelompok] ?? 0;
+
+            $totalSkor = $poinAbsen + $poinKeaktifan + $poinTugas + $poinCapture;
 
             // Simpan data ke array untuk disorting
             $rankList[] = [

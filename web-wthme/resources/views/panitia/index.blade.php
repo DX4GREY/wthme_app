@@ -195,6 +195,12 @@
                                 'desc' => 'Buat & cek pengumpulan file',
                             ],
                             [
+                                'route' => 'panitia.capture.index',
+                                'icon' => '📚',
+                                'title' => 'Kelola Tugas Peserta',
+                                'desc' => 'Buat & cek pengumpulan file',
+                            ],
+                            [
                                 'route' => 'panitia.info.peserta.index',
                                 'icon' => '📢',
                                 'title' => 'Broadcast Peserta',

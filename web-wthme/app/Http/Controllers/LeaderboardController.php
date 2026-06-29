@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\AbsensiPeserta;
 use App\Models\TugasKategori;
 use App\Models\TugasPengumpulan;
+use App\Models\CaptureMoment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -18,6 +19,11 @@ class LeaderboardController extends Controller
     {
         $pesertas = User::where('role', 'peserta')->get();
         $rankData = [];
+
+        // 🟢 POIN CAPTURE MOMENT — per kelompok (sudah dinilai panitia saja yang punya poin)
+        // Hasil: ['1' => 200, '2' => 150, ...] -> key = kelompok, value = poin
+        $poinCaptureMomentPerKelompok = CaptureMoment::whereNotNull('poin')
+            ->pluck('poin', 'kelompok');
 
         foreach ($pesertas as $peserta) {
             // 1. HITUNG ABSENSI (+20 poin per hadir)
@@ -90,8 +96,11 @@ class LeaderboardController extends Controller
                 }
             }
 
+            // 4. 🟢 POIN CAPTURE MOMENT — diwariskan ke semua anggota kelompoknya
+            $poinCapture = $poinCaptureMomentPerKelompok[$peserta->kelompok] ?? 0;
+
             // TOTAL AKUMULASI SKOR SELURUH ASPEK
-            $totalSkor = $poinAbsen + $poinKeaktifan + $poinTugas;
+            $totalSkor = $poinAbsen + $poinKeaktifan + $poinTugas + $poinCapture;
 
             $rankData[] = [
                 'name'           => $peserta->name,
@@ -100,6 +109,7 @@ class LeaderboardController extends Controller
                 'poin_absen'     => $poinAbsen,
                 'poin_keaktifan' => $poinKeaktifan,
                 'poin_tugas'     => $poinTugas,
+                'poin_capture'   => $poinCapture, // 🟢 baru
                 'total'          => $totalSkor
             ];
         }

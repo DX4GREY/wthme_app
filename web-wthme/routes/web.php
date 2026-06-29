@@ -25,6 +25,7 @@ use App\Http\Controllers\P3kBarangController;
 use App\Http\Controllers\QuestMeetController;
 use App\Http\Controllers\QuestLabController;
 use App\Http\Controllers\FotoKekeluargaanController;
+use App\Http\Controllers\CaptureMomentController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -89,6 +90,13 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', [KeaktifanController::class, 'index'])->name('index');
             Route::post('/store', [KeaktifanController::class, 'store'])->name('store');
             Route::delete('/{id}', [KeaktifanController::class, 'destroy'])->name('destroy');
+        });
+
+        // CAPTURE MOMENT (Quest Foto Kelompok)
+        Route::prefix('capture-moment')->name('capture.')->group(function () {
+            Route::get('/', [CaptureMomentController::class, 'panitiaIndex'])->name('index');
+            Route::post('/{id}/nilai', [CaptureMomentController::class, 'nilai'])->name('nilai');
+            Route::post('/settings', [CaptureMomentController::class, 'settingsUpdate'])->name('settings');
         });
 
         // Fitur Kontrol Divisi Acara & Admin untuk Quest Meet KBM (Tanpa Route Import)
@@ -306,6 +314,13 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/store', [FotoKekeluargaanController::class, 'store'])->name('store');
             Route::post('/approve/{id}', [FotoKekeluargaanController::class, 'approve'])->name('approve');
             Route::post('/reject/{id}', [FotoKekeluargaanController::class, 'reject'])->name('reject');
+        });
+
+        // Capture Moment (Quest Foto Kelompok)
+        Route::prefix('capture-moment')->name('capture.')->group(function () {
+            Route::get('/', [CaptureMomentController::class, 'pesertaIndex'])->name('index');
+            Route::post('/upload', [CaptureMomentController::class, 'pesertaStore'])->name('upload');
+            Route::post('/{id}/react', [CaptureMomentController::class, 'react'])->name('react');
         });
     });
 });
