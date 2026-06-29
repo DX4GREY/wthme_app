@@ -6,7 +6,8 @@
             color: #002f45 !important;
             background-color: #ffffff !important;
         }
-
+        
+        /* Memaksa elemen select agar selalu dalam mode terang di level browser */
         #sessionSelect {
             color-scheme: light !important;
         }
@@ -31,7 +32,7 @@
                 Face <span style="color:#6b705c; font-style:italic;">Gate</span>
             </h2>
             <p style="color:#002f45; opacity:0.6; font-size:0.9rem; margin-top:0.4rem;">
-                Absensi otomatis via pengenalan wajah (Multi-Wajah, Mode Tanpa Jeda)
+                Absensi otomatis via pengenalan wajah (Mode Tanpa Jeda)
             </p>
         </div>
 
@@ -61,6 +62,7 @@
                     <video id="video" autoplay playsinline
                         style="width:100%; border-radius:1.25rem; background:#000; aspect-ratio:4/3; object-fit:cover;">
                     </video>
+                    {{-- Scanning overlay --}}
                     <div id="scanOverlay"
                         style="display:none; position:absolute; inset:0; border-radius:1.25rem; border:3px solid rgba(16,185,129,0.7); box-shadow:0 0 20px rgba(16,185,129,0.3);">
                     </div>
@@ -128,16 +130,15 @@
         const counterBadge = document.getElementById('counterBadge');
         const sessionSelect = document.getElementById('sessionSelect');
 
-        // Tembak kamera tiap 200ms. Lock isProcessing mencegah request numpuk
-        // kalau response sebelumnya belum balik (mis. server lagi sibuk proses
-        // beberapa wajah sekaligus).
-        const SCAN_INTERVAL = 200;
+        // TIMING EKSTREM (Sangat Cepat & Tanpa Jeda Penahan)
+        const SCAN_INTERVAL = 200; // Menembak kamera & scan tiap 0.2 detik sekali (5x dalam sedetik)
 
         let scanTimer = null;
         let attendedCount = 0;
         let isProcessing = false;
         const loggedIds = new Set();
 
+        // Akses kamera bawaan perangkat
         navigator.mediaDevices.getUserMedia({
             video: {
                 facingMode: 'user',
@@ -150,15 +151,19 @@
             alert('Kamera tidak bisa diakses.');
         });
 
+        // Pengatur gaya kotak status & lampu kilat (flash) kamera instan
         function setStatus(msg, type = 'neutral') {
             statusText.textContent = msg;
             const box = document.getElementById('statusBox');
-
+            
+            // Ubah warna kotak teks background secara instan
             box.style.background = type === 'success' ? 'rgba(16,185,129,0.15)' :
                 type === 'error' ? 'rgba(239,68,68,0.15)' :
                 type === 'warning' ? 'rgba(234,179,8,0.15)' :
                 'rgba(0,47,69,0.07)';
 
+            // Sistem FLASH instan: Border menyala hanya saat status diubah, 
+            // dan akan langsung dimatikan pada jepretan berikutnya (tanpa timer penahan)
             if (type === 'success') {
                 scanOverlay.style.display = 'block';
                 errorOverlay.style.display = 'none';
@@ -171,6 +176,7 @@
             }
         }
 
+        // Fungsi mencetak log ke panel kanan secara dinamis
         function addLog(data) {
             const placeholder = logList.querySelector('p');
             if (placeholder) placeholder.remove();
@@ -211,8 +217,9 @@
             }
         }
 
-        // Scan 1 frame → bisa hasilkan banyak orang sekaligus (array `results`)
+        // Fungsi scan super cepat
         async function captureAndIdentify() {
+            // Jika server AI masih memproses foto sebelumnya, lewati jepretan ini agar tidak macet
             if (isProcessing) return;
 
             const sessionId = sessionSelect.value;
@@ -226,6 +233,7 @@
             try {
                 ctx.drawImage(video, 0, 0, 640, 480);
 
+                // Kompresi diturunkan ke 0.65 agar ukuran file sangat ringan (kirim super instan ke server)
                 const blob = await new Promise(resolve =>
                     canvas.toBlob(resolve, 'image/jpeg', 0.65)
                 );
@@ -241,27 +249,19 @@
                 });
                 const data = await res.json();
 
-                if (data.success && Array.isArray(data.results) && data.results.length > 0) {
-                    let anyNew = false;
-
-                    data.results.forEach(r => {
-                        if (r.already) {
-                            if (!loggedIds.has(r.user_name)) {
-                                loggedIds.add(r.user_name);
-                                addLog(r);
-                            }
-                        } else {
-                            loggedIds.add(r.user_name);
-                            addLog(r);
-                            anyNew = true;
+                if (data.success) {
+                    if (data.already) {
+                        if (!loggedIds.has(data.user_name)) {
+                            loggedIds.add(data.user_name);
+                            addLog(data);
                         }
-                    });
-
-                    const names = data.results.map(r => r.user_name).join(', ');
-                    setStatus(
-                        anyNew ? `✅ ${names}` : `🔁 Sudah absen: ${names}`,
-                        anyNew ? 'success' : 'warning'
-                    );
+                        setStatus(`🔁 ${data.user_name} sudah absen`, 'warning');
+                    } else {
+                        // SUKSES: Langsung cetak log, nyalakan status sukses instan tanpa merusak loop
+                        loggedIds.add(data.user_name);
+                        addLog(data);
+                        setStatus(`✅ ${data.user_name} Sukses!`, 'success');
+                    }
                 } else if (data.fallback) {
                     setStatus('🔍 Mencari wajah...', 'neutral');
                 } else {
@@ -272,6 +272,7 @@
                 setStatus('⚠️ Error koneksi', 'error');
             }
 
+            // Langsung buka gembok, 0.2 detik kemudian kamera siap menembak lagi
             isProcessing = false;
         }
 
@@ -279,6 +280,7 @@
             scanTimer = setInterval(captureAndIdentify, SCAN_INTERVAL);
         }
 
+        // Tombol Mulai
         startBtn.addEventListener('click', () => {
             if (!sessionSelect.value) {
                 alert('Pilih sesi absensi terlebih dahulu!');
@@ -291,6 +293,7 @@
             startScanLoop();
         });
 
+        // Tombol Stop
         stopBtn.addEventListener('click', () => {
             clearInterval(scanTimer);
             scanTimer = null;
