@@ -339,6 +339,7 @@ class P3kBarangController extends Controller
             ->firstOrFail();
 
         $pengumpulan->is_validated = !$pengumpulan->is_validated;
+        $pengumpulan->updated_by   = Auth::id();
         $pengumpulan->save();
 
         $statusPesan = $pengumpulan->is_validated ? 'berhasil di-ACC.' : 'batal di-ACC.';
