@@ -36,7 +36,7 @@ face_app = FaceAnalysis(
     name      = "buffalo_sc",
     providers = ["CPUExecutionProvider"]
 )
-face_app.prepare(ctx_id=0, det_size=(480, 480))
+face_app.prepare(ctx_id=0, det_size=(320, 320))
 
 # ─────────────────────────────────────────
 #  FAISS index (global, protected by lock)
@@ -122,7 +122,7 @@ def rebuild_index():
 async def startup():
     rebuild_index()
     print("[WARMUP] Warming up InsightFace...")
-    dummy = np.zeros((480, 480, 3), dtype=np.uint8)
+    dummy = np.zeros((320, 320, 3), dtype=np.uint8)
     face_app.get(dummy)
     print("[WARMUP] Done! Server siap.")
 
