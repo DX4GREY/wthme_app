@@ -4,7 +4,7 @@ import insightface
 from insightface.app import FaceAnalysis
 import numpy as np
 import faiss
-import json, os, io, threading, traceback
+import json, os, io, threading, traceback, time
 from PIL import Image
 
 app = FastAPI(root_path="/api-face")
@@ -29,6 +29,7 @@ os.makedirs(ENCODINGS_DIR, exist_ok=True)
 
 # ─────────────────────────────────────────
 #  InsightFace — buffalo_sc (ringan & cepat)
+#  det_size TETAP 320x320 (default aman, sama seperti kode awal)
 # ─────────────────────────────────────────
 face_app = FaceAnalysis(
     name      = "buffalo_sc",
@@ -41,7 +42,7 @@ face_app.prepare(ctx_id=0, det_size=(320, 320))
 # ─────────────────────────────────────────
 lock        = threading.Lock()
 faiss_index = faiss.IndexFlatIP(EMBEDDING_DIM)
-id_map      = [] 
+id_map      = []
 
 
 # ─────────────────────────────────────────
@@ -60,10 +61,9 @@ def read_image(file: UploadFile) -> np.ndarray:
         contents = file.file.read()
         if not contents:
             raise ValueError("File kosong atau stream biner rusak.")
-        
-        # Reset pointer file agar tidak mengganggu pembacaan ulang jika diperlukan
-        file.file.seek(0) 
-        
+
+        file.file.seek(0)
+
         img = Image.open(io.BytesIO(contents)).convert("RGB")
         return np.array(img)
     except Exception as e:
@@ -72,7 +72,8 @@ def read_image(file: UploadFile) -> np.ndarray:
 
 
 def get_faces(img_array: np.ndarray) -> list:
-    """Jalankan InsightFace pada gambar."""
+    """Jalankan InsightFace pada gambar. Return list of (embedding, bbox, det_score),
+    diurutkan dari det_score tertinggi ke terendah."""
     faces = face_app.get(img_array)
     if not faces:
         return []
@@ -127,12 +128,13 @@ async def startup():
 
 # ─────────────────────────────────────────
 #  REGISTER — POST /register/{user_id}
+#  (TIDAK DIUBAH dari versi awal)
 # ─────────────────────────────────────────
 
 @app.post("/register/{user_id}")
 async def register_face(user_id: int, photos: list[UploadFile] = File(...)):
     """
-    Terima 3 foto wajah, simpan rata-rata embedding.
+    Terima beberapa foto wajah, simpan rata-rata embedding.
     Aman dari crash internal server (Error 500 ditangkap & dilaporkan).
     """
     try:
@@ -163,11 +165,10 @@ async def register_face(user_id: int, photos: list[UploadFile] = File(...)):
                 detail      = f"Gagal mendaftar. Dari {len(photos)} foto yang dikirim, tidak ada wajah yang terdeteksi secara jelas. Pastikan pencahayaan cukup."
             )
 
-        # Hitung rata-rata wajah & simpan
         avg_embedding = normalize(np.mean(embeddings, axis=0))
 
         json_path = f"{ENCODINGS_DIR}/{user_id}.json"
-        
+
         try:
             with open(json_path, "w") as f:
                 json.dump(avg_embedding.tolist(), f)
@@ -189,10 +190,8 @@ async def register_face(user_id: int, photos: list[UploadFile] = File(...)):
         }
 
     except HTTPException as http_err:
-        # Kembalikan error HTTP FastAPI asli (seperti 422) tanpa merubahnya jadi 500
         raise http_err
     except Exception as e:
-        # Ambil tracking error lengkap jika script Python crash di baris tak terduga
         error_lines = traceback.format_exc()
         print(f"[CRASH REPORT SYSTEM]:\n{error_lines}")
         raise HTTPException(
@@ -203,44 +202,67 @@ async def register_face(user_id: int, photos: list[UploadFile] = File(...)):
 
 # ─────────────────────────────────────────
 #  IDENTIFY — POST /identify
+#  DIUBAH: sekarang mendeteksi & mengidentifikasi SEMUA wajah dalam 1 frame.
 # ─────────────────────────────────────────
 
 @app.post("/identify")
 async def identify_face(photo: UploadFile = File(...)):
-    """Terima 1 foto, cari wajah paling mirip di FAISS index."""
+    """Terima 1 foto, identifikasi semua wajah yang terdeteksi di dalamnya."""
+    t0 = time.time()
     try:
         img   = read_image(photo)
         faces = get_faces(img)
 
         if not faces:
-            return {"found": False, "reason": "Wajah tidak terdeteksi di foto"}
-
-        query_embedding = faces[0][0]
-        query           = np.array([query_embedding])
+            return {
+                "found"               : False,
+                "count"               : 0,
+                "total_faces_detected": 0,
+                "matches"             : [],
+                "reason"              : "Wajah tidak terdeteksi di foto",
+            }
 
         with lock:
             if faiss_index.ntotal == 0:
-                return {"found": False, "reason": "Belum ada wajah terdaftar di database"}
+                return {
+                    "found"               : False,
+                    "count"               : 0,
+                    "total_faces_detected": len(faces),
+                    "matches"             : [],
+                    "reason"              : "Belum ada wajah terdaftar di database",
+                }
 
+            # Batch search: semua wajah di frame dicari sekaligus ke FAISS
+            query = np.array([f[0] for f in faces], dtype=np.float32)
             scores, indices = faiss_index.search(query, k=1)
 
-        score = float(scores[0][0])
-        idx   = int(indices[0][0])
+        matches   = []
+        seen_uids = set()  # cegah 1 user_id dobel kalau 2 deteksi nyangkut ke ID sama
 
-        print(f"[IDENTIFY] score={round(score,4)} | threshold={THRESHOLD} | user_id={id_map[idx] if idx >= 0 else 'N/A'}")
+        for i, (emb, bbox, det_score) in enumerate(faces):
+            score = float(scores[i][0])
+            idx   = int(indices[i][0])
 
-        if idx >= 0 and score >= THRESHOLD:
-            matched_user_id = id_map[idx]
-            return {
-                "found"     : True,
-                "user_id"   : matched_user_id,
-                "confidence": round(score * 100, 1),
-                "distance"  : round(1 - score, 4),
-            }
+            if idx >= 0 and score >= THRESHOLD:
+                uid = id_map[idx]
+                if uid in seen_uids:
+                    continue
+                seen_uids.add(uid)
+                matches.append({
+                    "user_id"   : uid,
+                    "confidence": round(score * 100, 1),
+                    "distance"  : round(1 - score, 4),
+                    "bbox"      : [float(x) for x in bbox],
+                })
+
+        elapsed_ms = round((time.time() - t0) * 1000, 1)
+        print(f"[IDENTIFY] {len(faces)} wajah terdeteksi, {len(matches)} cocok ({elapsed_ms}ms): {[m['user_id'] for m in matches]}")
 
         return {
-            "found" : False,
-            "reason": f"Wajah tidak cocok dengan data mana pun (score={round(score,4)}, butuh >={THRESHOLD})"
+            "found"               : len(matches) > 0,
+            "count"               : len(matches),
+            "total_faces_detected": len(faces),
+            "matches"             : matches,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal mengidentifikasi wajah: {str(e)}")
@@ -248,6 +270,7 @@ async def identify_face(photo: UploadFile = File(...)):
 
 # ─────────────────────────────────────────
 #  CHECK FACE — POST /check-face
+#  (TIDAK DIUBAH)
 # ─────────────────────────────────────────
 
 @app.post("/check-face")
@@ -279,6 +302,7 @@ async def check_face(photo: UploadFile = File(...)):
 
 # ─────────────────────────────────────────
 #  DELETE — DELETE /register/{user_id}
+#  (TIDAK DIUBAH)
 # ─────────────────────────────────────────
 
 @app.delete("/register/{user_id}")
@@ -299,6 +323,7 @@ async def delete_face(user_id: int):
 
 # ─────────────────────────────────────────
 #  RELOAD CACHE — POST /reload-cache
+#  (TIDAK DIUBAH)
 # ─────────────────────────────────────────
 
 @app.post("/reload-cache")
@@ -311,6 +336,7 @@ async def reload_cache():
 
 # ─────────────────────────────────────────
 #  HEALTH CHECK — GET /health
+#  (TIDAK DIUBAH)
 # ─────────────────────────────────────────
 
 @app.get("/health")
