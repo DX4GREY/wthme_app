@@ -75,7 +75,7 @@ class P3kBarangController extends Controller
         $request->validate([
             'nama_barang'      => 'required|string|max:255',
             'tipe'             => 'required|in:kelompok,individu',
-            'menu'             => 'required|in:logistik,konsumsi,p3k',
+            'menu'             => 'required|in:logistik,konsum,p3k',
             'jumlah_kebutuhan' => 'required|integer|min:1',
             'satuan'           => 'required|string|max:50',
             'keterangan'       => 'nullable|string|max:500',
@@ -94,7 +94,7 @@ class P3kBarangController extends Controller
         $request->validate([
             'nama_barang'      => 'required|string|max:255',
             'tipe'             => 'required|in:kelompok,individu',
-            'menu'             => 'required|in:logistik,konsumsi,p3k',
+            'menu'             => 'required|in:logistik,konsum,p3k',
             'jumlah_kebutuhan' => 'required|integer|min:1',
             'satuan'           => 'required|string|max:50',
             'keterangan'       => 'nullable|string|max:500',
