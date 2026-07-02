@@ -2,7 +2,19 @@
     $totalBarangIndividu = $barangsIndividu->count();
     $lengkapBarangIndividu = $summaryIndividuKelompok->where('is_lengkap', true)->count();
     $persen = $totalBarangIndividu > 0 ? round(($lengkapBarangIndividu / $totalBarangIndividu) * 100) : 0;
-    $canEdit = auth()->user()->role === 'admin' || strtoupper(auth()->user()->divisi ?? '') === 'P3K';
+
+    // Mapping menu → divisi yang berwenang, harus konsisten dengan
+    // P3kBarangController::MENU_DIVISI (divisi di DB: LOGISTIK, KONSUM, P3K)
+    $menuDivisi = [
+        'logistik' => 'LOGISTIK',
+        'konsumsi' => 'KONSUM',
+        'p3k'      => 'P3K',
+    ];
+
+    $divisiUser = strtoupper(auth()->user()->divisi ?? '');
+    $divisiDibutuhkan = $menuDivisi[$menu ?? ''] ?? null;
+
+    $canEdit = auth()->user()->role === 'admin' || ($divisiDibutuhkan !== null && $divisiUser === $divisiDibutuhkan);
 @endphp
 
 {{-- Progress keseluruhan --}}
