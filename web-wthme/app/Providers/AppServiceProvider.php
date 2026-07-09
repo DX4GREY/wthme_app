@@ -1,24 +1,21 @@
 <?php
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
-namespace App\Providers;
+// Disini logika requests akan dibatasi sesuai dengan kebutuhan, misal untuk face-api, login, dan register.
 
-use Illuminate\Support\ServiceProvider;
-
-class AppServiceProvider extends ServiceProvider
+public function boot(): void
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
-    {
-        //
-    }
+    RateLimiter::for('face-api', function (Request $request) {
+        return Limit::perMinute(60)->by($request->ip());
+    });
 
-    /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
-    {
-        //
-    }
+    RateLimiter::for('login', function (Request $request) {
+        return Limit::perMinute(5)->by($request->ip());
+    });
+
+    RateLimiter::for('register', function (Request $request) {
+        return Limit::perMinute(5)->by($request->ip());
+    });
 }
