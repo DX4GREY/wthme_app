@@ -17,7 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'peserta'               => \App\Http\Middleware\PesertaMiddleware::class,
             'force.change.password' => \App\Http\Middleware\ForceChangePassword::class,
             'bendahara'             => \App\Http\Middleware\BendaharaMiddleware::class,
-            'mentor' => \App\Http\Middleware\MentorMiddleware::class,
+            'mentor'               => \App\Http\Middleware\MentorMiddleware::class,
+            'secure.uploads'       => \App\Http\Middleware\SecureUploadsMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
