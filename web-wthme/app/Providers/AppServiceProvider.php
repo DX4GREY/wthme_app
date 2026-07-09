@@ -1,21 +1,45 @@
 <?php
+
+namespace App\Providers;
+
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\ServiceProvider;
 
-// Disini logika requests akan dibatasi sesuai dengan kebutuhan, misal untuk face-api, login, dan register.
-
-public function boot(): void
+class AppServiceProvider extends ServiceProvider
 {
-    RateLimiter::for('face-api', function (Request $request) {
-        return Limit::perMinute(60)->by($request->ip());
-    });
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        //
+    }
 
-    RateLimiter::for('login', function (Request $request) {
-        return Limit::perMinute(5)->by($request->ip());
-    });
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        RateLimiter::for('dashboard', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
 
-    RateLimiter::for('register', function (Request $request) {
-        return Limit::perMinute(5)->by($request->ip());
-    });
+        RateLimiter::for('face-api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
+        
+        RateLimiter::for('kekeluargaan', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
+
+        RateLimiter::for('login', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
+        RateLimiter::for('register', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+    }
 }
