@@ -124,7 +124,9 @@ docker run -p 8001:8001 wthme-face-api
 
 ## Catatan Tambahan
 
-- `face-api` menggunakan model `buffalo_sc` dari InsightFace dan menyimpan embedding wajah di `face-api/encodings/`.
+- `face-api` menggunakan model `buffalo_sc` dari InsightFace dan menyimpan embedding wajah di `face-api/encodings/` secara sementara.
+- `face-api` sekarang menghubungkan ke MySQL menggunakan kredensial `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, dan `DB_PASSWORD`.
+- Jika ada file data wajah lama di `face-api/encodings/*.json`, service akan mencoba memigrasikannya ke database saat startup.
 - `face-api` menyediakan route pendaftaran wajah `POST /api-face/register/{user_id}`.
 - Pastikan folder `face-api/encodings` memiliki izin tulis.
 - Untuk pengembangan Laravel, `npm run dev` dapat digunakan bersama `php artisan serve`.
