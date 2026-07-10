@@ -4,7 +4,9 @@ import insightface
 from insightface.app import FaceAnalysis
 import numpy as np
 import faiss
-import json, os, io, threading, traceback, time
+import json, os, io, threading, traceback, time, shutil
+from dotenv import load_dotenv
+import mysql.connector
 from PIL import Image
 
 app = FastAPI(root_path="/api-face")
@@ -26,6 +28,143 @@ EMBEDDING_DIM = 512
 THRESHOLD     = 0.38
 
 os.makedirs(ENCODINGS_DIR, exist_ok=True)
+
+# ─────────────────────────────────────────
+#  Environment / MySQL
+# ─────────────────────────────────────────
+
+def load_env_file():
+    candidates = [
+        ".env",
+        "../web-wthme/.env",
+        "../web-wthme/.env bukan",
+    ]
+
+    for path in candidates:
+        if os.path.exists(path):
+            load_dotenv(dotenv_path=path)
+            print(f"[ENV] Loaded environment from {path}")
+            return
+
+    print("[ENV] No .env file found in standard paths. Menggunakan env vars dari environment.")
+
+
+load_env_file()
+
+
+def get_db_config() -> dict:
+    return {
+        "host": os.getenv("DB_HOST", "127.0.0.1"),
+        "port": int(os.getenv("DB_PORT", 3306)),
+        "database": os.getenv("DB_DATABASE", "face_api"),
+        "user": os.getenv("DB_USERNAME", "root"),
+        "password": os.getenv("DB_PASSWORD", ""),
+        "autocommit": True,
+    }
+
+
+def get_db_connection():
+    cfg = get_db_config()
+    try:
+        return mysql.connector.connect(**cfg)
+    except mysql.connector.Error as e:
+        raise RuntimeError(f"Gagal koneksi DB: {str(e)}")
+
+
+def ensure_db_table():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS face_encodings (
+            user_id INT PRIMARY KEY,
+            embedding JSON NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+        """
+    )
+    cursor.close()
+    conn.close()
+
+
+def fetch_all_db_embeddings():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT user_id, embedding FROM face_encodings")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    embeddings = []
+    for row in rows:
+        embedding = row["embedding"]
+        if isinstance(embedding, str):
+            embedding = json.loads(embedding)
+        embeddings.append((int(row["user_id"]), np.array(embedding, dtype=np.float32)))
+    return embeddings
+
+
+def upsert_face_encoding(user_id: int, embedding: list):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    payload = json.dumps(embedding)
+    cursor.execute(
+        "INSERT INTO face_encodings (user_id, embedding) VALUES (%s, %s) "
+        "ON DUPLICATE KEY UPDATE embedding=VALUES(embedding)",
+        (user_id, payload),
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def read_legacy_encodings():
+    legacy = []
+    for fname in sorted(os.listdir(ENCODINGS_DIR)):
+        path = os.path.join(ENCODINGS_DIR, fname)
+        if not os.path.isfile(path) or not fname.endswith(".json"):
+            continue
+        try:
+            user_id = int(fname.replace(".json", ""))
+            with open(path) as f:
+                vec = json.load(f)
+            legacy.append((user_id, np.array(vec, dtype=np.float32)))
+        except Exception as e:
+            print(f"[LEGACY] Skip {fname}: {e}")
+    return legacy
+
+
+def migrate_files_to_db():
+    legacy_files = []
+    for fname in sorted(os.listdir(ENCODINGS_DIR)):
+        path = os.path.join(ENCODINGS_DIR, fname)
+        if not os.path.isfile(path) or not fname.endswith(".json"):
+            continue
+        legacy_files.append(path)
+
+    if not legacy_files:
+        return
+
+    migrated_dir = os.path.join(ENCODINGS_DIR, "migrated")
+    os.makedirs(migrated_dir, exist_ok=True)
+
+    migrated_count = 0
+    for path in legacy_files:
+        fname = os.path.basename(path)
+        try:
+            user_id = int(fname.replace(".json", ""))
+            with open(path) as f:
+                vec = json.load(f)
+
+            upsert_face_encoding(user_id, vec)
+            shutil.move(path, os.path.join(migrated_dir, fname))
+            migrated_count += 1
+        except Exception as e:
+            print(f"[MIGRATE] Gagal migrasi {fname}: {e}")
+
+    if migrated_count > 0:
+        print(f"[MIGRATE] Migrated {migrated_count} face files to DB and moved originals to {migrated_dir}")
 
 # ─────────────────────────────────────────
 #  InsightFace — buffalo_sc (ringan & cepat)
@@ -83,32 +222,43 @@ def get_faces(img_array: np.ndarray) -> list:
 
 
 def rebuild_index():
-    """Rebuild FAISS index dari semua file JSON di folder encodings/."""
+    """Rebuild FAISS index dari data di DB atau file legacy jika DB tidak tersedia."""
     global faiss_index, id_map
 
     new_index = faiss.IndexFlatIP(EMBEDDING_DIM)
-    new_map   = []
+    new_map = []
+    source = "DB"
+    data = []
 
-    for fname in sorted(os.listdir(ENCODINGS_DIR)):
-        if not fname.endswith(".json"):
-            continue
+    try:
+        data = fetch_all_db_embeddings()
+    except RuntimeError as e:
+        print(f"[DB] {e}. Fallback ke file lokal.")
+        data = []
+        source = "filesystem"
+
+    if not data:
+        legacy = read_legacy_encodings()
+        if legacy:
+            data = legacy
+            source = "filesystem"
+
+    for user_id, vec in data:
         try:
-            uid = int(fname.replace(".json", ""))
-            with open(f"{ENCODINGS_DIR}/{fname}") as f:
-                vec = np.array(json.load(f), dtype=np.float32)
-            new_index.add(np.array([vec]))
-            new_map.append(uid)
+            normalized = normalize(vec)
+            new_index.add(np.array([normalized]))
+            new_map.append(user_id)
         except Exception as e:
-            print(f"[REBUILD] Skip {fname}: {e}")
+            print(f"[REBUILD] Skip user {user_id}: {e}")
 
     faiss_index = new_index
-    id_map      = new_map
+    id_map = new_map
 
     try:
         faiss.write_index(faiss_index, FAISS_PATH)
         with open(IDMAP_PATH, "w") as f:
             json.dump(id_map, f)
-        print(f"[INDEX] Rebuilt: {faiss_index.ntotal} entries")
+        print(f"[INDEX] Rebuilt: {faiss_index.ntotal} entries from {source}")
     except Exception as e:
         print(f"[CRITICAL PERMISSION ERROR] Tidak bisa menulis data index ke disk: {e}")
 
@@ -119,6 +269,12 @@ def rebuild_index():
 
 @app.on_event("startup")
 async def startup():
+    try:
+        ensure_db_table()
+        migrate_files_to_db()
+    except RuntimeError as e:
+        print(f"[DB] {e}. face-api akan pakai encoding file lokal jika tersedia.")
+
     rebuild_index()
     print("[WARMUP] Warming up InsightFace...")
     dummy = np.zeros((320, 320, 3), dtype=np.uint8)
@@ -167,16 +323,19 @@ async def register_face(user_id: int, photos: list[UploadFile] = File(...)):
 
         avg_embedding = normalize(np.mean(embeddings, axis=0))
 
-        json_path = f"{ENCODINGS_DIR}/{user_id}.json"
-
         try:
-            with open(json_path, "w") as f:
-                json.dump(avg_embedding.tolist(), f)
-        except IOError as io_err:
-            raise HTTPException(
-                status_code = 500,
-                detail      = f"Gagal menulis file wajah di server AI. Periksa izin akses folder. Detail: {str(io_err)}"
-            )
+            upsert_face_encoding(user_id, avg_embedding.tolist())
+        except RuntimeError as db_err:
+            print(f"[DB] {db_err}. Menyimpan wajah ke file lokal sebagai fallback.")
+            json_path = f"{ENCODINGS_DIR}/{user_id}.json"
+            try:
+                with open(json_path, "w") as f:
+                    json.dump(avg_embedding.tolist(), f)
+            except IOError as io_err:
+                raise HTTPException(
+                    status_code = 500,
+                    detail      = f"Gagal menulis file wajah di server AI. Periksa izin akses folder. Detail: {str(io_err)}"
+                )
 
         with lock:
             rebuild_index()
@@ -308,12 +467,23 @@ async def check_face(photo: UploadFile = File(...)):
 @app.delete("/register/{user_id}")
 async def delete_face(user_id: int):
     """Hapus data wajah user tertentu."""
-    json_path = f"{ENCODINGS_DIR}/{user_id}.json"
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM face_encodings WHERE user_id = %s", (user_id,))
+        affected = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
 
-    if not os.path.exists(json_path):
-        raise HTTPException(status_code=404, detail="User tidak ditemukan")
-
-    os.remove(json_path)
+        if affected == 0:
+            raise HTTPException(status_code=404, detail="User tidak ditemukan")
+    except RuntimeError as db_err:
+        print(f"[DB] {db_err}. Mencari file lokal sebagai fallback.")
+        json_path = f"{ENCODINGS_DIR}/{user_id}.json"
+        if not os.path.exists(json_path):
+            raise HTTPException(status_code=404, detail="User tidak ditemukan")
+        os.remove(json_path)
 
     with lock:
         rebuild_index()
