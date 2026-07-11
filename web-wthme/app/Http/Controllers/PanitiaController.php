@@ -203,15 +203,30 @@ class PanitiaController extends Controller
             'konten' => $request->konten,
         ]);
 
-        $broadcast->recipients()->delete();
-
-        $recipientIds = collect($request->input('recipient_ids', []))
+        $newRecipientIds = collect($request->input('recipient_ids', []))
             ->filter(fn ($value) => is_numeric($value))
-            ->map(fn ($value) => ['user_id' => (int) $value])
+            ->map(fn ($value) => (int) $value)
+            ->unique()
+            ->values()
             ->all();
 
-        if (!empty($recipientIds)) {
-            $broadcast->recipients()->createMany($recipientIds);
+        $existingRecipients = $broadcast->recipients()->get()->keyBy('user_id');
+
+        // Hapus peserta yang tidak lagi menjadi target
+        $toDelete = $existingRecipients->keys()->diff($newRecipientIds);
+        if ($toDelete->isNotEmpty()) {
+            PersonalBroadcastRecipient::where('personal_broadcast_id', $broadcast->id)
+                ->whereIn('user_id', $toDelete->all())
+                ->delete();
+        }
+
+        // Pertahankan viewed_at untuk peserta yang masih ada,
+        // dan tambahkan peserta baru tanpa viewed_at.
+        $toKeep = $existingRecipients->keys()->intersect($newRecipientIds);
+        $toCreate = collect($newRecipientIds)->diff($toKeep)->map(fn ($value) => ['user_id' => $value])->all();
+
+        if (!empty($toCreate)) {
+            $broadcast->recipients()->createMany($toCreate);
         }
 
         return redirect()->route('panitia.info.peserta.index', ['edit' => $broadcast->id])
