@@ -10,6 +10,7 @@ use App\Models\TugasPengumpulan;
 use App\Models\BarangKebutuhan;
 use App\Models\PengumpulanBarang;
 use App\Models\CaptureMoment;
+use App\Models\PersonalBroadcastRecipient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
