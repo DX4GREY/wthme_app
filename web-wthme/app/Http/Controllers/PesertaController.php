@@ -13,6 +13,7 @@ use App\Models\CaptureMoment;
 use App\Models\PersonalBroadcastRecipient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class PesertaController extends Controller
@@ -43,11 +44,15 @@ class PesertaController extends Controller
         $barangBelum = max(0, $totalBarangAktif - $barangLengkap);
         $links       = \App\Models\Link::all();
         $pengumuman  = \App\Models\InformasiPeserta::latest()->get();
-        $personalBroadcasts = PersonalBroadcastRecipient::where('user_id', $user->id)
-            ->whereNull('viewed_at')
-            ->with('broadcast')
-            ->latest()
-            ->get();
+        $personalBroadcasts = collect();
+
+        if (Schema::hasTable('personal_broadcasts') && Schema::hasTable('personal_broadcast_recipients')) {
+            $personalBroadcasts = PersonalBroadcastRecipient::where('user_id', $user->id)
+                ->whereNull('viewed_at')
+                ->with('broadcast')
+                ->latest()
+                ->get();
+        }
 
         // =========================================================================
         // LOGIKA PERHITUNGAN TOTAL POIN REALTIME UNTUK SELURUH PESERTA (DAPAT RANKING)
@@ -153,6 +158,10 @@ class PesertaController extends Controller
      */
     public function markPersonalBroadcastViewed($id)
     {
+        if (!Schema::hasTable('personal_broadcasts') || !Schema::hasTable('personal_broadcast_recipients')) {
+            return response()->json(['success' => true]);
+        }
+
         $recipient = PersonalBroadcastRecipient::where('user_id', auth()->id())
             ->where('personal_broadcast_id', $id)
             ->first();

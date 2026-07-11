@@ -12,6 +12,7 @@ use App\Models\InformasiPeserta;
 use App\Models\PersonalBroadcast;
 use App\Models\PersonalBroadcastRecipient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class PanitiaController extends Controller
 {
@@ -149,6 +150,10 @@ class PanitiaController extends Controller
             abort(403, 'Hanya admin yang dapat membuat broadcast personal.');
         }
 
+        if (!Schema::hasTable('personal_broadcasts') || !Schema::hasTable('personal_broadcast_recipients')) {
+            return back()->with('error', 'Broadcast personal belum siap karena migrasi database belum dijalankan.');
+        }
+
         $request->validate([
             'judul' => 'required|string|max:255',
             'konten' => 'required|string',
@@ -178,6 +183,10 @@ class PanitiaController extends Controller
     {
         if (!auth()->user()->isAdmin()) {
             abort(403, 'Hanya admin yang dapat mengubah broadcast personal.');
+        }
+
+        if (!Schema::hasTable('personal_broadcasts') || !Schema::hasTable('personal_broadcast_recipients')) {
+            return back()->with('error', 'Broadcast personal belum siap karena migrasi database belum dijalankan.');
         }
 
         $broadcast = PersonalBroadcast::findOrFail($id);
@@ -221,6 +230,10 @@ class PanitiaController extends Controller
             abort(403, 'Hanya admin yang dapat menghapus broadcast personal.');
         }
 
+        if (!Schema::hasTable('personal_broadcasts') || !Schema::hasTable('personal_broadcast_recipients')) {
+            return back()->with('error', 'Broadcast personal belum siap karena migrasi database belum dijalankan.');
+        }
+
         PersonalBroadcast::findOrFail($id)->delete();
         return back()->with('success', 'Broadcast personal dihapus.');
     }
@@ -229,8 +242,13 @@ class PanitiaController extends Controller
     {
         $infos = InformasiPeserta::latest()->get();
         $participants = User::where('role', 'peserta')->orderBy('name')->get();
-        $broadcasts = PersonalBroadcast::with('recipients.user')->latest()->get();
+
+        $broadcasts = collect();
         $editingBroadcast = null;
+
+        if (Schema::hasTable('personal_broadcasts') && Schema::hasTable('personal_broadcast_recipients')) {
+            $broadcasts = PersonalBroadcast::with('recipients.user')->latest()->get();
+        }
 
         if ($request->filled('edit')) {
             $editingBroadcast = PersonalBroadcast::with('recipients')->findOrFail($request->query('edit'));
