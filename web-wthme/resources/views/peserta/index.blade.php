@@ -314,17 +314,21 @@
         </div>
     </div>
 
-    @if ($personalBroadcasts->count() > 0)
+    @php
+        $personalBroadcastsJson = $personalBroadcasts->map(function ($broadcast) {
+            return [
+                'id' => $broadcast->id,
+                'judul' => optional($broadcast->broadcast)->judul ?? '',
+                'konten' => optional($broadcast->broadcast)->konten ?? '',
+            ];
+        })->values();
+    @endphp
+
+    @if ($personalBroadcastsJson->isNotEmpty())
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                const broadcasts = @json($personalBroadcasts->map(function ($broadcast) {
-                    return [
-                        'id' => $broadcast->id,
-                        'judul' => $broadcast->broadcast->judul ?? '',
-                        'konten' => $broadcast->broadcast->konten ?? '',
-                    ];
-                }));
+                const broadcasts = @json($personalBroadcastsJson);
 
                 broadcasts.forEach((broadcast, index) => {
                     setTimeout(() => {

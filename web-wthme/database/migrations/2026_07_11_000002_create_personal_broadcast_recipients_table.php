@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->timestamp('viewed_at')->nullable();
             $table->timestamps();
-            $table->unique(['personal_broadcast_id', 'user_id']);
+            $table->unique(['personal_broadcast_id', 'user_id'], 'pb_recipients_unique');
         });
     }
 

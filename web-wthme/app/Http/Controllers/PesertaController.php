@@ -46,12 +46,17 @@ class PesertaController extends Controller
         $pengumuman  = \App\Models\InformasiPeserta::latest()->get();
         $personalBroadcasts = collect();
 
-        if (Schema::hasTable('personal_broadcasts') && Schema::hasTable('personal_broadcast_recipients')) {
-            $personalBroadcasts = PersonalBroadcastRecipient::where('user_id', $user->id)
-                ->whereNull('viewed_at')
-                ->with('broadcast')
-                ->latest()
-                ->get();
+        try {
+            if (Schema::hasTable('personal_broadcasts') && Schema::hasTable('personal_broadcast_recipients')) {
+                $personalBroadcasts = PersonalBroadcastRecipient::where('user_id', $user->id)
+                    ->whereNull('viewed_at')
+                    ->with('broadcast')
+                    ->latest()
+                    ->get();
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            $personalBroadcasts = collect();
         }
 
         // =========================================================================
