@@ -331,20 +331,18 @@
 
             if (!searchInput || !table) return;
 
-            searchInput.addEventListener('input', function () {
-                const query = this.value.toLowerCase().trim();
-                const rows = table.querySelectorAll('tr.peserta-row, tr.group-row');
+            const filterRows = function () {
+                const query = searchInput.value.toLowerCase().trim();
+                const rows = table.querySelectorAll('tr.peserta-row');
 
                 rows.forEach(function (row) {
-                    if (row.classList.contains('group-row')) {
-                        return;
-                    }
-
                     const searchable = `${row.getAttribute('data-name') || ''} ${row.getAttribute('data-kelompok') || ''}`.toLowerCase();
                     const matches = !query || searchable.includes(query);
                     row.style.display = matches ? '' : 'none';
                 });
-            });
+            };
+
+            searchInput.addEventListener('input', filterRows);
 
             table.querySelectorAll('tr.peserta-row').forEach(function (row) {
                 row.addEventListener('click', function (event) {
@@ -359,20 +357,33 @@
                 });
             });
 
-            table.querySelectorAll('tr.group-row').forEach(function (groupRow) {
-                const groupName = groupRow.getAttribute('data-group');
-                const button = groupRow.querySelector('.group-toggle-button');
-
-                const toggleGroup = function () {
-                    const rows = [];
-                    let next = groupRow.nextElementSibling;
-                    while (next && !next.classList.contains('group-row')) {
-                        if (next.classList.contains('peserta-row')) {
-                            rows.push(next);
-                        }
-                        next = next.nextElementSibling;
+            const getGroupRows = function (groupRow) {
+                const rows = [];
+                let next = groupRow.nextElementSibling;
+                while (next && !next.classList.contains('group-row')) {
+                    if (next.classList.contains('peserta-row')) {
+                        rows.push(next);
                     }
+                    next = next.nextElementSibling;
+                }
+                return rows;
+            };
 
+            const updateGroupButtonText = function (groupRow) {
+                const button = groupRow.querySelector('.group-toggle-button');
+                if (!button) return;
+                const rows = getGroupRows(groupRow);
+                const allChecked = rows.every(row => {
+                    const checkbox = row.querySelector('input[name="recipient_ids[]"]');
+                    return checkbox && checkbox.checked;
+                });
+                button.textContent = allChecked ? 'Batalkan semua' : 'Pilih semua';
+            };
+
+            table.querySelectorAll('tr.group-row').forEach(function (groupRow) {
+                const button = groupRow.querySelector('.group-toggle-button');
+                const toggleGroup = function () {
+                    const rows = getGroupRows(groupRow);
                     const anyUnchecked = rows.some(row => {
                         const checkbox = row.querySelector('input[name="recipient_ids[]"]');
                         return checkbox && !checkbox.checked;
@@ -385,27 +396,32 @@
                         }
                     });
 
-                    if (button) {
-                        button.textContent = anyUnchecked ? 'Batalkan semua' : 'Pilih semua';
-                    }
+                    updateGroupButtonText(groupRow);
                 };
 
-                groupRow.addEventListener('click', function (event) {
-                    if (event.target.classList.contains('group-toggle-button')) {
+                if (button) {
+                    button.addEventListener('click', function (event) {
+                        event.stopPropagation();
                         toggleGroup();
+                    });
+                }
+
+                groupRow.addEventListener('click', function (event) {
+                    if (event.target.closest('.group-toggle-button')) {
                         return;
                     }
-
-                    const isButton = event.target.closest('.group-toggle-button');
-                    if (isButton) {
-                        return;
-                    }
-
-                    if (event.target.tagName === 'BUTTON') {
-                        return;
-                    }
-
                     toggleGroup();
+                });
+
+                updateGroupButtonText(groupRow);
+            });
+        });
+    </script>
+
+    {{-- <style>
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     @keyframes fadeInDown {
         from { opacity: 0; transform: translateY(-20px); }
