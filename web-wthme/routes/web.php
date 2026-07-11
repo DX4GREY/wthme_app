@@ -41,6 +41,7 @@ Route::middleware(['auth', 'secure.uploads'])->group(function () {
     Route::get('/ganti-password', [ChangePasswordController::class, 'show'])->name('password.change');
     Route::put('/ganti-password', [ChangePasswordController::class, 'update'])->name('password.change.update');
     Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
+    Route::post('/broadcast-personal/{id}/lihat', [PesertaController::class, 'markPersonalBroadcastViewed'])->name('peserta.personal.broadcast.viewed');
 
     // --- ADMIN ---
     Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
@@ -82,6 +83,9 @@ Route::middleware(['auth', 'secure.uploads'])->group(function () {
         Route::get('/informasi-peserta', [PanitiaController::class, 'indexInfoPeserta'])->name('info.peserta.index');
         Route::post('/informasi-peserta', [PanitiaController::class, 'storeInfoPeserta'])->name('info.peserta.store');
         Route::delete('/informasi-peserta/{id}', [PanitiaController::class, 'destroyInfoPeserta'])->name('info.peserta.destroy');
+        Route::post('/broadcast-personal', [PanitiaController::class, 'storePersonalBroadcast'])->name('info.peserta.personal.store');
+        Route::put('/broadcast-personal/{id}', [PanitiaController::class, 'updatePersonalBroadcast'])->name('info.peserta.personal.update');
+        Route::delete('/broadcast-personal/{id}', [PanitiaController::class, 'destroyPersonalBroadcast'])->name('info.peserta.personal.destroy');
         Route::get('/absensi/face-gate',     [FaceAbsensiController::class, 'gate'])->name('absen.face.gate');
         Route::post('/absensi/face-gate',    [FaceAbsensiController::class, 'gateProcess'])->name('absen.face.process');
 

@@ -9,6 +9,8 @@ use App\Models\AbsensiPanitia;
 use App\Models\User;
 use App\Models\Link;
 use App\Models\InformasiPeserta;
+use App\Models\PersonalBroadcast;
+use App\Models\PersonalBroadcastRecipient;
 use Illuminate\Http\Request;
 
 class PanitiaController extends Controller
@@ -141,14 +143,99 @@ class PanitiaController extends Controller
         return back()->with('success', 'Pengumuman telah terkirim ke portal peserta!');
     }
 
+    public function storePersonalBroadcast(Request $request)
+    {
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Hanya admin yang dapat membuat broadcast personal.');
+        }
+
+        $request->validate([
+            'judul' => 'required|string|max:255',
+            'konten' => 'required|string',
+            'recipient_ids' => 'nullable|array',
+            'recipient_ids.*' => 'exists:users,id',
+        ]);
+
+        $broadcast = PersonalBroadcast::create([
+            'judul' => $request->judul,
+            'konten' => $request->konten,
+            'created_by' => auth()->id(),
+        ]);
+
+        $recipientIds = collect($request->input('recipient_ids', []))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => ['user_id' => (int) $id])
+            ->all();
+
+        if (!empty($recipientIds)) {
+            $broadcast->recipients()->createMany($recipientIds);
+        }
+
+        return back()->with('success', 'Broadcast personal berhasil dikirim.');
+    }
+
+    public function updatePersonalBroadcast(Request $request, $id)
+    {
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Hanya admin yang dapat mengubah broadcast personal.');
+        }
+
+        $broadcast = PersonalBroadcast::findOrFail($id);
+
+        $request->validate([
+            'judul' => 'required|string|max:255',
+            'konten' => 'required|string',
+            'recipient_ids' => 'nullable|array',
+            'recipient_ids.*' => 'exists:users,id',
+        ]);
+
+        $broadcast->update([
+            'judul' => $request->judul,
+            'konten' => $request->konten,
+        ]);
+
+        $broadcast->recipients()->delete();
+
+        $recipientIds = collect($request->input('recipient_ids', []))
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => ['user_id' => (int) $value])
+            ->all();
+
+        if (!empty($recipientIds)) {
+            $broadcast->recipients()->createMany($recipientIds);
+        }
+
+        return redirect()->route('panitia.info.peserta.index', ['edit' => $broadcast->id])
+            ->with('success', 'Broadcast personal berhasil diperbarui.');
+    }
+
     public function destroyInfoPeserta($id)
     {
         InformasiPeserta::findOrFail($id)->delete();
         return back()->with('success', 'Pengumuman dihapus.');
     }
-    public function indexInfoPeserta()
+
+    public function destroyPersonalBroadcast($id)
     {
-        $infos = \App\Models\InformasiPeserta::latest()->get();
-        return view('panitia.informasi_peserta', compact('infos'));
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Hanya admin yang dapat menghapus broadcast personal.');
+        }
+
+        PersonalBroadcast::findOrFail($id)->delete();
+        return back()->with('success', 'Broadcast personal dihapus.');
+    }
+
+    public function indexInfoPeserta(Request $request)
+    {
+        $infos = InformasiPeserta::latest()->get();
+        $participants = User::where('role', 'peserta')->orderBy('name')->get();
+        $broadcasts = PersonalBroadcast::with('recipients.user')->latest()->get();
+        $editingBroadcast = null;
+
+        if ($request->filled('edit')) {
+            $editingBroadcast = PersonalBroadcast::with('recipients')->findOrFail($request->query('edit'));
+        }
+
+        return view('panitia.informasi_peserta', compact('infos', 'participants', 'broadcasts', 'editingBroadcast'));
     }
 }

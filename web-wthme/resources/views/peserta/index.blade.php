@@ -314,6 +314,42 @@
         </div>
     </div>
 
+    @if ($personalBroadcasts->count() > 0)
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const broadcasts = @json($personalBroadcasts->map(function ($broadcast) {
+                    return [
+                        'id' => $broadcast->id,
+                        'judul' => $broadcast->broadcast->judul ?? '',
+                        'konten' => $broadcast->broadcast->konten ?? '',
+                    ];
+                }));
+
+                broadcasts.forEach((broadcast, index) => {
+                    setTimeout(() => {
+                        Swal.fire({
+                            title: broadcast.judul,
+                            text: broadcast.konten,
+                            icon: 'info',
+                            confirmButtonText: 'Mengerti',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                        }).then(() => {
+                            fetch('{{ route('peserta.personal.broadcast.viewed', ['id' => ':id']) }}'.replace(':id', broadcast.id), {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Accept': 'application/json',
+                                },
+                            });
+                        });
+                    }, index * 350);
+                });
+            });
+        </script>
+    @endif
+
     {{-- SCRIPTS --}}
     <script>
         let currentIndex = 0;

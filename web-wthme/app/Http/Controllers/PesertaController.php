@@ -10,6 +10,7 @@ use App\Models\TugasPengumpulan;
 use App\Models\BarangKebutuhan;
 use App\Models\PengumpulanBarang;
 use App\Models\CaptureMoment;
+use App\Models\PersonalBroadcastRecipient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -42,6 +43,11 @@ class PesertaController extends Controller
         $barangBelum = max(0, $totalBarangAktif - $barangLengkap);
         $links       = \App\Models\Link::all();
         $pengumuman  = \App\Models\InformasiPeserta::latest()->get();
+        $personalBroadcasts = PersonalBroadcastRecipient::where('user_id', $user->id)
+            ->whereNull('viewed_at')
+            ->with('broadcast')
+            ->latest()
+            ->get();
 
         // =========================================================================
         // LOGIKA PERHITUNGAN TOTAL POIN REALTIME UNTUK SELURUH PESERTA (DAPAT RANKING)
@@ -136,6 +142,7 @@ class PesertaController extends Controller
             'barangBelum', 
             'links', 
             'pengumuman',
+            'personalBroadcasts',
             'totalPoin',
             'myRank' // Variabel peringkat siap dipakai di Blade
         ));
@@ -144,6 +151,20 @@ class PesertaController extends Controller
     /**
      * Menampilkan Form Riwayat Penyakit Peserta
      */
+    public function markPersonalBroadcastViewed($id)
+    {
+        $recipient = PersonalBroadcastRecipient::where('user_id', auth()->id())
+            ->where('personal_broadcast_id', $id)
+            ->first();
+
+        if ($recipient && is_null($recipient->viewed_at)) {
+            $recipient->viewed_at = now();
+            $recipient->save();
+        }
+
+        return response()->json(['success' => true]);
+    }
+
     public function riwayatPenyakit()
     {
         $user = auth()->user();

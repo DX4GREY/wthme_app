@@ -1,6 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
+    @php
+        $selectedRecipientIds = $editingBroadcast?->recipients->pluck('user_id')->all() ?? [];
+    @endphp
+
     <div
         style="min-height: 100vh; background: linear-gradient(135deg, #f8f9fa 0%, #e0decd 100%); padding: 4rem 1.5rem; font-family: 'Inter', sans-serif;">
         <div style="max-width: 900px; margin: 0 auto;">
@@ -84,6 +88,129 @@
                         Siarkan ke Seluruh Peserta 🚀
                     </button>
                 </form>
+            </div>
+
+            {{-- Personal Broadcast Section --}}
+            <div
+                style="background: rgba(255, 255, 255, 0.4); 
+                    backdrop-filter: blur(15px); 
+                    -webkit-backdrop-filter: blur(15px); 
+                    padding: 2.5rem; 
+                    border-radius: 2rem; 
+                    border: 1px solid rgba(255, 255, 255, 0.6); 
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+                    margin-bottom: 3.5rem;
+                    animation: fadeInUp 0.8s ease-out;">
+
+                <h4 style="margin-top: 0; color: #002f45; margin-bottom: 0.5rem; font-weight: 800; letter-spacing: -0.5px;">
+                    Broadcast Personal (Admin)</h4>
+                <p style="margin: 0 0 1.5rem 0; color: #002f45; opacity: 0.7;">
+                    Kirim pesan teks pribadi ke peserta yang dipilih saja, lalu pantau siapa yang sudah melihatnya.
+                </p>
+
+                <form action="{{ $editingBroadcast ? route('panitia.info.peserta.personal.update', $editingBroadcast->id) : route('panitia.info.peserta.personal.store') }}" method="POST">
+                    @csrf
+                    @if($editingBroadcast)
+                        @method('PUT')
+                    @endif
+
+                    <div style="margin-bottom: 1.2rem;">
+                        <label style="display:block; font-size: 0.75rem; font-weight: 800; color: #002f45; margin-bottom: 0.6rem; opacity: 0.8;">JUDUL BROADCAST</label>
+                        <input type="text" name="judul" value="{{ old('judul', $editingBroadcast?->judul ?? '') }}" placeholder="Contoh: Pengingat absensi" required
+                            style="width: 100%; padding: 0.8rem 1rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.8); background: rgba(255,255,255,0.5); outline: none; transition: 0.3s;"
+                            onfocus="this.style.background='white'; this.style.borderColor='#002f45'">
+                    </div>
+
+                    <div style="margin-bottom: 1.2rem;">
+                        <label style="display:block; font-size: 0.75rem; font-weight: 800; color: #002f45; margin-bottom: 0.6rem; opacity: 0.8;">ISI PESAN (TEKS POPUP)</label>
+                        <textarea name="konten" rows="4" placeholder="Tulis pesan singkat yang akan muncul sebagai popup saat peserta membuka portal..." required
+                            style="width: 100%; padding: 1rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.8); background: rgba(255,255,255,0.5); outline: none; transition: 0.3s; font-family: inherit; resize: vertical;"
+                            onfocus="this.style.background='white';">{{ old('konten', $editingBroadcast?->konten ?? '') }}</textarea>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display:block; font-size: 0.75rem; font-weight: 800; color: #002f45; margin-bottom: 0.6rem; opacity: 0.8;">PILIH PESERTA</label>
+                        <select name="recipient_ids[]" multiple size="8"
+                            style="width: 100%; padding: 0.8rem 1rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.8); background: rgba(255,255,255,0.5); outline: none; transition: 0.3s;">
+                            @foreach($participants as $participant)
+                                <option value="{{ $participant->id }}" {{ in_array($participant->id, $selectedRecipientIds) ? 'selected' : '' }}>
+                                    {{ $participant->name }} ({{ $participant->nim ?? '-' }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #002f45; opacity: 0.7;">Tekan Ctrl/Cmd untuk memilih beberapa peserta sekaligus.</p>
+                    </div>
+
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                        <button type="submit"
+                            style="background: #002f45; color: white; border: none; padding: 1rem 1.2rem; border-radius: 1rem; font-weight: 800; cursor: pointer; transition: 0.3s; box-shadow: 0 10px 20px rgba(0,47,69,0.2);"
+                            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 15px 25px rgba(0,47,69,0.3)'"
+                            onmouseout="this.style.transform='translateY(0)'">
+                            {{ $editingBroadcast ? 'Simpan Perubahan' : 'Kirim Broadcast Personal' }}
+                        </button>
+                        @if($editingBroadcast)
+                            <a href="{{ route('panitia.info.peserta.index') }}"
+                                style="background: #e5e7eb; color: #002f45; padding: 1rem 1.2rem; border-radius: 1rem; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
+                                Batal Edit
+                            </a>
+                        @endif
+                    </div>
+                </form>
+            </div>
+
+            <h4
+                style="color: #002f45; margin-bottom: 1.5rem; font-weight: 800; display: flex; align-items: center; gap: 10px;">
+                <span style="display: inline-block; width: 30px; height: 2px; background: #002f45;"></span>
+                Riwayat Broadcast Personal
+            </h4>
+
+            <div style="display: flex; flex-direction: column; gap: 1.2rem; margin-bottom: 3.5rem;">
+                @forelse($broadcasts as $broadcast)
+                    <div style="background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); padding: 1.5rem; border-radius: 1.5rem; display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; border: 1px solid white; box-shadow: 0 10px 20px rgba(0,0,0,0.02); transition: 0.3s;"
+                        onmouseover="this.style.transform='scale(1.01)'; this.style.background='rgba(255, 255, 255, 0.9)'"
+                        onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(255, 255, 255, 0.7)'">
+
+                        <div style="flex: 1;">
+                            <span style="font-size: 0.65rem; font-weight: 900; background: #6b705c; color: white; padding: 0.3rem 0.8rem; border-radius: 2rem; letter-spacing: 0.5px;">
+                                PERSONAL
+                            </span>
+                            <h5 style="margin: 0.8rem 0 0.4rem 0; color: #002f45; font-size: 1.1rem; font-weight: 700;">
+                                {{ $broadcast->judul }}
+                            </h5>
+                            <p style="margin: 0; font-size: 0.85rem; color: #002f45; opacity: 0.7; line-height: 1.4;">
+                                {{ Str::limit($broadcast->konten, 140) }}
+                            </p>
+                            <p style="margin: 0.6rem 0 0.2rem 0; font-size: 0.8rem; color: #002f45; opacity: 0.75;">
+                                Target: {{ $broadcast->recipients->count() }} peserta • Sudah lihat: {{ $broadcast->recipients->whereNotNull('viewed_at')->count() }} • Belum lihat: {{ $broadcast->recipients->whereNull('viewed_at')->count() }}
+                            </p>
+                            <div style="margin-top: 0.7rem; display: flex; flex-wrap: wrap; gap: 0.4rem;">
+                                @foreach($broadcast->recipients as $recipient)
+                                    <span style="font-size: 0.72rem; padding: 0.25rem 0.6rem; border-radius: 999px; background: {{ $recipient->viewed_at ? '#dcfce7' : '#fef3c7' }}; color: #002f45;">
+                                        {{ $recipient->user->name ?? 'Peserta' }} — {{ $recipient->viewed_at ? 'Sudah lihat' : 'Belum lihat' }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
+                            <a href="{{ route('panitia.info.peserta.index', ['edit' => $broadcast->id]) }}"
+                                style="background: #d2c296; color: #002f45; border: none; padding: 0.7rem 0.9rem; border-radius: 12px; cursor: pointer; transition: 0.3s; text-decoration: none; font-weight: 700;">
+                                ✏️ Edit
+                            </a>
+                            <form action="{{ route('panitia.info.peserta.personal.destroy', $broadcast->id) }}" method="POST" style="margin: 0;">
+                                @csrf @method('DELETE')
+                                <button type="submit" onclick="return confirm('Hapus broadcast personal ini?')"
+                                    style="background: #ef4444; color: white; border: none; padding: 0.7rem 0.9rem; border-radius: 12px; cursor: pointer; transition: 0.3s;">
+                                    🗑️ Hapus
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                @empty
+                    <div style="text-align: center; padding: 3rem; background: rgba(255,255,255,0.3); border-radius: 2rem; border: 2px dashed rgba(0,47,69,0.1);">
+                        <p style="color: #002f45; opacity: 0.5; font-weight: 600;">Belum ada broadcast personal yang dikirim.</p>
+                    </div>
+                @endforelse
             </div>
 
             {{-- List Section --}}
