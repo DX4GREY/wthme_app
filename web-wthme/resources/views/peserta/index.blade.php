@@ -313,47 +313,6 @@
             </div>
         </div>
     </div>
-
-    @php
-        $personalBroadcastsJson = $personalBroadcasts->map(function ($broadcast) {
-            return [
-                'id' => $broadcast->personal_broadcast_id,
-                'judul' => optional($broadcast->broadcast)->judul ?? '',
-                'konten' => optional($broadcast->broadcast)->konten ?? '',
-            ];
-        })->values();
-    @endphp
-
-    @if ($personalBroadcastsJson->isNotEmpty())
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                const broadcasts = @json($personalBroadcastsJson);
-
-                broadcasts.forEach((broadcast, index) => {
-                    setTimeout(() => {
-                        Swal.fire({
-                            title: broadcast.judul,
-                            text: broadcast.konten,
-                            icon: 'info',
-                            confirmButtonText: 'Mengerti',
-                            allowOutsideClick: false,
-                            allowEscapeKey: false,
-                        }).then(() => {
-                            fetch('{{ route('peserta.personal.broadcast.viewed', ['id' => ':id']) }}'.replace(':id', broadcast.id), {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                    'Accept': 'application/json',
-                                },
-                            });
-                        });
-                    }, index * 350);
-                });
-            });
-        </script>
-    @endif
-
     {{-- SCRIPTS --}}
     <script>
         let currentIndex = 0;
