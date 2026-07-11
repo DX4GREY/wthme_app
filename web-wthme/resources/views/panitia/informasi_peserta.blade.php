@@ -147,15 +147,27 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @php $groupedPesertas = $participants->groupBy('kelompok'); @endphp
+                                            @php
+                                                $groupedPesertas = $participants
+                                                    ->groupBy('kelompok')
+                                                    ->sortKeysUsing(function ($a, $b) {
+                                                        if (is_null($a)) return 1;
+                                                        if (is_null($b)) return -1;
+                                                        if (is_numeric($a) && is_numeric($b)) {
+                                                            return (int) $a <=> (int) $b;
+                                                        }
+                                                        return strcmp($a, $b);
+                                                    });
+                                            @endphp
                                             @forelse($groupedPesertas as $noKelompok => $daftarPeserta)
-                                                <tr style="background: rgba(0,47,69,0.03);">
-                                                    <td colspan="2" style="padding: 0.6rem 1rem; font-size: 0.8rem; font-weight: 700; color: #002f45; opacity: 0.8;">
-                                                        🌿 KELOMPOK {{ $noKelompok ?? 'TANPA KELOMPOK' }}
+                                                <tr class="group-row" data-group="{{ $noKelompok ?? 'TANPA KELOMPOK' }}" style="background: rgba(0,47,69,0.03); cursor: pointer;">
+                                                    <td colspan="2" style="padding: 0.6rem 1rem; font-size: 0.8rem; font-weight: 700; color: #002f45; opacity: 0.8; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                                                        <span>🌿 KELOMPOK {{ $noKelompok ?? 'TANPA KELOMPOK' }}</span>
+                                                        <button type="button" class="group-toggle-button" style="background: #002f45; color: white; border: none; border-radius: 0.75rem; padding: 0.3rem 0.8rem; cursor: pointer; font-size: 0.8rem;">Pilih semua</button>
                                                     </td>
                                                 </tr>
                                                 @foreach($daftarPeserta as $participant)
-                                                    <tr class="peserta-row" data-id="{{ $participant->id }}" data-name="{{ $participant->name }}" data-kelompok="{{ $participant->kelompok ?? '-' }}" style="cursor: pointer; transition: 0.2s;">
+                                                    <tr class="peserta-row" data-id="{{ $participant->id }}" data-name="{{ $participant->name }}" data-kelompok="{{ $participant->kelompok ?? 'TANPA KELOMPOK' }}" style="cursor: pointer; transition: 0.2s;">
                                                         <td style="padding: 0.8rem 1rem; border-top: 1px solid rgba(0,47,69,0.05);">
                                                             <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-weight: 600; color: #002f45;">
                                                                 <input type="checkbox" name="recipient_ids[]" value="{{ $participant->id }}" {{ in_array($participant->id, $selectedRecipientIds) ? 'checked' : '' }} style="accent-color: #002f45; width: 16px; height: 16px;">
@@ -321,9 +333,13 @@
 
             searchInput.addEventListener('input', function () {
                 const query = this.value.toLowerCase().trim();
-                const rows = table.querySelectorAll('tr.peserta-row');
+                const rows = table.querySelectorAll('tr.peserta-row, tr.group-row');
 
                 rows.forEach(function (row) {
+                    if (row.classList.contains('group-row')) {
+                        return;
+                    }
+
                     const searchable = `${row.getAttribute('data-name') || ''} ${row.getAttribute('data-kelompok') || ''}`.toLowerCase();
                     const matches = !query || searchable.includes(query);
                     row.style.display = matches ? '' : 'none';
@@ -342,13 +358,54 @@
                     }
                 });
             });
-        });
-    </script>
 
-    {{-- <style>
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+            table.querySelectorAll('tr.group-row').forEach(function (groupRow) {
+                const groupName = groupRow.getAttribute('data-group');
+                const button = groupRow.querySelector('.group-toggle-button');
+
+                const toggleGroup = function () {
+                    const rows = [];
+                    let next = groupRow.nextElementSibling;
+                    while (next && !next.classList.contains('group-row')) {
+                        if (next.classList.contains('peserta-row')) {
+                            rows.push(next);
+                        }
+                        next = next.nextElementSibling;
+                    }
+
+                    const anyUnchecked = rows.some(row => {
+                        const checkbox = row.querySelector('input[name="recipient_ids[]"]');
+                        return checkbox && !checkbox.checked;
+                    });
+
+                    rows.forEach(row => {
+                        const checkbox = row.querySelector('input[name="recipient_ids[]"]');
+                        if (checkbox) {
+                            checkbox.checked = anyUnchecked;
+                        }
+                    });
+
+                    if (button) {
+                        button.textContent = anyUnchecked ? 'Batalkan semua' : 'Pilih semua';
+                    }
+                };
+
+                groupRow.addEventListener('click', function (event) {
+                    if (event.target.classList.contains('group-toggle-button')) {
+                        toggleGroup();
+                        return;
+                    }
+
+                    const isButton = event.target.closest('.group-toggle-button');
+                    if (isButton) {
+                        return;
+                    }
+
+                    if (event.target.tagName === 'BUTTON') {
+                        return;
+                    }
+
+                    toggleGroup();
     }
     @keyframes fadeInDown {
         from { opacity: 0; transform: translateY(-20px); }
