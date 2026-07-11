@@ -132,18 +132,49 @@
 
                         <div style="margin-bottom: 1.5rem;">
                             <label style="display:block; font-size: 0.75rem; font-weight: 800; color: #002f45; margin-bottom: 0.6rem; opacity: 0.8;">PILIH PESERTA</label>
-                            <input type="text" id="participantSearch" placeholder="Cari nama atau NIM peserta..."
-                                style="width: 100%; padding: 0.8rem 1rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.8); background: rgba(255,255,255,0.5); outline: none; transition: 0.3s; margin-bottom: 0.75rem;"
-                                onfocus="this.style.background='white'; this.style.borderColor='#002f45'">
-                            <select name="recipient_ids[]" id="recipientSelect" multiple size="8"
-                                style="width: 100%; padding: 0.8rem 1rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.8); background: rgba(255,255,255,0.5); outline: none; transition: 0.3s;">
-                                @foreach($participants as $participant)
-                                    <option value="{{ $participant->id }}" data-search="{{ strtolower($participant->name . ' ' . ($participant->nim ?? '')) }}" {{ in_array($participant->id, $selectedRecipientIds) ? 'selected' : '' }}>
-                                        {{ $participant->name }} ({{ $participant->nim ?? '-' }})
-                                    </option>
-                                @endforeach
-                            </select>
-                            <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #002f45; opacity: 0.7;">Ketik untuk memfilter peserta. Tekan Ctrl/Cmd untuk memilih beberapa peserta sekaligus. Jika di mobile, cukup tap pada opsi yang diinginkan.</p>
+                            <div style="border: 1px solid rgba(255,255,255,0.8); border-radius: 1rem; overflow: hidden; background: rgba(255,255,255,0.7); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);">
+                                <div style="padding: 0.8rem 1rem; border-bottom: 1px solid rgba(0,47,69,0.08); background: rgba(255,255,255,0.8);">
+                                    <input type="text" id="searchPeserta" placeholder="Cari nama peserta atau kelompok..."
+                                        style="width: 100%; padding: 0.7rem 0.9rem; border-radius: 0.9rem; border: 1px solid rgba(255,255,255,0.8); background: rgba(255,255,255,0.6); outline: none; transition: 0.3s;"
+                                        onfocus="this.style.background='white'; this.style.borderColor='#002f45'">
+                                </div>
+                                <div style="max-height: 320px; overflow: auto;">
+                                    <table style="width: 100%; border-collapse: collapse;" id="tablePeserta">
+                                        <thead>
+                                            <tr style="background: rgba(0,47,69,0.04);">
+                                                <th style="padding: 0.8rem 1rem; text-align: left; font-size: 0.75rem; color: #002f45; opacity: 0.85;">Nama Peserta</th>
+                                                <th style="padding: 0.8rem 1rem; text-align: center; font-size: 0.75rem; color: #002f45; opacity: 0.85; width: 110px;">Kelompok</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @php $groupedPesertas = $participants->groupBy('kelompok'); @endphp
+                                            @forelse($groupedPesertas as $noKelompok => $daftarPeserta)
+                                                <tr style="background: rgba(0,47,69,0.03);">
+                                                    <td colspan="2" style="padding: 0.6rem 1rem; font-size: 0.8rem; font-weight: 700; color: #002f45; opacity: 0.8;">
+                                                        🌿 KELOMPOK {{ $noKelompok ?? 'TANPA KELOMPOK' }}
+                                                    </td>
+                                                </tr>
+                                                @foreach($daftarPeserta as $participant)
+                                                    <tr class="peserta-row" data-id="{{ $participant->id }}" data-name="{{ $participant->name }}" data-kelompok="{{ $participant->kelompok ?? '-' }}" style="cursor: pointer; transition: 0.2s;">
+                                                        <td style="padding: 0.8rem 1rem; border-top: 1px solid rgba(0,47,69,0.05);">
+                                                            <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-weight: 600; color: #002f45;">
+                                                                <input type="checkbox" name="recipient_ids[]" value="{{ $participant->id }}" {{ in_array($participant->id, $selectedRecipientIds) ? 'checked' : '' }} style="accent-color: #002f45; width: 16px; height: 16px;">
+                                                                {{ $participant->name }}
+                                                            </label>
+                                                        </td>
+                                                        <td style="padding: 0.8rem 1rem; border-top: 1px solid rgba(0,47,69,0.05); text-align: center; color: #002f45; opacity: 0.75;">{{ $participant->kelompok ?? '-' }}</td>
+                                                    </tr>
+                                                @endforeach
+                                            @empty
+                                                <tr>
+                                                    <td colspan="2" style="padding: 1rem; text-align: center; color: #002f45; opacity: 0.6;">Tidak ada data peserta ditemukan.</td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #002f45; opacity: 0.7;">Pilih satu atau lebih peserta. Klik baris untuk memilih atau menonaktifkan.</p>
                         </div>
 
                         <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
@@ -283,17 +314,32 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const searchInput = document.getElementById('participantSearch');
-            const select = document.getElementById('recipientSelect');
+            const searchInput = document.getElementById('searchPeserta');
+            const table = document.getElementById('tablePeserta');
 
-            if (!searchInput || !select) return;
+            if (!searchInput || !table) return;
 
             searchInput.addEventListener('input', function () {
                 const query = this.value.toLowerCase().trim();
-                Array.from(select.options).forEach(function (option) {
-                    const searchable = (option.getAttribute('data-search') || '').toLowerCase();
+                const rows = table.querySelectorAll('tr.peserta-row');
+
+                rows.forEach(function (row) {
+                    const searchable = `${row.getAttribute('data-name') || ''} ${row.getAttribute('data-kelompok') || ''}`.toLowerCase();
                     const matches = !query || searchable.includes(query);
-                    option.style.display = matches ? '' : 'none';
+                    row.style.display = matches ? '' : 'none';
+                });
+            });
+
+            table.querySelectorAll('tr.peserta-row').forEach(function (row) {
+                row.addEventListener('click', function (event) {
+                    if (event.target.tagName === 'INPUT' || event.target.closest('label')) {
+                        return;
+                    }
+
+                    const checkbox = row.querySelector('input[name="recipient_ids[]"]');
+                    if (checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                    }
                 });
             });
         });
