@@ -10,7 +10,6 @@ use App\Models\TugasPengumpulan;
 use App\Models\BarangKebutuhan;
 use App\Models\PengumpulanBarang;
 use App\Models\CaptureMoment;
-use App\Models\PersonalBroadcastRecipient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -44,29 +43,6 @@ class PesertaController extends Controller
         $barangBelum = max(0, $totalBarangAktif - $barangLengkap);
         $links       = \App\Models\Link::all();
         $pengumuman  = \App\Models\InformasiPeserta::latest()->get();
-        $personalBroadcasts = collect();
-
-        try {
-            if (Schema::hasTable('personal_broadcasts') && Schema::hasTable('personal_broadcast_recipients')) {
-                $personalBroadcasts = PersonalBroadcastRecipient::where('user_id', $user->id)
-                    ->with('broadcast')
-                    ->latest()
-                    ->get()
-                    ->groupBy('personal_broadcast_id')
-                    ->filter(function ($group) {
-                        return !$group->contains(function ($recipient) {
-                            return !is_null($recipient->viewed_at);
-                        });
-                    })
-                    ->map(function ($group) {
-                        return $group->first();
-                    })
-                    ->values();
-            }
-        } catch (\Throwable $e) {
-            report($e);
-            $personalBroadcasts = collect();
-        }
 
         // =========================================================================
         // LOGIKA PERHITUNGAN TOTAL POIN REALTIME UNTUK SELURUH PESERTA (DAPAT RANKING)
