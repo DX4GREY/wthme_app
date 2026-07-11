@@ -317,7 +317,7 @@
     @php
         $personalBroadcastsJson = $personalBroadcasts->map(function ($broadcast) {
             return [
-                'id' => $broadcast->id,
+                'id' => $broadcast->personal_broadcast_id,
                 'judul' => optional($broadcast->broadcast)->judul ?? '',
                 'konten' => optional($broadcast->broadcast)->konten ?? '',
             ];
