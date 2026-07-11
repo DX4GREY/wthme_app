@@ -49,10 +49,19 @@ class PesertaController extends Controller
         try {
             if (Schema::hasTable('personal_broadcasts') && Schema::hasTable('personal_broadcast_recipients')) {
                 $personalBroadcasts = PersonalBroadcastRecipient::where('user_id', $user->id)
-                    ->whereNull('viewed_at')
                     ->with('broadcast')
                     ->latest()
-                    ->get();
+                    ->get()
+                    ->groupBy('personal_broadcast_id')
+                    ->filter(function ($group) {
+                        return !$group->contains(function ($recipient) {
+                            return !is_null($recipient->viewed_at);
+                        });
+                    })
+                    ->map(function ($group) {
+                        return $group->first();
+                    })
+                    ->values();
             }
         } catch (\Throwable $e) {
             report($e);
@@ -167,14 +176,10 @@ class PesertaController extends Controller
             return response()->json(['success' => true]);
         }
 
-        $recipient = PersonalBroadcastRecipient::where('user_id', auth()->id())
+        PersonalBroadcastRecipient::where('user_id', auth()->id())
             ->where('personal_broadcast_id', $id)
-            ->first();
-
-        if ($recipient && is_null($recipient->viewed_at)) {
-            $recipient->viewed_at = now();
-            $recipient->save();
-        }
+            ->whereNull('viewed_at')
+            ->update(['viewed_at' => now()]);
 
         return response()->json(['success' => true]);
     }

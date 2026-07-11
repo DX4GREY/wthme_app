@@ -263,6 +263,19 @@ class PanitiaController extends Controller
 
         if (Schema::hasTable('personal_broadcasts') && Schema::hasTable('personal_broadcast_recipients')) {
             $broadcasts = PersonalBroadcast::with('recipients.user')->latest()->get();
+            $broadcasts->each(function ($broadcast) {
+                $broadcast->recipients = $broadcast->recipients
+                    ->groupBy('user_id')
+                    ->map(function ($group) {
+                        $recipient = $group->first();
+                        if ($group->contains(fn ($row) => !is_null($row->viewed_at))) {
+                            $viewed = $group->firstWhere('viewed_at', '!=', null);
+                            $recipient->viewed_at = $viewed->viewed_at;
+                        }
+                        return $recipient;
+                    })
+                    ->values();
+            });
         }
 
         if ($request->filled('edit')) {
