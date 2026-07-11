@@ -130,15 +130,18 @@
 
                     <div style="margin-bottom: 1.5rem;">
                         <label style="display:block; font-size: 0.75rem; font-weight: 800; color: #002f45; margin-bottom: 0.6rem; opacity: 0.8;">PILIH PESERTA</label>
-                        <select name="recipient_ids[]" multiple size="8"
+                        <input type="text" id="participantSearch" placeholder="Cari nama atau NIM peserta..."
+                            style="width: 100%; padding: 0.8rem 1rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.8); background: rgba(255,255,255,0.5); outline: none; transition: 0.3s; margin-bottom: 0.75rem;"
+                            onfocus="this.style.background='white'; this.style.borderColor='#002f45'">
+                        <select name="recipient_ids[]" id="recipientSelect" multiple size="8"
                             style="width: 100%; padding: 0.8rem 1rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.8); background: rgba(255,255,255,0.5); outline: none; transition: 0.3s;">
                             @foreach($participants as $participant)
-                                <option value="{{ $participant->id }}" {{ in_array($participant->id, $selectedRecipientIds) ? 'selected' : '' }}>
+                                <option value="{{ $participant->id }}" data-search="{{ strtolower($participant->name . ' ' . ($participant->nim ?? '')) }}" {{ in_array($participant->id, $selectedRecipientIds) ? 'selected' : '' }}>
                                     {{ $participant->name }} ({{ $participant->nim ?? '-' }})
                                 </option>
                             @endforeach
                         </select>
-                        <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #002f45; opacity: 0.7;">Tekan Ctrl/Cmd untuk memilih beberapa peserta sekaligus.</p>
+                        <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #002f45; opacity: 0.7;">Ketik untuk memfilter peserta. Tekan Ctrl/Cmd untuk memilih beberapa peserta sekaligus.</p>
                     </div>
 
                     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
@@ -274,6 +277,24 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchInput = document.getElementById('participantSearch');
+            const select = document.getElementById('recipientSelect');
+
+            if (!searchInput || !select) return;
+
+            searchInput.addEventListener('input', function () {
+                const query = this.value.toLowerCase().trim();
+                Array.from(select.options).forEach(function (option) {
+                    const searchable = (option.getAttribute('data-search') || '').toLowerCase();
+                    const matches = !query || searchable.includes(query);
+                    option.style.display = matches ? '' : 'none';
+                });
+            });
+        });
+    </script>
 
     {{-- <style>
     @keyframes fadeInUp {
