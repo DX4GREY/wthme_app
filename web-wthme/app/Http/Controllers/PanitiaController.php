@@ -280,6 +280,9 @@ class PanitiaController extends Controller
 
         if ($request->filled('edit')) {
             $editingBroadcast = PersonalBroadcast::with('recipients')->findOrFail($request->query('edit'));
+            if (!$editingBroadcast) {
+                return redirect()->route('panitia.info.peserta.index');
+            }
         }
 
         return view('panitia.informasi_peserta', compact('infos', 'participants', 'broadcasts', 'editingBroadcast'));

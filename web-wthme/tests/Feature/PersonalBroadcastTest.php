@@ -35,3 +35,18 @@ it('admin can create a personal broadcast and participant can mark it as viewed'
 
     $this->assertNotNull($recipient->viewed_at);
 });
+
+it('only admin can see the personal broadcast panel', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $panitia = User::factory()->create(['role' => 'panitia']);
+
+    $this->actingAs($admin);
+    $adminResponse = $this->get(route('panitia.info.peserta.index'));
+    $adminResponse->assertOk()
+        ->assertSee('Broadcast Personal (Admin)');
+
+    $this->actingAs($panitia);
+    $panitiaResponse = $this->get(route('panitia.info.peserta.index'));
+    $panitiaResponse->assertOk()
+        ->assertDontSee('Broadcast Personal (Admin)');
+});
