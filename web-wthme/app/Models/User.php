@@ -52,7 +52,7 @@ class User extends Authenticatable
 
     public function isPeserta(): bool
     {
-        return in_array($this->role, ['peserta', 'admin']);
+        return in_array($this->role, ['peserta']);
     }
 
     public function isAdmin(): bool
