@@ -71,6 +71,12 @@
                 {{ session('success') }}
             </div>
         @endif
+        @if (session('error'))
+            <div
+                style="background:#fee2e2; color:#991b1b; padding:1rem; border-radius:0.75rem; margin-bottom:1.5rem; border:1px solid #fecaca; font-size:0.875rem;">
+                {{ session('error') }}
+            </div>
+        @endif
 
         {{-- --- BAGIAN PANITIA --- --}}
         <h2

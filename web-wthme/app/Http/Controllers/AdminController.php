@@ -223,6 +223,13 @@ class AdminController extends Controller
     /** Pusat kendali aplikasi yang hanya tersedia untuk admin. */
     public function controlCenter(Request $request)
     {
+        if (! Schema::hasColumn('users', 'is_active') || ! Schema::hasTable('audit_logs')) {
+            return redirect()->route('admin.index')->with(
+                'error',
+                'Control Center memerlukan migrasi database. Jalankan php artisan migrate terlebih dahulu.'
+            );
+        }
+
         $users = User::query()
             ->when($request->query('search'), function ($query, $search) {
                 $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")
