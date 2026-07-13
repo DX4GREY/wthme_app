@@ -12,7 +12,7 @@ class PesertaMiddleware
     {
         if (!auth()->check() || !auth()->user()->isPeserta()) {
             return redirect()->route('dashboard')
-                ->with('error', 'Akses ditolak. Halaman ini untuk peserta atau admin.');
+                ->with('error', 'Akses ditolak. Halaman ini untuk peserta.');
         }
         return $next($request);
     }
