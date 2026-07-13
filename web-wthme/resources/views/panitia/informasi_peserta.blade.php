@@ -2,7 +2,7 @@
 
 @section('content')
     @php
-        $isAdmin = auth()->check() && auth()->user()->isAdmin();
+        $isSuperAdmin = auth()->check() && auth()->user()->isSuperAdmin();
         $selectedRecipientIds = $editingBroadcast?->recipients->pluck('user_id')->all() ?? [];
     @endphp
 
@@ -91,7 +91,7 @@
                 </form>
             </div>
 
-            @if ($isAdmin)
+            @if ($isSuperAdmin)
                 {{-- Personal Broadcast Section --}}
                 <div
                     style="background: rgba(255, 255, 255, 0.4); 

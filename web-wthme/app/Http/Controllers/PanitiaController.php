@@ -146,8 +146,8 @@ class PanitiaController extends Controller
 
     public function storePersonalBroadcast(Request $request)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'Hanya admin yang dapat membuat broadcast personal.');
+        if (!auth()->user()->isSuperAdmin()) {
+            abort(403, 'Hanya super admin yang dapat membuat broadcast personal.');
         }
 
         if (!Schema::hasTable('personal_broadcasts') || !Schema::hasTable('personal_broadcast_recipients')) {
@@ -181,8 +181,8 @@ class PanitiaController extends Controller
 
     public function updatePersonalBroadcast(Request $request, $id)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'Hanya admin yang dapat mengubah broadcast personal.');
+        if (!auth()->user()->isSuperAdmin()) {
+            abort(403, 'Hanya super admin yang dapat mengubah broadcast personal.');
         }
 
         if (!Schema::hasTable('personal_broadcasts') || !Schema::hasTable('personal_broadcast_recipients')) {
@@ -241,8 +241,8 @@ class PanitiaController extends Controller
 
     public function destroyPersonalBroadcast($id)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'Hanya admin yang dapat menghapus broadcast personal.');
+        if (!auth()->user()->isSuperAdmin()) {
+            abort(403, 'Hanya super admin yang dapat menghapus broadcast personal.');
         }
 
         if (!Schema::hasTable('personal_broadcasts') || !Schema::hasTable('personal_broadcast_recipients')) {

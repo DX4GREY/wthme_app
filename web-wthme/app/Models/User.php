@@ -60,6 +60,11 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'admin' && $this->divisi === 'SUPERADMIN';
+    }
+
     public function isBendahara(): bool
     {
         return in_array($this->role, ['bendahara', 'admin']);
