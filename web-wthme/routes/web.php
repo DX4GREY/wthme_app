@@ -32,7 +32,7 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::middleware(['auth', 'secure.uploads'])->group(function () {
+Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/profile',   [ProfileController::class, 'edit'])->name('profile.edit');
@@ -60,6 +60,12 @@ Route::middleware(['auth', 'secure.uploads'])->group(function () {
         Route::post('/import-peserta', [AdminController::class, 'importPesertaStore'])->name('import.peserta.store');
         Route::get('/template-peserta', [AdminController::class, 'downloadTemplatePeserta'])->name('template.peserta');
         Route::post('/peserta/reset/{id}', [AdminController::class, 'resetPasswordPeserta'])->name('peserta.reset');
+
+        // Pusat kontrol: otoritas, kesehatan aplikasi, dan jejak audit.
+        Route::get('/control-center', [AdminController::class, 'controlCenter'])->name('control-center');
+        Route::put('/users/{id}/authority', [AdminController::class, 'updateAuthority'])->name('users.authority');
+        Route::patch('/users/{id}/status', [AdminController::class, 'updateUserStatus'])->name('users.status');
+        Route::post('/system/{action}', [AdminController::class, 'runSystemAction'])->name('system.action');
 
         // 🟢 PINDAH KE SINI: Route Import Abang-Abang KBMS khusus Admin
         // --- EDIT PADA BAGIAN KELOMPOK ROUTE INI SAJA ---

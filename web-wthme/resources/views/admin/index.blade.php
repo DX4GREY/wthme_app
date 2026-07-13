@@ -19,6 +19,10 @@
                 </p>
             </div>
             <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                <a href="{{ route('admin.control-center') }}"
+                    style="padding:0.6rem 1.25rem; background:#002f45; color:#fff; border-radius:0.6rem; text-decoration:none; font-size:0.875rem; font-weight:700;">
+                    ⚙ Control Center
+                </a>
                 {{-- 🟢 PERBAIKAN DI SINI: Mengubah route lama ke route admin baru --}}
                 <a href="{{ route('admin.abang.import') }}"
                     style="padding:0.6rem 1.25rem; background:#bdd1d3; color:#002f45; border-radius:0.6rem; 
