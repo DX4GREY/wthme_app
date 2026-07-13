@@ -25,6 +25,7 @@ class User extends Authenticatable
         'gender',
         'face_registered',
         'face_registered_at',
+        'is_active',
     ];
 
     protected $hidden = [
@@ -41,6 +42,7 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'face_registered'    => 'boolean',
             'face_registered_at' => 'datetime',
+            'is_active'          => 'boolean',
         ];
     }
 
@@ -58,6 +60,11 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'admin' && $this->divisi === 'SUPERADMIN';
     }
 
     public function isBendahara(): bool

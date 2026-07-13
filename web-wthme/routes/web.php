@@ -32,7 +32,7 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::middleware(['auth', 'secure.uploads'])->group(function () {
+Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/profile',   [ProfileController::class, 'edit'])->name('profile.edit');
@@ -41,6 +41,7 @@ Route::middleware(['auth', 'secure.uploads'])->group(function () {
     Route::get('/ganti-password', [ChangePasswordController::class, 'show'])->name('password.change');
     Route::put('/ganti-password', [ChangePasswordController::class, 'update'])->name('password.change.update');
     Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
+    Route::post('/broadcast-personal/{id}/lihat', [PesertaController::class, 'markPersonalBroadcastViewed'])->name('peserta.personal.broadcast.viewed');
 
     // --- ADMIN ---
     Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
@@ -59,6 +60,12 @@ Route::middleware(['auth', 'secure.uploads'])->group(function () {
         Route::post('/import-peserta', [AdminController::class, 'importPesertaStore'])->name('import.peserta.store');
         Route::get('/template-peserta', [AdminController::class, 'downloadTemplatePeserta'])->name('template.peserta');
         Route::post('/peserta/reset/{id}', [AdminController::class, 'resetPasswordPeserta'])->name('peserta.reset');
+
+        // Pusat kontrol: otoritas, kesehatan aplikasi, dan jejak audit.
+        Route::get('/control-center', [AdminController::class, 'controlCenter'])->name('control-center');
+        Route::put('/users/{id}/authority', [AdminController::class, 'updateAuthority'])->name('users.authority');
+        Route::patch('/users/{id}/status', [AdminController::class, 'updateUserStatus'])->name('users.status');
+        Route::post('/system/{action}', [AdminController::class, 'runSystemAction'])->name('system.action');
 
         // 🟢 PINDAH KE SINI: Route Import Abang-Abang KBMS khusus Admin
         // --- EDIT PADA BAGIAN KELOMPOK ROUTE INI SAJA ---
@@ -82,6 +89,9 @@ Route::middleware(['auth', 'secure.uploads'])->group(function () {
         Route::get('/informasi-peserta', [PanitiaController::class, 'indexInfoPeserta'])->name('info.peserta.index');
         Route::post('/informasi-peserta', [PanitiaController::class, 'storeInfoPeserta'])->name('info.peserta.store');
         Route::delete('/informasi-peserta/{id}', [PanitiaController::class, 'destroyInfoPeserta'])->name('info.peserta.destroy');
+        Route::post('/broadcast-personal', [PanitiaController::class, 'storePersonalBroadcast'])->name('info.peserta.personal.store');
+        Route::put('/broadcast-personal/{id}', [PanitiaController::class, 'updatePersonalBroadcast'])->name('info.peserta.personal.update');
+        Route::delete('/broadcast-personal/{id}', [PanitiaController::class, 'destroyPersonalBroadcast'])->name('info.peserta.personal.destroy');
         Route::get('/absensi/face-gate',     [FaceAbsensiController::class, 'gate'])->name('absen.face.gate');
         Route::post('/absensi/face-gate',    [FaceAbsensiController::class, 'gateProcess'])->name('absen.face.process');
 

@@ -9,7 +9,10 @@ use App\Models\AbsensiPanitia;
 use App\Models\User;
 use App\Models\Link;
 use App\Models\InformasiPeserta;
+use App\Models\PersonalBroadcast;
+use App\Models\PersonalBroadcastRecipient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class PanitiaController extends Controller
 {
@@ -141,14 +144,147 @@ class PanitiaController extends Controller
         return back()->with('success', 'Pengumuman telah terkirim ke portal peserta!');
     }
 
+    public function storePersonalBroadcast(Request $request)
+    {
+        if (!auth()->user()->isSuperAdmin()) {
+            abort(403, 'Hanya super admin yang dapat membuat broadcast personal.');
+        }
+
+        if (!Schema::hasTable('personal_broadcasts') || !Schema::hasTable('personal_broadcast_recipients')) {
+            return back()->with('error', 'Broadcast personal belum siap karena migrasi database belum dijalankan.');
+        }
+
+        $request->validate([
+            'judul' => 'required|string|max:255',
+            'konten' => 'required|string',
+            'recipient_ids' => 'nullable|array',
+            'recipient_ids.*' => 'exists:users,id',
+        ]);
+
+        $broadcast = PersonalBroadcast::create([
+            'judul' => $request->judul,
+            'konten' => $request->konten,
+            'created_by' => auth()->id(),
+        ]);
+
+        $recipientIds = collect($request->input('recipient_ids', []))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => ['user_id' => (int) $id])
+            ->all();
+
+        if (!empty($recipientIds)) {
+            $broadcast->recipients()->createMany($recipientIds);
+        }
+
+        return back()->with('success', 'Broadcast personal berhasil dikirim.');
+    }
+
+    public function updatePersonalBroadcast(Request $request, $id)
+    {
+        if (!auth()->user()->isSuperAdmin()) {
+            abort(403, 'Hanya super admin yang dapat mengubah broadcast personal.');
+        }
+
+        if (!Schema::hasTable('personal_broadcasts') || !Schema::hasTable('personal_broadcast_recipients')) {
+            return back()->with('error', 'Broadcast personal belum siap karena migrasi database belum dijalankan.');
+        }
+
+        $broadcast = PersonalBroadcast::findOrFail($id);
+
+        $request->validate([
+            'judul' => 'required|string|max:255',
+            'konten' => 'required|string',
+            'recipient_ids' => 'nullable|array',
+            'recipient_ids.*' => 'exists:users,id',
+        ]);
+
+        $broadcast->update([
+            'judul' => $request->judul,
+            'konten' => $request->konten,
+        ]);
+
+        $newRecipientIds = collect($request->input('recipient_ids', []))
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (int) $value)
+            ->unique()
+            ->values()
+            ->all();
+
+        $existingRecipients = $broadcast->recipients()->get()->keyBy('user_id');
+
+        // Hapus peserta yang tidak lagi menjadi target
+        $toDelete = $existingRecipients->keys()->diff($newRecipientIds);
+        if ($toDelete->isNotEmpty()) {
+            PersonalBroadcastRecipient::where('personal_broadcast_id', $broadcast->id)
+                ->whereIn('user_id', $toDelete->all())
+                ->delete();
+        }
+
+        // Pertahankan viewed_at untuk peserta yang masih ada,
+        // dan tambahkan peserta baru tanpa viewed_at.
+        $toKeep = $existingRecipients->keys()->intersect($newRecipientIds);
+        $toCreate = collect($newRecipientIds)->diff($toKeep)->map(fn ($value) => ['user_id' => $value])->all();
+
+        if (!empty($toCreate)) {
+            $broadcast->recipients()->createMany($toCreate);
+        }
+
+        return redirect()->route('panitia.info.peserta.index', ['edit' => $broadcast->id])
+            ->with('success', 'Broadcast personal berhasil diperbarui.');
+    }
+
     public function destroyInfoPeserta($id)
     {
         InformasiPeserta::findOrFail($id)->delete();
         return back()->with('success', 'Pengumuman dihapus.');
     }
-    public function indexInfoPeserta()
+
+    public function destroyPersonalBroadcast($id)
     {
-        $infos = \App\Models\InformasiPeserta::latest()->get();
-        return view('panitia.informasi_peserta', compact('infos'));
+        if (!auth()->user()->isSuperAdmin()) {
+            abort(403, 'Hanya super admin yang dapat menghapus broadcast personal.');
+        }
+
+        if (!Schema::hasTable('personal_broadcasts') || !Schema::hasTable('personal_broadcast_recipients')) {
+            return back()->with('error', 'Broadcast personal belum siap karena migrasi database belum dijalankan.');
+        }
+
+        PersonalBroadcast::findOrFail($id)->delete();
+        return back()->with('success', 'Broadcast personal dihapus.');
+    }
+
+    public function indexInfoPeserta(Request $request)
+    {
+        $infos = InformasiPeserta::latest()->get();
+        $participants = User::where('role', 'peserta')->orderBy('name')->get();
+
+        $broadcasts = collect();
+        $editingBroadcast = null;
+
+        if (Schema::hasTable('personal_broadcasts') && Schema::hasTable('personal_broadcast_recipients')) {
+            $broadcasts = PersonalBroadcast::with('recipients.user')->latest()->get();
+            $broadcasts->each(function ($broadcast) {
+                $broadcast->recipients = $broadcast->recipients
+                    ->groupBy('user_id')
+                    ->map(function ($group) {
+                        $recipient = $group->first();
+                        if ($group->contains(fn ($row) => !is_null($row->viewed_at))) {
+                            $viewed = $group->firstWhere('viewed_at', '!=', null);
+                            $recipient->viewed_at = $viewed->viewed_at;
+                        }
+                        return $recipient;
+                    })
+                    ->values();
+            });
+        }
+
+        if ($request->filled('edit')) {
+            $editingBroadcast = PersonalBroadcast::with('recipients')->find($request->query('edit'));
+            if (!$editingBroadcast) {
+                return redirect()->route('panitia.info.peserta.index');
+            }
+        }
+
+        return view('panitia.informasi_peserta', compact('infos', 'participants', 'broadcasts', 'editingBroadcast'));
     }
 }

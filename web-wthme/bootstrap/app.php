@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'bendahara'             => \App\Http\Middleware\BendaharaMiddleware::class,
             'mentor'               => \App\Http\Middleware\MentorMiddleware::class,
             'secure.uploads'       => \App\Http\Middleware\SecureUploadsMiddleware::class,
+            'active.user'         => \App\Http\Middleware\EnsureUserIsActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

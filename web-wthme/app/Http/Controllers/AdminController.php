@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Imports\PanitiaImport;
 use App\Imports\PesertaImport;
 use App\Exports\TemplatePesertaExport; // Pastikan kelas export ini sudah dibuat
@@ -11,6 +15,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class AdminController extends Controller
 {
+    private const MANAGEABLE_ROLES = ['peserta', 'panitia', 'mentor', 'bendahara', 'korlap', 'admin'];
+
     /**
      * Halaman Utama Panel Admin
      */
@@ -90,9 +96,11 @@ class AdminController extends Controller
     public function deletePanitia($id)
     {
         $user = User::where('id', $id)->where('role', 'panitia')->firstOrFail();
+        $name = $user->name;
+        $this->audit(request(), 'user.deleted', $user, ['name' => $name, 'role' => $user->role]);
         $user->delete();
 
-        return back()->with('success', 'Akun panitia ' . $user->name . ' berhasil dihapus.');
+        return back()->with('success', 'Akun panitia ' . $name . ' berhasil dihapus.');
     }
 
     /**
@@ -105,6 +113,7 @@ class AdminController extends Controller
             'password'             => bcrypt($user->nim),
             'must_change_password' => true,
         ]);
+        $this->audit(request(), 'password.reset', $user, ['target_role' => 'panitia']);
 
         return back()->with('success', 'Password ' . $user->name . ' berhasil direset ke NIM.');
     }
@@ -206,7 +215,112 @@ class AdminController extends Controller
             'password'             => bcrypt($user->nim),
             'must_change_password' => true,
         ]);
+        $this->audit(request(), 'password.reset', $user, ['target_role' => 'peserta']);
 
         return back()->with('success', 'Password peserta ' . $user->name . ' berhasil direset ke NIM.');
+    }
+
+    /** Pusat kendali aplikasi yang hanya tersedia untuk admin. */
+    public function controlCenter(Request $request)
+    {
+        if (! Schema::hasColumn('users', 'is_active') || ! Schema::hasTable('audit_logs')) {
+            return redirect()->route('admin.index')->with(
+                'error',
+                'Control Center memerlukan migrasi database. Jalankan php artisan migrate terlebih dahulu.'
+            );
+        }
+
+        $users = User::query()
+            ->when($request->query('search'), function ($query, $search) {
+                $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('nim', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%"));
+            })
+            ->orderBy('role')->orderBy('name')->get();
+
+        $health = [
+            'environment' => app()->environment(),
+            'app_url' => config('app.url'),
+            'cache_driver' => config('cache.default'),
+            'queue_driver' => config('queue.default'),
+            'failed_jobs' => Schema::hasTable('failed_jobs') ? DB::table('failed_jobs')->count() : null,
+            'storage_ready' => is_writable(storage_path()),
+        ];
+
+        $stats = [
+            'total_users' => User::count(),
+            'active_users' => User::where('is_active', true)->count(),
+            'admin_users' => User::where('role', 'admin')->count(),
+            'inactive_users' => User::where('is_active', false)->count(),
+        ];
+
+        $auditLogs = AuditLog::with('actor:id,name')->latest()->take(20)->get();
+
+        return view('admin.control-center', compact('users', 'health', 'stats', 'auditLogs'));
+    }
+
+    public function updateAuthority(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $data = $request->validate([
+            'role' => ['required', 'in:' . implode(',', self::MANAGEABLE_ROLES)],
+            'divisi' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        if ($user->id === $request->user()->id && $data['role'] !== 'admin') {
+            return back()->with('error', 'Anda tidak dapat mencabut otoritas admin dari akun sendiri.');
+        }
+        if ($user->role === 'admin' && $user->is_active && $data['role'] !== 'admin' && User::where('role', 'admin')->where('is_active', true)->count() <= 1) {
+            return back()->with('error', 'Sistem wajib memiliki minimal satu administrator aktif.');
+        }
+
+        $before = $user->only(['role', 'divisi']);
+        $user->update($data);
+        $this->audit($request, 'authority.updated', $user, ['before' => $before, 'after' => $user->only(['role', 'divisi'])]);
+
+        return back()->with('success', "Otoritas {$user->name} berhasil diperbarui.");
+    }
+
+    public function updateUserStatus(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $data = $request->validate(['is_active' => ['required', 'boolean']]);
+        $active = (bool) $data['is_active'];
+
+        if ($user->id === $request->user()->id && ! $active) {
+            return back()->with('error', 'Anda tidak dapat menonaktifkan akun sendiri.');
+        }
+        if ($user->role === 'admin' && ! $active && User::where('role', 'admin')->where('is_active', true)->count() <= 1) {
+            return back()->with('error', 'Sistem wajib memiliki minimal satu administrator aktif.');
+        }
+
+        $user->update(['is_active' => $active]);
+        $this->audit($request, $active ? 'user.activated' : 'user.deactivated', $user);
+
+        return back()->with('success', "Akun {$user->name} " . ($active ? 'diaktifkan.' : 'dinonaktifkan.'));
+    }
+
+    public function runSystemAction(Request $request, string $action)
+    {
+        $commands = ['clear-cache' => 'cache:clear', 'clear-optimized' => 'optimize:clear'];
+        abort_unless(array_key_exists($action, $commands), 404);
+
+        Artisan::call($commands[$action]);
+        $this->audit($request, 'system.' . $action, null, ['command' => $commands[$action]]);
+
+        return back()->with('success', 'Tindakan infrastruktur berhasil dijalankan.');
+    }
+
+    private function audit(Request $request, string $event, ?User $subject = null, array $properties = []): void
+    {
+        AuditLog::create([
+            'actor_id' => $request->user()->id,
+            'event' => $event,
+            'subject_type' => $subject ? User::class : null,
+            'subject_id' => $subject?->id,
+            'properties' => $properties ?: null,
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+        ]);
     }
 }

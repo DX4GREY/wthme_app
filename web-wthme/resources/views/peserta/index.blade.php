@@ -313,7 +313,6 @@
             </div>
         </div>
     </div>
-
     {{-- SCRIPTS --}}
     <script>
         let currentIndex = 0;

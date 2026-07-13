@@ -10,8 +10,10 @@ use App\Models\TugasPengumpulan;
 use App\Models\BarangKebutuhan;
 use App\Models\PengumpulanBarang;
 use App\Models\CaptureMoment;
+use App\Models\PersonalBroadcastRecipient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class PesertaController extends Controller
@@ -128,6 +130,30 @@ class PesertaController extends Controller
             }
         }
 
+        // Personal broadcasts (safely load if tables exist)
+        $personalBroadcasts = collect();
+        try {
+            if (Schema::hasTable('personal_broadcasts') && Schema::hasTable('personal_broadcast_recipients')) {
+                $personalBroadcasts = PersonalBroadcastRecipient::where('user_id', $user->id)
+                    ->with('broadcast')
+                    ->latest()
+                    ->get()
+                    ->groupBy('personal_broadcast_id')
+                    ->filter(function ($group) {
+                        return !$group->contains(function ($recipient) {
+                            return !is_null($recipient->viewed_at);
+                        });
+                    })
+                    ->map(function ($group) {
+                        return $group->first();
+                    })
+                    ->values();
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            $personalBroadcasts = collect();
+        }
+
         return view('peserta.index', compact(
             'user', 
             'sudahIsiRiwayat', 
@@ -136,6 +162,7 @@ class PesertaController extends Controller
             'barangBelum', 
             'links', 
             'pengumuman',
+            'personalBroadcasts',
             'totalPoin',
             'myRank' // Variabel peringkat siap dipakai di Blade
         ));
@@ -144,6 +171,20 @@ class PesertaController extends Controller
     /**
      * Menampilkan Form Riwayat Penyakit Peserta
      */
+    public function markPersonalBroadcastViewed($id)
+    {
+        if (!Schema::hasTable('personal_broadcasts') || !Schema::hasTable('personal_broadcast_recipients')) {
+            return response()->json(['success' => true]);
+        }
+
+        PersonalBroadcastRecipient::where('user_id', auth()->id())
+            ->where('personal_broadcast_id', $id)
+            ->whereNull('viewed_at')
+            ->update(['viewed_at' => now()]);
+
+        return response()->json(['success' => true]);
+    }
+
     public function riwayatPenyakit()
     {
         $user = auth()->user();
