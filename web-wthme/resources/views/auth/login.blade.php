@@ -74,6 +74,12 @@
                 Masuk ke akun WTHME kamu
             </p>
 
+            @if (session('error'))
+                <div class="mb-4 p-4 rounded-xl" style="background: rgba(254, 226, 226, 0.6); border: 1px solid rgba(153, 27, 27, 0.2); color:#991b1b;">
+                    <p class="text-xs font-bold">× {{ session('error') }}</p>
+                </div>
+            @endif
+
             @if ($errors->any())
                 <div class="mb-4 p-4 rounded-xl" style="background: rgba(254, 226, 226, 0.6); border: 1px solid rgba(153, 27, 27, 0.2); color:#991b1b;">
                     @foreach ($errors->all() as $error)
