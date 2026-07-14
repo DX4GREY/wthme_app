@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Schema;
 use App\Imports\PanitiaImport;
 use App\Imports\PesertaImport;
 use App\Exports\TemplatePesertaExport; // Pastikan kelas export ini sudah dibuat
+use App\Exports\UsersExport;
 use Maatwebsite\Excel\Facades\Excel;
 
 class AdminController extends Controller
@@ -257,6 +258,22 @@ class AdminController extends Controller
         $auditLogs = AuditLog::with('actor:id,name')->latest()->take(20)->get();
 
         return view('admin.control-center', compact('users', 'health', 'stats', 'auditLogs'));
+    }
+
+    public function exportPeserta()
+    {
+        return Excel::download(
+            new UsersExport('peserta'),
+            'data-peserta-' . now()->format('Ymd') . '.xlsx'
+        );
+    }
+
+    public function exportPanitia()
+    {
+        return Excel::download(
+            new UsersExport('panitia'),
+            'data-panitia-' . now()->format('Ymd') . '.xlsx'
+        );
     }
 
     public function updateAuthority(Request $request, $id)

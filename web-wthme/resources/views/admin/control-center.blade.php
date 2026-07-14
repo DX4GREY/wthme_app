@@ -11,8 +11,8 @@
             <p style="margin:.45rem 0 0;opacity:.65;">Kelola otoritas, data akun, dan kondisi operasional sistem dari satu tempat.</p>
         </div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-            <a href="{{ route('panitia.export.peserta') }}" style="padding:.65rem .9rem;background:#bdd1d3;color:#002f45;border-radius:.55rem;text-decoration:none;font-size:.8rem;font-weight:700;">Export peserta</a>
-            <a href="{{ route('panitia.export.panitia') }}" style="padding:.65rem .9rem;background:#002f45;color:#fff;border-radius:.55rem;text-decoration:none;font-size:.8rem;font-weight:700;">Export panitia</a>
+            <a href="{{ route('admin.export.peserta') }}" style="padding:.65rem .9rem;background:#bdd1d3;color:#002f45;border-radius:.55rem;text-decoration:none;font-size:.8rem;font-weight:700;">Export peserta</a>
+            <a href="{{ route('admin.export.panitia') }}" style="padding:.65rem .9rem;background:#002f45;color:#fff;border-radius:.55rem;text-decoration:none;font-size:.8rem;font-weight:700;">Export panitia</a>
         </div>
     </div>
 
