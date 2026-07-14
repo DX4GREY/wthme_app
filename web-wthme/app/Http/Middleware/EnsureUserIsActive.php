@@ -14,11 +14,14 @@ class EnsureUserIsActive
         // Tetap kompatibel dengan database yang belum menjalankan migrasi Control Center.
         // Pada skema lama, semua akun diperlakukan aktif seperti perilaku aplikasi sebelumnya.
         if (Schema::hasColumn('users', 'is_active') && $request->user() && ! $request->user()->is_active) {
+            $message = $request->user()->deactivation_message
+                ?: 'Akun Anda sedang dinonaktifkan oleh administrator.';
+
             auth()->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return redirect()->route('login')->with('error', 'Akun Anda sedang dinonaktifkan oleh administrator.');
+            return redirect()->route('login')->with('error', $message);
         }
 
         return $next($request);

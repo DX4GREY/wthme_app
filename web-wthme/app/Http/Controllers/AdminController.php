@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Schema;
 use App\Imports\PanitiaImport;
 use App\Imports\PesertaImport;
 use App\Exports\TemplatePesertaExport; // Pastikan kelas export ini sudah dibuat
+use App\Exports\UsersExport;
 use Maatwebsite\Excel\Facades\Excel;
 
 class AdminController extends Controller
@@ -259,6 +260,22 @@ class AdminController extends Controller
         return view('admin.control-center', compact('users', 'health', 'stats', 'auditLogs'));
     }
 
+    public function exportPeserta()
+    {
+        return Excel::download(
+            new UsersExport('peserta'),
+            'data-peserta-' . now()->format('Ymd') . '.xlsx'
+        );
+    }
+
+    public function exportPanitia()
+    {
+        return Excel::download(
+            new UsersExport('panitia'),
+            'data-panitia-' . now()->format('Ymd') . '.xlsx'
+        );
+    }
+
     public function updateAuthority(Request $request, $id)
     {
         $user = User::findOrFail($id);
@@ -284,8 +301,18 @@ class AdminController extends Controller
     public function updateUserStatus(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        $data = $request->validate(['is_active' => ['required', 'boolean']]);
+        $data = $request->validate([
+            'is_active' => ['required', 'boolean'],
+            'deactivation_message' => ['nullable', 'string', 'max:1000'],
+            'ban_reason_id' => ['nullable', 'integer', 'min:1', 'max:999999'],
+        ]);
         $active = (bool) $data['is_active'];
+
+        if (! $active && empty($data['deactivation_message']) && empty($data['ban_reason_id'])) {
+            return back()->withErrors([
+                'deactivation_message' => 'Pesan penonaktifan atau reason ID ban wajib diisi.',
+            ])->withInput();
+        }
 
         if ($user->id === $request->user()->id && ! $active) {
             return back()->with('error', 'Anda tidak dapat menonaktifkan akun sendiri.');
@@ -294,10 +321,24 @@ class AdminController extends Controller
             return back()->with('error', 'Sistem wajib memiliki minimal satu administrator aktif.');
         }
 
-        $user->update(['is_active' => $active]);
-        $this->audit($request, $active ? 'user.activated' : 'user.deactivated', $user);
+        $isBanned = ! $active && ! empty($data['ban_reason_id']);
+        $nim = $user->nim ?? '-';
+        $message = $active
+            ? null
+            : ($isBanned
+                ? "Your account has been BANNED, nim: {$nim}, reason_id: {$data['ban_reason_id']}."
+                : $data['deactivation_message']);
 
-        return back()->with('success', "Akun {$user->name} " . ($active ? 'diaktifkan.' : 'dinonaktifkan.'));
+        $user->update([
+            'is_active' => $active,
+            'deactivation_message' => $message,
+        ]);
+        $this->audit($request, $active ? 'user.activated' : ($isBanned ? 'user.banned' : 'user.deactivated'), $user, [
+            'deactivation_message' => $message,
+            'reason_id' => $data['ban_reason_id'] ?? null,
+        ]);
+
+        return back()->with('success', "Akun {$user->name} " . ($active ? 'diaktifkan.' : ($isBanned ? 'dibanned.' : 'dinonaktifkan.')));
     }
 
     public function runSystemAction(Request $request, string $action)

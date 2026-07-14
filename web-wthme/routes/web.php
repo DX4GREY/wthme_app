@@ -61,6 +61,9 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         Route::get('/template-peserta', [AdminController::class, 'downloadTemplatePeserta'])->name('template.peserta');
         Route::post('/peserta/reset/{id}', [AdminController::class, 'resetPasswordPeserta'])->name('peserta.reset');
 
+        Route::get('/export/peserta', [AdminController::class, 'exportPeserta'])->name('export.peserta');
+        Route::get('/export/panitia', [AdminController::class, 'exportPanitia'])->name('export.panitia');
+
         // Pusat kontrol: otoritas, kesehatan aplikasi, dan jejak audit.
         Route::get('/control-center', [AdminController::class, 'controlCenter'])->name('control-center');
         Route::put('/users/{id}/authority', [AdminController::class, 'updateAuthority'])->name('users.authority');

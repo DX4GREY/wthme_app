@@ -26,6 +26,7 @@ class User extends Authenticatable
         'face_registered',
         'face_registered_at',
         'is_active',
+        'deactivation_message',
     ];
 
     protected $hidden = [
