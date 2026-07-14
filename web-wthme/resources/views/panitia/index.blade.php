@@ -197,8 +197,8 @@
                             [
                                 'route' => 'panitia.capture.index',
                                 'icon' => '📚',
-                                'title' => 'Kelola Tugas Peserta',
-                                'desc' => 'Buat & cek pengumpulan file',
+                                'title' => 'Kelola Capture Moment',
+                                'desc' => 'Kelola capture moment peserta & panitia',
                             ],
                             [
                                 'route' => 'panitia.info.peserta.index',
@@ -273,7 +273,7 @@
                         </a>
                     @endforeach
 
-                    {{-- Special Bendahara Card
+                    {{-- Special Bendahara Card  --}}
                     @if (auth()->user()->isPanitia())
                         <a href="{{ route('panitia.kas.index') }}" class="action-card bendahara-theme">
                             <div class="icon-box" style="background: rgba(210,194,150,0.2);">📒</div>
@@ -284,7 +284,7 @@
                             <span class="role-badge"
                                 style="background: rgba(210,194,150,0.2); color: #d2c296; border-color: rgba(210,194,150,0.3);">BENDAHARA</span>
                         </a>
-                    @endif --}}
+                    @endif
                 </div>
 
                 {{-- Kolom Kanan: Sidebar --}}
