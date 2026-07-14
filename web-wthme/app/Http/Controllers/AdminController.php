@@ -284,7 +284,10 @@ class AdminController extends Controller
     public function updateUserStatus(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        $data = $request->validate(['is_active' => ['required', 'boolean']]);
+        $data = $request->validate([
+            'is_active' => ['required', 'boolean'],
+            'deactivation_message' => ['nullable', 'required_if:is_active,0', 'string', 'max:1000'],
+        ]);
         $active = (bool) $data['is_active'];
 
         if ($user->id === $request->user()->id && ! $active) {
@@ -294,8 +297,13 @@ class AdminController extends Controller
             return back()->with('error', 'Sistem wajib memiliki minimal satu administrator aktif.');
         }
 
-        $user->update(['is_active' => $active]);
-        $this->audit($request, $active ? 'user.activated' : 'user.deactivated', $user);
+        $user->update([
+            'is_active' => $active,
+            'deactivation_message' => $active ? null : $data['deactivation_message'],
+        ]);
+        $this->audit($request, $active ? 'user.activated' : 'user.deactivated', $user, [
+            'deactivation_message' => $active ? null : $data['deactivation_message'],
+        ]);
 
         return back()->with('success', "Akun {$user->name} " . ($active ? 'diaktifkan.' : 'dinonaktifkan.'));
     }
