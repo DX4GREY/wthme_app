@@ -60,15 +60,46 @@
             <tbody>@forelse($users as $user)
                 <tr style="border-top:1px solid #e5e7eb;vertical-align:top;"><td style="padding:1rem;"><strong>{{ $user->name }}</strong><br><small style="opacity:.6;">{{ $user->nim ?? '—' }} · {{ $user->email }}</small></td>
                 <td style="padding:1rem;"><span style="font-weight:700;text-transform:uppercase;">{{ $user->role }}</span><br><small style="opacity:.6;">{{ $user->divisi ?: 'Tanpa divisi' }}</small></td>
-                <td style="padding:1rem;"><span style="color:{{ $user->is_active ? '#15803d' : '#b91c1c' }};font-weight:700;">{{ $user->is_active ? 'Aktif' : 'Nonaktif' }}</span><form method="POST" action="{{ route('admin.users.status', $user) }}" style="margin-top:.5rem;">@csrf @method('PATCH')<input type="hidden" name="is_active" value="{{ $user->is_active ? 0 : 1 }}">@if ($user->is_active)<label for="deactivation_message_{{ $user->id }}" style="display:block;margin:.55rem 0 .25rem;font-size:.72rem;opacity:.7;">Pesan untuk pengguna</label><textarea id="deactivation_message_{{ $user->id }}" name="deactivation_message" required maxlength="1000" rows="3" placeholder="Contoh: Akun Anda dinonaktifkan karena ..." style="width:190px;padding:.45rem;border:1px solid #bdd1d3;border-radius:.4rem;font-size:.72rem;resize:vertical;"></textarea>@else @if ($user->deactivation_message)<small style="display:block;margin:.45rem 0;max-width:190px;opacity:.65;">{{ $user->deactivation_message }}</small>@endif @endif<button style="display:block;margin-top:.5rem;font-size:.72rem;border:0;background:none;color:#002f45;text-decoration:underline;cursor:pointer;">{{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan' }}</button></form></td>
+                <td style="padding:1rem;"><span style="color:{{ $user->is_active ? '#15803d' : '#b91c1c' }};font-weight:700;">{{ $user->is_active ? 'Aktif' : 'Nonaktif' }}</span>@if ($user->is_active)<button type="button" data-deactivate-user data-user-name="{{ $user->name }}" data-action="{{ route('admin.users.status', $user) }}" style="display:block;margin-top:.5rem;font-size:.72rem;border:0;background:none;color:#002f45;text-decoration:underline;cursor:pointer;">Nonaktifkan</button>@else @if ($user->deactivation_message)<small style="display:block;margin:.45rem 0;max-width:190px;opacity:.65;">{{ $user->deactivation_message }}</small>@endif<form method="POST" action="{{ route('admin.users.status', $user) }}" style="margin-top:.5rem;">@csrf @method('PATCH')<input type="hidden" name="is_active" value="1"><button style="font-size:.72rem;border:0;background:none;color:#002f45;text-decoration:underline;cursor:pointer;">Aktifkan</button></form>@endif</td>
                 <td style="padding:1rem;"><form method="POST" action="{{ route('admin.users.authority', $user) }}" style="display:flex;gap:.4rem;align-items:center;">@csrf @method('PUT')<select name="role" style="padding:.45rem;border:1px solid #bdd1d3;border-radius:.4rem;">@foreach(['peserta','panitia','mentor','bendahara','korlap','admin'] as $role)<option value="{{ $role }}" @selected($user->role === $role)>{{ ucfirst($role) }}</option>@endforeach</select><input name="divisi" value="{{ $user->divisi }}" placeholder="Divisi" style="width:95px;padding:.45rem;border:1px solid #bdd1d3;border-radius:.4rem;"><button style="padding:.45rem .65rem;border:0;border-radius:.4rem;background:#002f45;color:#fff;cursor:pointer;">Simpan</button></form></td></tr>
             @empty<tr><td colspan="4" style="padding:2rem;text-align:center;opacity:.6;">Akun tidak ditemukan.</td></tr>@endforelse</tbody>
         </table></div>
     </section>
+
+    <dialog id="deactivation-dialog" style="width:min(460px,calc(100% - 2rem));border:0;border-radius:1rem;padding:0;box-shadow:0 20px 50px rgba(0,0,0,.28);">
+        <form id="deactivation-form" method="POST" style="padding:1.5rem;color:#002f45;">
+            @csrf
+            @method('PATCH')
+            <input type="hidden" name="is_active" value="0">
+            <h2 style="font-family:'Playfair Display',serif;font-size:1.35rem;margin:0 0:.5rem;">Nonaktifkan akun</h2>
+            <p style="font-size:.85rem;line-height:1.5;margin:0 0:1rem;opacity:.7;">Pesan ini akan ditampilkan kepada <strong id="deactivation-user-name"></strong> saat mencoba masuk.</p>
+            <label for="deactivation-message" style="display:block;font-size:.8rem;font-weight:700;margin-bottom:.4rem;">Pesan untuk pengguna</label>
+            <textarea id="deactivation-message" name="deactivation_message" required maxlength="1000" rows="5" placeholder="Contoh: Akun Anda dinonaktifkan karena ..." style="box-sizing:border-box;width:100%;padding:.7rem;border:1px solid #bdd1d3;border-radius:.5rem;resize:vertical;font:inherit;"></textarea>
+            <div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1.25rem;"><button type="button" id="cancel-deactivation" style="padding:.6rem .85rem;border:1px solid #bdd1d3;background:#fff;color:#002f45;border-radius:.5rem;cursor:pointer;">Batal</button><button style="padding:.6rem .85rem;border:0;background:#b91c1c;color:#fff;border-radius:.5rem;cursor:pointer;font-weight:700;">Nonaktifkan akun</button></div>
+        </form>
+    </dialog>
 
     <section style="background:#fff;border:1px solid #bdd1d3;border-radius:1rem;overflow:hidden;">
         <div style="padding:1.25rem;"><h2 style="font-family:'Playfair Display',serif;font-size:1.25rem;margin:0;">Audit log terbaru</h2><p style="font-size:.8rem;opacity:.6;margin:.35rem 0 0;">Catatan perubahan otoritas dan tindakan infrastruktur.</p></div>
         @forelse($auditLogs as $log)<div style="border-top:1px solid #e5e7eb;padding:.8rem 1.25rem;display:flex;justify-content:space-between;gap:1rem;font-size:.85rem;"><span><strong>{{ str_replace('.', ' · ', $log->event) }}</strong> <span style="opacity:.65;">oleh {{ $log->actor?->name ?? 'Sistem' }}</span></span><span style="opacity:.55;white-space:nowrap;">{{ $log->created_at->format('d M Y H:i') }}</span></div>@empty<div style="padding:1.25rem;opacity:.6;">Belum ada tindakan yang tercatat.</div>@endforelse
     </section>
 </div>
+<script>
+    const deactivationDialog = document.getElementById('deactivation-dialog');
+    const deactivationForm = document.getElementById('deactivation-form');
+    const deactivationUserName = document.getElementById('deactivation-user-name');
+    const deactivationMessage = document.getElementById('deactivation-message');
+
+    document.querySelectorAll('[data-deactivate-user]').forEach((button) => {
+        button.addEventListener('click', () => {
+            deactivationForm.action = button.dataset.action;
+            deactivationUserName.textContent = button.dataset.userName;
+            deactivationMessage.value = '';
+            deactivationDialog.showModal();
+            deactivationMessage.focus();
+        });
+    });
+
+    document.getElementById('cancel-deactivation').addEventListener('click', () => deactivationDialog.close());
+</script>
 @endsection
