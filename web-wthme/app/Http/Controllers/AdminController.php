@@ -303,9 +303,16 @@ class AdminController extends Controller
         $user = User::findOrFail($id);
         $data = $request->validate([
             'is_active' => ['required', 'boolean'],
-            'deactivation_message' => ['nullable', 'required_if:is_active,0', 'string', 'max:1000'],
+            'deactivation_message' => ['nullable', 'string', 'max:1000'],
+            'ban_reason_id' => ['nullable', 'integer', 'min:1', 'max:999999'],
         ]);
         $active = (bool) $data['is_active'];
+
+        if (! $active && empty($data['deactivation_message']) && empty($data['ban_reason_id'])) {
+            return back()->withErrors([
+                'deactivation_message' => 'Pesan penonaktifan atau reason ID ban wajib diisi.',
+            ])->withInput();
+        }
 
         if ($user->id === $request->user()->id && ! $active) {
             return back()->with('error', 'Anda tidak dapat menonaktifkan akun sendiri.');
@@ -314,15 +321,24 @@ class AdminController extends Controller
             return back()->with('error', 'Sistem wajib memiliki minimal satu administrator aktif.');
         }
 
+        $isBanned = ! $active && ! empty($data['ban_reason_id']);
+        $nim = $user->nim ?? '-';
+        $message = $active
+            ? null
+            : ($isBanned
+                ? "Your account has been BANNED, nim: {$nim}, reason_id: {$data['ban_reason_id']}."
+                : $data['deactivation_message']);
+
         $user->update([
             'is_active' => $active,
-            'deactivation_message' => $active ? null : $data['deactivation_message'],
+            'deactivation_message' => $message,
         ]);
-        $this->audit($request, $active ? 'user.activated' : 'user.deactivated', $user, [
-            'deactivation_message' => $active ? null : $data['deactivation_message'],
+        $this->audit($request, $active ? 'user.activated' : ($isBanned ? 'user.banned' : 'user.deactivated'), $user, [
+            'deactivation_message' => $message,
+            'reason_id' => $data['ban_reason_id'] ?? null,
         ]);
 
-        return back()->with('success', "Akun {$user->name} " . ($active ? 'diaktifkan.' : 'dinonaktifkan.'));
+        return back()->with('success', "Akun {$user->name} " . ($active ? 'diaktifkan.' : ($isBanned ? 'dibanned.' : 'dinonaktifkan.')));
     }
 
     public function runSystemAction(Request $request, string $action)

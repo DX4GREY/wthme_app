@@ -60,7 +60,7 @@
             <tbody>@forelse($users as $user)
                 <tr style="border-top:1px solid #e5e7eb;vertical-align:top;"><td style="padding:1rem;"><strong>{{ $user->name }}</strong><br><small style="opacity:.6;">{{ $user->nim ?? '—' }} · {{ $user->email }}</small></td>
                 <td style="padding:1rem;"><span style="font-weight:700;text-transform:uppercase;">{{ $user->role }}</span><br><small style="opacity:.6;">{{ $user->divisi ?: 'Tanpa divisi' }}</small></td>
-                <td style="padding:1rem;"><span style="color:{{ $user->is_active ? '#15803d' : '#b91c1c' }};font-weight:700;">{{ $user->is_active ? 'Aktif' : 'Nonaktif' }}</span>@if ($user->is_active)<button type="button" data-deactivate-user data-user-name="{{ $user->name }}" data-action="{{ route('admin.users.status', $user) }}" style="display:block;margin-top:.5rem;font-size:.72rem;border:0;background:none;color:#002f45;text-decoration:underline;cursor:pointer;">Nonaktifkan</button>@else @if ($user->deactivation_message)<small style="display:block;margin:.45rem 0;max-width:190px;opacity:.65;">{{ $user->deactivation_message }}</small>@endif<form method="POST" action="{{ route('admin.users.status', $user) }}" style="margin-top:.5rem;">@csrf @method('PATCH')<input type="hidden" name="is_active" value="1"><button style="font-size:.72rem;border:0;background:none;color:#002f45;text-decoration:underline;cursor:pointer;">Aktifkan</button></form>@endif</td>
+                <td style="padding:1rem;"><span style="color:{{ $user->is_active ? '#15803d' : '#b91c1c' }};font-weight:700;">{{ $user->is_active ? 'Aktif' : 'Nonaktif' }}</span>@if ($user->is_active)<button type="button" data-deactivate-user data-user-name="{{ $user->name }}" data-action="{{ route('admin.users.status', $user) }}" style="display:block;margin-top:.5rem;font-size:.72rem;border:0;background:none;color:#002f45;text-decoration:underline;cursor:pointer;">Nonaktifkan</button><button type="button" data-ban-user data-user-name="{{ $user->name }}" data-user-nim="{{ $user->nim ?? '-' }}" data-action="{{ route('admin.users.status', $user) }}" style="display:block;margin-top:.4rem;font-size:.72rem;border:0;background:none;color:#b91c1c;text-decoration:underline;cursor:pointer;font-weight:700;">Banned</button>@else @if ($user->deactivation_message)<small style="display:block;margin:.45rem 0;max-width:190px;opacity:.65;">{{ $user->deactivation_message }}</small>@endif<form method="POST" action="{{ route('admin.users.status', $user) }}" style="margin-top:.5rem;">@csrf @method('PATCH')<input type="hidden" name="is_active" value="1"><button style="font-size:.72rem;border:0;background:none;color:#002f45;text-decoration:underline;cursor:pointer;">Aktifkan</button></form>@endif</td>
                 <td style="padding:1rem;"><form method="POST" action="{{ route('admin.users.authority', $user) }}" style="display:flex;gap:.4rem;align-items:center;">@csrf @method('PUT')<select name="role" style="padding:.45rem;border:1px solid #bdd1d3;border-radius:.4rem;">@foreach(['peserta','panitia','mentor','bendahara','korlap','admin'] as $role)<option value="{{ $role }}" @selected($user->role === $role)>{{ ucfirst($role) }}</option>@endforeach</select><input name="divisi" value="{{ $user->divisi }}" placeholder="Divisi" style="width:95px;padding:.45rem;border:1px solid #bdd1d3;border-radius:.4rem;"><button style="padding:.45rem .65rem;border:0;border-radius:.4rem;background:#002f45;color:#fff;cursor:pointer;">Simpan</button></form></td></tr>
             @empty<tr><td colspan="4" style="padding:2rem;text-align:center;opacity:.6;">Akun tidak ditemukan.</td></tr>@endforelse</tbody>
         </table></div>
@@ -79,6 +79,20 @@
         </form>
     </dialog>
 
+    <dialog id="ban-dialog" style="width:min(460px,calc(100% - 2rem));border:0;border-radius:1rem;padding:0;box-shadow:0 20px 50px rgba(0,0,0,.28);">
+        <form id="ban-form" method="POST" style="padding:1.5rem;color:#002f45;">
+            @csrf
+            @method('PATCH')
+            <input type="hidden" name="is_active" value="0">
+            <h2 style="font-family:'Playfair Display',serif;font-size:1.35rem;margin:0 0:.5rem;color:#b91c1c;">Banned account</h2>
+            <p style="font-size:.85rem;line-height:1.5;margin:0 0:1rem;opacity:.7;">Akun <strong id="ban-user-name"></strong> (NIM: <strong id="ban-user-nim"></strong>) akan dinonaktifkan sampai admin mengaktifkannya kembali.</p>
+            <label for="ban-reason-id" style="display:block;font-size:.8rem;font-weight:700;margin-bottom:.4rem;">Reason ID pelanggaran</label>
+            <input id="ban-reason-id" name="ban_reason_id" type="number" required min="1" max="999999" placeholder="Contoh: 101" style="box-sizing:border-box;width:100%;padding:.7rem;border:1px solid #bdd1d3;border-radius:.5rem;font:inherit;">
+            <small style="display:block;margin-top:.45rem;opacity:.65;">Pesan login akan dibuat otomatis dengan format: “Your account has been BANNED, nim: &lt;NIM&gt;, reason_id: &lt;reason_id&gt;.”</small>
+            <div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1.25rem;"><button type="button" id="cancel-ban" style="padding:.6rem .85rem;border:1px solid #bdd1d3;background:#fff;color:#002f45;border-radius:.5rem;cursor:pointer;">Batal</button><button style="padding:.6rem .85rem;border:0;background:#b91c1c;color:#fff;border-radius:.5rem;cursor:pointer;font-weight:700;">Banned akun</button></div>
+        </form>
+    </dialog>
+
     <section style="background:#fff;border:1px solid #bdd1d3;border-radius:1rem;overflow:hidden;">
         <div style="padding:1.25rem;"><h2 style="font-family:'Playfair Display',serif;font-size:1.25rem;margin:0;">Audit log terbaru</h2><p style="font-size:.8rem;opacity:.6;margin:.35rem 0 0;">Catatan perubahan otoritas dan tindakan infrastruktur.</p></div>
         @forelse($auditLogs as $log)<div style="border-top:1px solid #e5e7eb;padding:.8rem 1.25rem;display:flex;justify-content:space-between;gap:1rem;font-size:.85rem;"><span><strong>{{ str_replace('.', ' · ', $log->event) }}</strong> <span style="opacity:.65;">oleh {{ $log->actor?->name ?? 'Sistem' }}</span></span><span style="opacity:.55;white-space:nowrap;">{{ $log->created_at->format('d M Y H:i') }}</span></div>@empty<div style="padding:1.25rem;opacity:.6;">Belum ada tindakan yang tercatat.</div>@endforelse
@@ -89,6 +103,11 @@
     const deactivationForm = document.getElementById('deactivation-form');
     const deactivationUserName = document.getElementById('deactivation-user-name');
     const deactivationMessage = document.getElementById('deactivation-message');
+    const banDialog = document.getElementById('ban-dialog');
+    const banForm = document.getElementById('ban-form');
+    const banUserName = document.getElementById('ban-user-name');
+    const banUserNim = document.getElementById('ban-user-nim');
+    const banReasonId = document.getElementById('ban-reason-id');
 
     document.querySelectorAll('[data-deactivate-user]').forEach((button) => {
         button.addEventListener('click', () => {
@@ -100,6 +119,18 @@
         });
     });
 
+    document.querySelectorAll('[data-ban-user]').forEach((button) => {
+        button.addEventListener('click', () => {
+            banForm.action = button.dataset.action;
+            banUserName.textContent = button.dataset.userName;
+            banUserNim.textContent = button.dataset.userNim;
+            banReasonId.value = '';
+            banDialog.showModal();
+            banReasonId.focus();
+        });
+    });
+
     document.getElementById('cancel-deactivation').addEventListener('click', () => deactivationDialog.close());
+    document.getElementById('cancel-ban').addEventListener('click', () => banDialog.close());
 </script>
 @endsection
