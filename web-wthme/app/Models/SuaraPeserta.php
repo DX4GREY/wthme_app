@@ -28,4 +28,15 @@ class SuaraPeserta extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function reads()
+    {
+        return $this->hasMany(SuaraPesertaRead::class);
+    }
+
+    public function readers()
+    {
+        return $this->belongsToMany(User::class, 'suara_peserta_reads')
+            ->withTimestamps();
+    }
 }

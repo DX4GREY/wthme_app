@@ -297,6 +297,7 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         // Suara Peserta (Peserta)
         Route::get('/suara', [SuaraPesertaController::class, 'create'])->name('suara.create');
         Route::post('/suara', [SuaraPesertaController::class, 'store'])->name('suara.store');
+        Route::delete('/suara', [SuaraPesertaController::class, 'destroyOwn'])->name('suara.destroy');
 
         // Logistik Barang (Peserta)
         Route::get('/barang', [BarangController::class, 'pesertaIndex'])->name('barang');

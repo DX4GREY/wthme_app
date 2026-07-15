@@ -113,6 +113,30 @@
             </div>
             @endif
 
+            {{-- Daftar Pembaca --}}
+            @if ($suara->reads->count() > 0)
+            <div style="margin-bottom:2rem; border-top:1px solid rgba(0,47,69,0.08); padding-top:1.5rem;">
+                <h3 style="color:#002f45; font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; opacity:0.5; margin:0 0 0.75rem 0;">
+                    Dibaca Oleh ({{ $suara->reads->count() }})
+                </h3>
+                <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                    @foreach ($suara->reads as $read)
+                    <div style="display:flex; align-items:center; gap:0.75rem; background:rgba(255,255,255,0.4); padding:0.6rem 1rem; border-radius:0.75rem;">
+                        <div style="width:32px; height:32px; border-radius:50%; background:#002f45; display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-size:0.75rem; flex-shrink:0;">
+                            {{ strtoupper(substr($read->user->name, 0, 1)) }}
+                        </div>
+                        <div style="flex:1;">
+                            <div style="color:#002f45; font-weight:600; font-size:0.85rem;">{{ $read->user->name }}</div>
+                            <div style="color:#002f45; opacity:0.4; font-size:0.7rem;">
+                                {{ $read->created_at->diffForHumans() }}
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
             {{-- Actions --}}
             <div style="display:flex; gap:1rem; border-top:1px solid rgba(0,47,69,0.08); padding-top:1.5rem;">
                 <a href="{{ route('panitia.suara.index') }}"
