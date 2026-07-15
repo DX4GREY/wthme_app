@@ -305,12 +305,24 @@
 
             {{-- 🌟 TOMBOL: Akses Balik ke Dashboard Pilihan Peran Utama 🌟 --}}
             <div style="margin-top: 2.5rem;">
-                <a href="{{ url('/dashboard') }}"
-                    style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 1.1rem; background: #002f45; border-radius: 1.25rem; text-decoration: none; color: #e0decd; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 15px rgba(0,47,69,0.15); transition: all 0.3s ease;"
-                    onmouseover="this.style.background='#001f2e'; this.style.transform='translateY(-2px)'"
-                    onmouseout="this.style.background='#002f45'; this.style.transform='translateY(0)'">
-                    <span>🏠</span> Kembali ke Beranda Pilihan Portal Utama
-                </a>
+                @if (session()->has('impersonator_id'))
+                    <form action="{{ route('impersonasi.leave') }}" method="POST">
+                        @csrf
+                        <button type="submit"
+                            style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 1.1rem; background: #002f45; border-radius: 1.25rem; text-decoration: none; color: #e0decd; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 15px rgba(0,47,69,0.15); transition: all 0.3s ease; border: none; cursor: pointer;"
+                            onmouseover="this.style.background='#001f2e'; this.style.transform='translateY(-2px)'"
+                            onmouseout="this.style.background='#002f45'; this.style.transform='translateY(0)'">
+                            <span>🏠</span> Kembali ke Dashboard Admin
+                        </button>
+                    </form>
+                @else
+                    <a href="{{ url('/dashboard') }}"
+                        style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 1.1rem; background: #002f45; border-radius: 1.25rem; text-decoration: none; color: #e0decd; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 15px rgba(0,47,69,0.15); transition: all 0.3s ease;"
+                        onmouseover="this.style.background='#001f2e'; this.style.transform='translateY(-2px)'"
+                        onmouseout="this.style.background='#002f45'; this.style.transform='translateY(0)'">
+                        <span>🏠</span> Kembali ke Beranda Pilihan Portal Utama
+                    </a>
+                @endif
             </div>
 
             {{-- Footer Info --}}
