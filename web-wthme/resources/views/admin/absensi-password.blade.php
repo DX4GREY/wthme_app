@@ -3,332 +3,342 @@
 @section('title', 'Manajemen Password Absensi Harian')
 
 @section('content')
-<div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-    <div class="px-4 py-6 sm:px-0">
+<div style="min-height: 100vh; background: linear-gradient(135deg, #f8f9fa 0%, #e0decd 100%); padding: 4rem 1.5rem; font-family: 'Plus Jakarta Sans', sans-serif;">
+    <div style="max-width: 1100px; margin: 0 auto;">
+        
         <!-- Header -->
-        <div class="md:flex md:items-center md:justify-between mb-6">
-            <div class="flex-1 min-w-0">
-                <h2 class="text-2xl font-bold leading-7 text-navy sm:text-3xl sm:truncate">
-                    Password Absensi Harian
-                </h2>
-                <p class="mt-1 text-sm text-teal">
-                    Buat dan kelola password akses data absensi panitia
-                </p>
-            </div>
-            <div class="mt-4 flex md:mt-0 md:ml-4">
-                <a href="{{ route('admin.index') }}" class="inline-flex items-center px-4 py-2 border border-sand/30 rounded-lg shadow-sm text-sm font-medium text-navy bg-white hover:bg-sand/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sand">
-                    Kembali ke Dashboard
-                </a>
-            </div>
+        <div style="margin-bottom: 3rem;">
+            <a href="{{ route('admin.index') }}" style="color: #6b705c; opacity: 0.7; text-decoration: none; font-size: 0.875rem; display: flex; align-items: center; gap: 0.25rem; width: fit-content;">
+                <svg style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Kembali ke Dashboard
+            </a>
+            <h1 style="font-family: 'Playfair Display', serif; color: #002f45; font-size: 2rem; font-weight: 700; margin: 1rem 0 0.5rem;">
+                Password Absensi Harian
+            </h1>
+            <p style="color: #6b705c; font-size: 1rem; margin: 0;">
+                Buat dan kelola password akses data absensi panitia
+            </p>
         </div>
 
         @if(session('success'))
-            <div class="mb-4 bg-teal/20 border-l-4 border-teal p-4 rounded-r-lg">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-teal" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-navy">{{ session('success') }}</p>
-                    </div>
+            <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(189, 209, 211, 0.2); border: 1px solid rgba(189, 209, 211, 0.4); border-left: 4px solid #bdd1d3; border-radius: 0 0.75rem 0.75rem 0;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <svg style="width: 20px; height: 20px; color: #bdd1d3; flex-shrink: 0;" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    <p style="color: #002f45; font-size: 0.9rem; margin: 0; font-weight: 500;">{{ session('success') }}</p>
                 </div>
             </div>
         @endif
 
         @if(session('error'))
-            <div class="mb-4 bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-red-800">{{ session('error') }}</p>
-                    </div>
+            <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-left: 4px solid #ef4444; border-radius: 0 0.75rem 0.75rem 0;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <svg style="width: 20px; height: 20px; color: #ef4444; flex-shrink: 0;" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <p style="color: #991b1b; font-size: 0.9rem; margin: 0; font-weight: 500;">{{ session('error') }}</p>
                 </div>
             </div>
         @endif
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Form Buat Password -->
-            <div class="lg:col-span-1">
-                <div class="bg-white shadow-lg rounded-xl">
-                    <div class="px-4 py-5 sm:p-6">
-                        <h3 class="text-lg font-semibold text-navy mb-4">
-                            @if($todayPassword)
-                                Update Password Hari Ini
-                            @else
-                                Buat Password Hari Ini
-                            @endif
-                        </h3>
-
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+            <!-- Form Buat/Update Password -->
+            <div>
+                <div style="background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 2rem; padding: 2rem;">
+                    <h3 style="font-size: 1.25rem; font-weight: 700; color: #002f45; margin: 0 0 1.5rem 0;">
                         @if($todayPassword)
-                            <div class="mb-4 p-4 bg-gradient-to-br from-sand/10 to-sand/20 border border-sand/40 rounded-lg shadow-sm">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex-1">
-                                        <p class="text-sm font-semibold text-navy mb-1">
-                                            Password Saat Ini
-                                        </p>
-                                        <div class="flex items-center gap-2">
-<code id="currentPassword" class="font-mono bg-white px-3 py-1.5 rounded border border-sand/40 text-navy font-bold tracking-wide">
-                                                        {{ $todayPassword->password_tampil ?? '******' }}
-                                                    </code>
-                                            <button onclick="copyToClipboard('currentPassword', this)" class="inline-flex items-center gap-1 px-2 py-1.5 bg-sand/20 hover:bg-sand/40 text-navy rounded transition-colors text-xs font-medium" title="Salin password">
-                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                                                </svg>
-                                                <span>Salin</span>
-                                            </button>
-                                        </div>
-                                        <p class="text-xs text-teal mt-2 flex items-center gap-1">
-                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                            </svg>
-                                            Dibuat: {{ $todayPassword->dibuat_pada ? $todayPassword->dibuat_pada->format('d/m/Y H:i') : '-' }}
-                                        </p>
-                                    </div>
-                                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-teal/20 text-navy border border-teal/40">
-                                        <span class="h-2 w-2 rounded-full bg-teal animate-pulse"></span>
-                                        Aktif
-                                    </span>
-                                </div>
-                            </div>
+                            Update Password Hari Ini
                         @else
-                            <div class="mb-4 p-4 bg-gradient-to-br from-teal/10 to-sand/10 border border-teal/30 rounded-lg shadow-sm">
-                                <div class="flex items-start gap-3">
-                                    <div class="flex-shrink-0">
-                                        <svg class="h-6 w-6 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm font-medium text-navy">
-                                            Belum ada password untuk hari ini
-                                        </p>
-                                        <p class="text-xs text-teal mt-1">
-                                            Buat password sekarang agar panitia dapat mengakses data absensi.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                            Buat Password Hari Ini
                         @endif
+                    </h3>
 
-                        <form action="{{ route('admin.absensi.password.store') }}" method="POST">
-                            @csrf
-                            <div class="mb-4">
-                                <label for="password" class="block text-sm font-semibold text-navy mb-2">
-                                    @if($todayPassword)
-                                        Update Password Baru
-                                    @else
-                                        Buat Password Baru
-                                    @endif
-                                </label>
-                                <div class="relative">
-                                    <input 
-                                        type="password" 
-                                        name="password" 
-                                        id="passwordInput" 
-                                        required 
-                                        class="appearance-none rounded-lg relative block w-full px-3 py-2.5 pr-10 border border-sand/40 placeholder-gray-400 text-navy focus:outline-none focus:ring-2 focus:ring-sand focus:border-sand sm:text-sm transition-all"
-                                        placeholder="Masukkan password harian"
-                                        autofocus
-                                        minlength="6"
-                                        maxlength="50"
-                                    >
-                                    <button type="button" onclick="togglePasswordVisibility('passwordInput', this)" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-navy transition-colors">
-                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                                <div class="mt-2 flex items-center justify-between">
-                                    <p class="text-xs text-teal">
-                                        Minimal 6 karakter, maksimal 50 karakter
+                    @if($todayPassword)
+                        <div style="margin-bottom: 1.5rem; padding: 1.25rem; background: rgba(0, 47, 69, 0.02); border: 1px solid rgba(0, 47, 69, 0.05); border-radius: 1.25rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                                <div style="flex: 1;">
+                                    <p style="font-size: 0.85rem; font-weight: 700; color: #002f45; margin: 0 0 0.5rem 0;">
+                                        Password Saat Ini
                                     </p>
-                                    <div id="passwordStrength" class="flex gap-1">
-                                        <div class="h-1 w-6 rounded bg-sand/30 password-strength-bar"></div>
-                                        <div class="h-1 w-6 rounded bg-sand/30 password-strength-bar"></div>
-                                        <div class="h-1 w-6 rounded bg-sand/30 password-strength-bar"></div>
-                                        <div class="h-1 w-6 rounded bg-sand/30 password-strength-bar"></div>
-                                    </div>
+                                </div>
+                                <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background: rgba(189, 209, 211, 0.2); color: #002f45; border: 1px solid rgba(189, 209, 211, 0.3);">
+                                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #bdd1d3; animation: pulse 2s infinite;"></span>
+                                    Aktif
+                                </span>
+                            </div>
+                            
+                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+                                <code id="currentPassword" style="font-family: monospace; background: white; padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid rgba(0, 47, 69, 0.1); color: #002f45; font-weight: 700; letter-spacing: 0.05em; flex: 1;">
+                                    {{ $todayPassword->password_tampil ?? '******' }}
+                                </code>
+                                <button onclick="copyToClipboard('currentPassword', this)" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.5rem 0.875rem; background: rgba(210, 194, 150, 0.2); color: #002f45; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.75rem; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='rgba(210, 194, 150, 0.4)'" onmouseout="this.style.background='rgba(210, 194, 150, 0.2)'">
+                                    <svg style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                    </svg>
+                                    Salin
+                                </button>
+                            </div>
+                            
+                            <p style="font-size: 0.8rem; color: #6b705c; display: flex; align-items: center; gap: 0.25rem; margin: 0;">
+                                <svg style="width: 14px; height: 14px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Dibuat: {{ $todayPassword->dibuat_pada ? $todayPassword->dibuat_pada->format('d/m/Y H:i') : '-' }}
+                            </p>
+                        </div>
+                    @else
+                        <div style="margin-bottom: 1.5rem; padding: 1.25rem; background: rgba(189, 209, 211, 0.1); border: 1px solid rgba(189, 209, 211, 0.2); border-radius: 1.25rem;">
+                            <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                                <div style="flex-shrink: 0; width: 32px; height: 32px; background: rgba(210, 194, 150, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                    <svg style="width: 18px; height: 18px; color: #d2c296;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p style="font-size: 0.85rem; font-weight: 600; color: #002f45; margin: 0 0 0.25rem 0;">
+                                        Belum ada password untuk hari ini
+                                    </p>
+                                    <p style="font-size: 0.8rem; color: #6b705c; margin: 0;">
+                                        Buat password sekarang agar panitia dapat mengakses data absensi.
+                                    </p>
                                 </div>
                             </div>
+                        </div>
+                    @endif
 
-                            <button 
-                                type="submit" 
-                                class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-navy hover:bg-navy/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sand transition-all transform hover:scale-[1.02]"
-                            >
+                    <form action="{{ route('admin.absensi.password.store') }}" method="POST">
+                        @csrf
+                        <div style="margin-bottom: 1.5rem;">
+                            <label for="password" style="display: block; font-size: 0.9rem; font-weight: 700; color: #002f45; margin-bottom: 0.5rem;">
                                 @if($todayPassword)
-                                    <svg class="h-5 w-5 mr-2 text-sand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11-11v5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                                    </svg>
-                                    Update Password
+                                    Update Password Baru
                                 @else
-                                    <svg class="h-5 w-5 mr-2 text-sand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                                    </svg>
-                                    Buat Password
+                                    Buat Password Baru
                                 @endif
-                            </button>
-                        </form>
-                    </div>
+                            </label>
+                            <div style="position: relative;">
+                                <input 
+                                    type="password" 
+                                    name="password" 
+                                    id="passwordInput" 
+                                    required 
+                                    class="glass-input"
+                                    placeholder="Masukkan password harian"
+                                    autofocus
+                                    minlength="6"
+                                    maxlength="50"
+                                >
+                                <button 
+                                    type="button" 
+                                    onclick="togglePasswordVisibility('passwordInput', this)" 
+                                    style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #6b705c; padding: 0.25rem; transition: color 0.2s;"
+                                    onmouseover="this.style.color='#002f45'"
+                                    onmouseout="this.style.color='#6b705c'"
+                                >
+                                    <svg style="width: 20px; height: 20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <p style="color: #6b705c; font-size: 0.8rem; margin: 0.5rem 0 0 0;">
+                                Minimal 6 karakter, maksimal 50 karakter
+                            </p>
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            style="width: 100%; padding: 0.875rem 1.25rem; background: #002f45; color: white; border: none; border-radius: 0.875rem; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                            onmouseover="this.style.background='#003a55'; this.style.transform='translateY(-2px)'"
+                            onmouseout="this.style.background='#002f45'; this.style.transform='translateY(0)'"
+                        >
+                            @if($todayPassword)
+                                <svg style="width: 18px; height: 18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11-11v5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                Update Password
+                            @else
+                                <svg style="width: 18px; height: 18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                                Buat Password
+                            @endif
+                        </button>
+                    </form>
                 </div>
 
                 <!-- Info Box -->
-                <div class="mt-4 bg-gradient-to-br from-teal/10 to-sand/10 border border-teal/30 rounded-lg p-4">
-                    <div class="flex items-start gap-3">
-                        <div class="flex-shrink-0">
-                            <svg class="h-6 w-6 text-teal" fill="none" viewBox="0 0 20 20" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <div style="margin-top: 1.5rem; padding: 1.25rem; background: rgba(189, 209, 211, 0.1); border: 1px solid rgba(189, 209, 211, 0.2); border-radius: 1.25rem;">
+                    <h3 style="font-size: 0.85rem; font-weight: 700; color: #002f45; margin: 0 0 0.75rem 0;">Informasi Penting</h3>
+                    <ul style="margin: 0; padding-left: 1.25rem; color: #6b705c; font-size: 0.85rem; list-style: none;">
+                        <li style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <svg style="width: 16px; height: 16px; color: #d2c296; flex-shrink: 0; margin-top: 0.125rem;" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                             </svg>
-                        </div>
-                        <div class="flex-1">
-                            <h3 class="text-sm font-bold text-navy mb-2">Informasi Penting</h3>
-                            <div class="text-sm text-teal space-y-1.5">
-                                <div class="flex items-start gap-2">
-                                    <svg class="h-4 w-4 text-sand mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                    </svg>
-                                    <span>Password berubah setiap hari untuk keamanan</span>
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <svg class="h-4 w-4 text-sand mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                    </svg>
-                                    <span>Hanya admin yang dapat membuat dan mengubah password</span>
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <svg class="h-4 w-4 text-sand mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
-                                    </svg>
-                                    <span>Panitia diminta password untuk mengakses data absensi</span>
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <svg class="h-4 w-4 text-sand mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
-                                    </svg>
-                                    <span>Password disimpan dalam bentuk terenkripsi (hash)</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                            <span>Password berubah setiap hari untuk keamanan</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <svg style="width: 16px; height: 16px; color: #d2c296; flex-shrink: 0; margin-top: 0.125rem;" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Hanya admin yang dapat membuat dan mengubah password</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <svg style="width: 16px; height: 16px; color: #d2c296; flex-shrink: 0; margin-top: 0.125rem;" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                            </svg>
+                            <span>Panitia diminta password untuk mengakses data absensi</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                            <svg style="width: 16px; height: 16px; color: #d2c296; flex-shrink: 0; margin-top: 0.125rem;" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Password disimpan dalam bentuk terenkripsi (hash)</span>
+                        </li>
+                    </ul>
                 </div>
             </div>
 
             <!-- Riwayat Password -->
-            <div class="lg:col-span-2">
-                <div class="bg-white shadow-lg rounded-xl">
-                    <div class="px-4 py-5 sm:p-6">
-                        <h3 class="text-lg font-semibold text-navy mb-4">
-                            7 Password Terakhir
-                        </h3>
+            <div>
+                <div style="background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 2rem; padding: 2rem;">
+                    <h3 style="font-size: 1.25rem; font-weight: 700; color: #002f45; margin: 0 0 1.5rem 0;">
+                        7 Password Terakhir
+                    </h3>
 
-                        @if($recentPasswords->count() > 0)
-                            <div class="overflow-hidden shadow-lg ring-1 ring-sand/30 rounded-xl">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-navy">
-                                        <tr>
-                                            <th scope="col" class="px-6 py-4 text-left text-sm font-bold text-sand">
-                                                <div class="flex items-center gap-2">
-                                                    <svg class="h-5 w-5 text-sand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                                    </svg>
-                                                    Tanggal
-                                                </div>
-                                            </th>
-                                            <th scope="col" class="px-6 py-4 text-left text-sm font-bold text-sand">
-                                                <div class="flex items-center gap-2">
-                                                    <svg class="h-5 w-5 text-sand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                                    </svg>
-                                                    Dibuat Oleh
-                                                </div>
-                                            </th>
-                                            <th scope="col" class="px-6 py-4 text-left text-sm font-bold text-sand">
-                                                <div class="flex items-center gap-2">
-                                                    <svg class="h-5 w-5 text-sand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                    </svg>
-                                                    Waktu
-                                                </div>
-                                            </th>
-                                            <th scope="col" class="px-6 py-4 text-left text-sm font-bold text-sand">
-                                                <div class="flex items-center gap-2">
-                                                    <svg class="h-5 w-5 text-sand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                    </svg>
-                                                    Status
-                                                </div>
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-100 bg-white">
-                                        @foreach($recentPasswords as $password)
-                                            <tr class="{{ $password->tanggal == date('Y-m-d') ? 'bg-gradient-to-r from-sand/10 to-sand/20 hover:from-sand/20 hover:to-sand/30' : 'hover:bg-gray-50' }} transition-colors">
-                                                <td class="whitespace-nowrap px-6 py-4 text-sm">
-                                                    <div class="flex items-center gap-2">
-                                                        <span class="font-semibold text-navy">{{ \Carbon\Carbon::parse($password->tanggal)->format('d/m/Y') }}</span>
-                                                        @if($password->tanggal == date('Y-m-d'))
-                                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal/20 text-navy border border-teal/40">
-                                                                Hari Ini
-                                                            </span>
-                                                        @endif
-                                                    </div>
-                                                </td>
-                                                <td class="whitespace-nowrap px-6 py-4 text-sm text-teal">
-                                                    <div class="flex items-center gap-2">
-                                                        <div class="h-8 w-8 rounded-full bg-gradient-to-br from-sand to-sand/80 flex items-center justify-center text-navy font-semibold text-xs">
-                                                            {{ substr($password->dibuatOleh->name ?? 'S', 0, 1) }}
-                                                        </div>
-                                                        <span class="font-medium text-navy">{{ $password->dibuatOleh->name ?? 'System' }}</span>
-                                                    </div>
-                                                </td>
-                                                <td class="whitespace-nowrap px-6 py-4 text-sm text-teal">
-                                                    <div class="flex items-center gap-1.5">
-                                                        <svg class="h-4 w-4 text-sand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                        </svg>
-                                                        {{ $password->dibuat_pada ? $password->dibuat_pada->format('d/m/Y H:i') : '-' }}
-                                                    </div>
-                                                </td>
-                                                <td class="whitespace-nowrap px-6 py-4 text-sm">
+                    @if($recentPasswords->count() > 0)
+                        <div style="overflow: hidden; border: 1px solid rgba(0, 47, 69, 0.05); border-radius: 1.25rem;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #002f45;">
+                                        <th style="padding: 1rem; text-align: left; color: #d2c296; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
+                                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                <svg style="width: 18px; height: 18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                </svg>
+                                                Tanggal
+                                            </div>
+                                        </th>
+                                        <th style="padding: 1rem; text-align: left; color: #d2c296; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
+                                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                <svg style="width: 18px; height: 18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                                </svg>
+                                                Dibuat Oleh
+                                            </div>
+                                        </th>
+                                        <th style="padding: 1rem; text-align: left; color: #d2c296; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
+                                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                <svg style="width: 18px; height: 18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                                Waktu
+                                            </div>
+                                        </th>
+                                        <th style="padding: 1rem; text-align: left; color: #d2c296; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
+                                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                <svg style="width: 18px; height: 18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                                Status
+                                            </div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($recentPasswords as $password)
+                                        <tr style="border-bottom: 1px solid rgba(0, 47, 69, 0.05); {{ $password->tanggal == date('Y-m-d') ? 'background: rgba(210, 194, 150, 0.1);' : '' }}">
+                                            <td style="padding: 1rem;">
+                                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                    <span style="font-weight: 600; color: #002f45;">{{ \Carbon\Carbon::parse($password->tanggal)->format('d/m/Y') }}</span>
                                                     @if($password->tanggal == date('Y-m-d'))
-                                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-teal/20 text-navy border border-teal/40">
-                                                            <span class="h-2 w-2 rounded-full bg-teal animate-pulse"></span>
-                                                            Aktif
-                                                        </span>
-                                                    @else
-                                                        <span class="inline-flex items-center gap-1.5 text-gray-400">
-                                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                            </svg>
-                                                            Expired
+                                                        <span style="display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 700; background: rgba(189, 209, 211, 0.2); color: #002f45; border: 1px solid rgba(189, 209, 211, 0.3);">
+                                                            Hari Ini
                                                         </span>
                                                     @endif
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        @else
-                            <div class="text-center py-12">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                                </svg>
-                                <p class="mt-2 text-sm text-gray-500">Belum ada password yang dibuat.</p>
-                            </div>
-                        @endif
-                    </div>
+                                                </div>
+                                            </td>
+                                            <td style="padding: 1rem; color: #6b705c;">
+                                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                    <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #d2c296, #e0decd); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #002f45; font-size: 0.75rem;">
+                                                        {{ substr($password->dibuatOleh->name ?? 'S', 0, 1) }}
+                                                    </div>
+                                                    <span style="font-weight: 500; color: #002f45;">{{ $password->dibuatOleh->name ?? 'System' }}</span>
+                                                </div>
+                                            </td>
+                                            <td style="padding: 1rem; color: #6b705c;">
+                                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                    <svg style="width: 16px; height: 16px; color: #d2c296;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                    </svg>
+                                                    {{ $password->dibuat_pada ? $password->dibuat_pada->format('d/m/Y H:i') : '-' }}
+                                                </div>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                @if($password->tanggal == date('Y-m-d'))
+                                                    <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background: rgba(189, 209, 211, 0.2); color: #002f45; border: 1px solid rgba(189, 209, 211, 0.3);">
+                                                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #bdd1d3; animation: pulse 2s infinite;"></span>
+                                                        Aktif
+                                                    </span>
+                                                @else
+                                                    <span style="display: inline-flex; align-items: center; gap: 0.25rem; color: #9ca3af; font-size: 0.85rem;">
+                                                        <svg style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                        </svg>
+                                                        Expired
+                                                    </span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div style="text-align: center; padding: 3rem 1rem;">
+                            <svg style="width: 48px; height: 48px; margin: 0 auto; color: #9ca3af;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            </svg>
+                            <p style="margin-top: 1rem; color: #6b705c; font-size: 0.9rem;">Belum ada password yang dibuat.</p>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .glass-input {
+        width: 100%;
+        padding: 0.875rem 3rem 0.875rem 1rem;
+        border: 1px solid rgba(0, 47, 69, 0.1);
+        border-radius: 0.875rem;
+        background: rgba(255, 255, 255, 0.5);
+        color: #002f45;
+        font-size: 0.95rem;
+        outline: none;
+        transition: all 0.3s;
+    }
+    
+    .glass-input:focus {
+        border-color: #d2c296;
+        box-shadow: 0 0 0 3px rgba(210, 194, 150, 0.2);
+    }
+    
+    .glass-input::placeholder {
+        color: #6b705c;
+        opacity: 0.4;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+</style>
 
 <script>
     // Toggle password visibility
@@ -354,43 +364,17 @@
         
         navigator.clipboard.writeText(text).then(function() {
             const originalHTML = button.innerHTML;
-            button.innerHTML = '<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><span>Tersalin!</span>';
-            button.classList.add('bg-teal/20', 'text-navy');
-            button.classList.remove('bg-sand/20', 'text-navy');
+            button.innerHTML = '<svg style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><span style="font-size: 0.75rem;">Tersalin!</span>';
+            button.style.background = 'rgba(189, 209, 211, 0.3)';
             
             setTimeout(function() {
                 button.innerHTML = originalHTML;
-                button.classList.remove('bg-teal/20', 'text-navy');
-                button.classList.add('bg-sand/20', 'text-navy');
+                button.style.background = 'rgba(210, 194, 150, 0.2)';
             }, 2000);
         }).catch(function(err) {
             console.error('Failed to copy: ', err);
             alert('Gagal menyalin password');
         });
     }
-
-    // Password strength indicator
-    document.getElementById('passwordInput')?.addEventListener('input', function(e) {
-        const password = e.target.value;
-        const bars = document.querySelectorAll('.password-strength-bar');
-        let strength = 0;
-        
-        if (password.length >= 6) strength++;
-        if (password.length >= 12) strength++;
-        if (password.match(/[A-Z]/)) strength++;
-        if (password.match(/[0-9!@#$%^&*]/)) strength++;
-        
-        const colors = ['bg-sand/30', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-teal'];
-        
-        bars.forEach((bar, index) => {
-            bar.className = 'h-1 w-6 rounded password-strength-bar transition-all';
-            if (index < strength) {
-                const colorClass = colors[Math.min(strength - 1, colors.length - 1)];
-                bar.classList.add(colorClass);
-            } else {
-                bar.classList.add('bg-sand/30');
-            }
-        });
-    });
 </script>
 @endsection
