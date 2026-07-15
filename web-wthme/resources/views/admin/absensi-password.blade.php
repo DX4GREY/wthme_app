@@ -393,17 +393,13 @@
         });
     }
 
-    // Generate Random Password
+    // Generate Random Password - Direct without confirmation
     function generateRandomPassword() {
-        if (!confirm('Generate password random untuk hari ini? Password lama akan diganti.')) {
-            return;
-        }
-        
-        // Create temp form and submit directly (more reliable than fetch)
+        // Create temp form and submit directly
         const tempForm = document.createElement('form');
         tempForm.method = 'POST';
         tempForm.action = '{{ route("admin.absensi.password.generate") }}';
-        tempForm.innerHTML = '<input type="hidden" name="_token" value="{{ csrf_token() }}"><input type="hidden" name="_method" value="POST">';
+        tempForm.innerHTML = '<input type="hidden" name="_token" value="{{ csrf_token() }}">';
         document.body.appendChild(tempForm);
         tempForm.submit();
     }
