@@ -13,6 +13,7 @@ class DailyAbsensiPassword extends Model
     protected $fillable = [
         'tanggal',
         'password',
+        'password_tampil',
         'dibuat_oleh',
         'dibuat_pada',
     ];
@@ -26,6 +27,11 @@ class DailyAbsensiPassword extends Model
     {
         static::creating(function ($password) {
             // Hash password sebelum disimpan
+            $password->password = bcrypt($password->password);
+        });
+
+        static::updating(function ($password) {
+            // Hash password sebelum update
             $password->password = bcrypt($password->password);
         });
     }

@@ -13,16 +13,32 @@ class DailyPasswordProtection
     {
         $user = Auth::user();
 
+        // Safety check - if no authenticated user
+        if (!$user) {
+            return redirect()->route('login')
+                ->with('error', 'Silakan login terlebih dahulu.');
+        }
+
         // Admin bypass - tidak perlu password
-        $isAdmin = $user->role === 'admin' || strtolower($user->divisi) === 'admin';
+        $isAdmin = $user->role === 'admin' || strtoupper($user->divisi ?? '') === 'ADMIN';
 
         if ($isAdmin) {
             return $next($request);
         }
 
-        // Cek apakah panitia sudah verifikasi password hari ini
-        if ($request->session()->has('absensi_password_verified')) {
-            return $next($request);
+        // Check for session expiration (24 hours)
+        $verifiedAt = $request->session()->get('absensi_password_verified_at');
+        if ($verifiedAt) {
+            $verifiedTime = \Carbon\Carbon::parse($verifiedAt);
+            $expiresAt = $verifiedTime->addHours(24);
+            
+            if (now()->isAfter($expiresAt)) {
+                // Session expired - clear it
+                $request->session()->forget('absensi_password_verified');
+                $request->session()->forget('absensi_password_verified_at');
+            } else {
+                return $next($request);
+            }
         }
 
         // Jika belum verifikasi, redirect ke halaman verifikasi password

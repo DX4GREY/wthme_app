@@ -382,33 +382,37 @@ class AdminController extends Controller
         $request->validate([
             'password' => ['required', 'string', 'min:6', 'max:50'],
         ], [
-            'password.required' => 'Password wajib diisi.',
-            'password.min' => 'Password minimal 6 karakter.',
-            'password.max' => 'Password maksimal 50 karakter.',
+            'password.required' => 'Password is required.',
+            'password.min' => 'Password must be at least 6 characters.',
+            'password.max' => 'Password must be at most 50 characters.',
         ]);
 
         $today = date('Y-m-d');
 
-        // Cek apakah password untuk hari ini sudah ada
+        // Check if password for today already exists
         $existingPassword = DailyAbsensiPassword::where('tanggal', $today)->first();
 
         if ($existingPassword) {
-            // Update password jika sudah ada
-            $existingPassword->update([
-                'password' => $request->password, // Akan di-hash otomatis oleh model event
-                'dibuat_oleh' => $request->user()->id,
-            ]);
+            // Update password - store plain for display and hash the original
+            $existingPassword->password_tampil = $request->password;
+            $existingPassword->password = bcrypt($request->password);
+            $existingPassword->dibuat_oleh = $request->user()->id;
+            $existingPassword->dibuat_pada = now();
+            $existingPassword->save();
             
-            $message = 'Password absensi hari ini berhasil diperbarui.';
+            $message = 'Attendance password for today has been updated successfully.';
+            $this->audit($request, 'absensi_password.updated', null, ['password_date' => $today]);
         } else {
-            // Buat password baru jika belum ada
+            // Create new password
             DailyAbsensiPassword::create([
                 'tanggal' => $today,
-                'password' => $request->password,
+                'password' => bcrypt($request->password),
+                'password_tampil' => $request->password,
                 'dibuat_oleh' => $request->user()->id,
             ]);
             
-            $message = 'Password absensi hari ini berhasil dibuat.';
+            $message = 'Attendance password for today has been created successfully.';
+            $this->audit($request, 'absensi_password.created', null, ['password_date' => $today]);
         }
 
         return redirect()->route('admin.absensi.password.index')
