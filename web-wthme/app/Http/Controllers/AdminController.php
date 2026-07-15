@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\AuditLog;
+use App\Models\DailyAbsensiPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,7 @@ use App\Imports\PanitiaImport;
 use App\Imports\PesertaImport;
 use App\Exports\TemplatePesertaExport; // Pastikan kelas export ini sudah dibuat
 use App\Exports\UsersExport;
+use App\Models\AbsensiPasswordHistory;
 use Maatwebsite\Excel\Facades\Excel;
 
 class AdminController extends Controller
@@ -354,14 +356,149 @@ class AdminController extends Controller
 
     private function audit(Request $request, string $event, ?User $subject = null, array $properties = []): void
     {
+        $subjectId = $subject ? $subject->id : null;
+        
         AuditLog::create([
             'actor_id' => $request->user()->id,
             'event' => $event,
             'subject_type' => $subject ? User::class : null,
-            'subject_id' => $subject?->id,
+            'subject_id' => $subjectId,
             'properties' => $properties ?: null,
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 1000),
         ]);
+    }
+
+    /**
+     * Manajemen Password Absensi Harian
+     */
+    public function absensiPasswordIndex()
+    {
+        $todayPassword = DailyAbsensiPassword::getTodayPassword();
+        $recentPasswords = DailyAbsensiPassword::orderBy('tanggal', 'desc')->take(7)->get();
+        $passwordHistory = AbsensiPasswordHistory::with('createdBy')
+            ->orderBy('created_at', 'desc')
+            ->take(20)
+            ->get();
+        
+        return view('admin.absensi-password', compact('todayPassword', 'recentPasswords', 'passwordHistory'));
+    }
+
+    public function absensiPasswordStore(Request $request)
+    {
+        $request->validate([
+            'password' => ['required', 'string', 'min:6', 'max:50'],
+        ], [
+            'password.required' => 'Password is required.',
+            'password.min' => 'Password must be at least 6 characters.',
+            'password.max' => 'Password must be at most 50 characters.',
+        ]);
+
+        $today = date('Y-m-d');
+
+        // Check if password for today already exists
+        $existingPassword = DailyAbsensiPassword::where('tanggal', $today)->first();
+
+        if ($existingPassword) {
+            // Save old password to history before updating
+            AbsensiPasswordHistory::create([
+                'tanggal' => $today,
+                'password_tampil' => $existingPassword->password_tampil,
+                'created_by' => $existingPassword->dibuat_oleh,
+                'created_at' => now(),
+            ]);
+            
+            // Update password - the model will auto-hash via booted event
+            $existingPassword->password_tampil = $request->password;
+            $existingPassword->password = $request->password;
+            $existingPassword->dibuat_oleh = $request->user()->id;
+            $existingPassword->dibuat_pada = now();
+            $existingPassword->save();
+            
+            $message = 'Attendance password for today has been updated successfully.';
+            $this->audit($request, 'absensi_password.updated', null, ['password_date' => $today]);
+        } else {
+            // Create new password - the model will auto-hash via booted event
+            DailyAbsensiPassword::create([
+                'tanggal' => $today,
+                'password' => $request->password,
+                'password_tampil' => $request->password,
+                'dibuat_oleh' => $request->user()->id,
+            ]);
+            
+            // Also save to history
+            AbsensiPasswordHistory::create([
+                'tanggal' => $today,
+                'password_tampil' => $request->password,
+                'created_by' => $request->user()->id,
+                'created_at' => now(),
+            ]);
+            
+            $message = 'Attendance password for today has been created successfully.';
+            $this->audit($request, 'absensi_password.created', null, ['password_date' => $today]);
+        }
+
+        return redirect()->route('admin.absensi.password.index')
+            ->with('success', $message);
+    }
+
+    /**
+     * Generate Random Password for Today
+     */
+    public function generateRandomPassword(Request $request)
+    {
+        $today = date('Y-m-d');
+        $randomPassword = strtoupper(\Illuminate\Support\Str::random(8));
+
+        $existingPassword = DailyAbsensiPassword::where('tanggal', $today)->first();
+
+        if ($existingPassword) {
+            // Save old password to history before updating
+            AbsensiPasswordHistory::create([
+                'tanggal' => $today,
+                'password_tampil' => $existingPassword->password_tampil,
+                'created_by' => $existingPassword->dibuat_oleh,
+                'created_at' => now(),
+            ]);
+            
+            $existingPassword->password_tampil = $randomPassword;
+            $existingPassword->password = $randomPassword;
+            $existingPassword->dibuat_oleh = $request->user()->id;
+            $existingPassword->dibuat_pada = now();
+            $existingPassword->save();
+            
+            $message = 'Attendance password for today has been regenerated successfully.';
+            $this->audit($request, 'absensi_password.regenerated', null, ['password_date' => $today]);
+        } else {
+            DailyAbsensiPassword::create([
+                'tanggal' => $today,
+                'password' => $randomPassword,
+                'password_tampil' => $randomPassword,
+                'dibuat_oleh' => $request->user()->id,
+            ]);
+            
+            // Also save to history
+            AbsensiPasswordHistory::create([
+                'tanggal' => $today,
+                'password_tampil' => $randomPassword,
+                'created_by' => $request->user()->id,
+                'created_at' => now(),
+            ]);
+            
+            $message = 'Random attendance password for today has been generated successfully.';
+            $this->audit($request, 'absensi_password.random_generated', null, ['password_date' => $today]);
+        }
+
+        // Return JSON for AJAX requests, redirect for normal requests
+        if ($request->expectsJson() || $request->header('Accept') === 'application/json') {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'password' => $randomPassword,
+            ]);
+        }
+
+        return redirect()->route('admin.absensi.password.index')
+            ->with('success', $message);
     }
 }

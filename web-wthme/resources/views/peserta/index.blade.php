@@ -72,6 +72,28 @@
     {{-- Background Wrapper --}}
     <div
         style="min-height:calc(100vh - 64px); padding:3rem 1.5rem; background: linear-gradient(135deg, #e0decd 0%, #bdd1d3 100%);">
+
+        {{-- BANNER IMPERSONASI ADMIN --}}
+        @if (session()->has('impersonator_id'))
+        <div style="max-width:800px; margin:0 auto 1.5rem auto;">
+            <div style="background:#002f45; border-radius:1rem; padding:0.75rem 1.25rem; display:flex; align-items:center; justify-content:space-between; gap:0.75rem; box-shadow:0 4px 15px rgba(0,47,69,0.15);">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <span style="font-size:1.25rem;">🛡️</span>
+                    <div>
+                        <span style="color:#d2c296; font-weight:700; font-size:0.85rem;">Mode Impersonasi Admin</span>
+                        <span style="color:#bdd1d3; font-size:0.75rem; display:block;">Anda melihat portal sebagai <strong style="color:white;">{{ auth()->user()->name }}</strong> ({{ auth()->user()->nim }})</span>
+                    </div>
+                </div>
+                <form action="{{ route('impersonasi.leave') }}" method="POST" style="margin:0;">
+                    @csrf
+                    <button type="submit" style="background:#ef4444; color:white; border:none; padding:0.5rem 1rem; border-radius:0.75rem; font-size:0.8rem; font-weight:700; cursor:pointer; transition:0.3s; white-space:nowrap;"
+                        onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+                        ✕ Keluar
+                    </button>
+                </form>
+            </div>
+        </div>
+        @endif
         <div style="max-width:800px; margin:0 auto;">
 
             {{-- Header --}}
@@ -178,6 +200,13 @@
                 @php
                     $menus = [
                         [
+                            'route' => route('peserta.suara.create'),
+                            'icon' => '📢',
+                            'title' => 'Suara Peserta',
+                            'desc' => 'Sampaikan saran, kritik, atau keluhan ke panitia',
+                            'badge' => null,
+                        ],
+                        [
                             'route' => route('peserta.face.register'),
                             'icon' => '🤳',
                             'title' => 'Daftar Wajah',
@@ -238,13 +267,13 @@
                             'desc' => 'Foto bersama rekan angkatan. Klaim +5 XP per teman!',
                             'badge' => null,
                         ],
-                        // [
-                        //     'route' => route('peserta.capture.index'),
-                        //     'icon' => '📸',
-                        //     'title' => 'Quest Capture Moment',
-                        //     'desc' => 'Upload foto kebersamaan kelompok & menangkan hingga 200 XP!',
-                        //     'badge' => null,
-                        // ],
+                        [
+                            'route' => route('peserta.capture.index'),
+                            'icon' => '📸',
+                            'title' => 'Quest Capture Moment',
+                            'desc' => 'Upload foto kebersamaan kelompok & menangkan hingga 200 XP!',
+                            'badge' => null,
+                        ],
                         // [
                         //     'route' => route('peserta.meet.index'), // Silakan sesuaikan nama route menu barunya di sini
                         //     'icon' => '✨', // Silakan sesuaikan emoji icon sesuai keinginan
@@ -283,12 +312,24 @@
 
             {{-- 🌟 TOMBOL: Akses Balik ke Dashboard Pilihan Peran Utama 🌟 --}}
             <div style="margin-top: 2.5rem;">
-                <a href="{{ url('/dashboard') }}"
-                    style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 1.1rem; background: #002f45; border-radius: 1.25rem; text-decoration: none; color: #e0decd; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 15px rgba(0,47,69,0.15); transition: all 0.3s ease;"
-                    onmouseover="this.style.background='#001f2e'; this.style.transform='translateY(-2px)'"
-                    onmouseout="this.style.background='#002f45'; this.style.transform='translateY(0)'">
-                    <span>🏠</span> Kembali ke Beranda Pilihan Portal Utama
-                </a>
+                @if (session()->has('impersonator_id'))
+                    <form action="{{ route('impersonasi.leave') }}" method="POST">
+                        @csrf
+                        <button type="submit"
+                            style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 1.1rem; background: #002f45; border-radius: 1.25rem; text-decoration: none; color: #e0decd; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 15px rgba(0,47,69,0.15); transition: all 0.3s ease; border: none; cursor: pointer;"
+                            onmouseover="this.style.background='#001f2e'; this.style.transform='translateY(-2px)'"
+                            onmouseout="this.style.background='#002f45'; this.style.transform='translateY(0)'">
+                            <span>🏠</span> Kembali ke Dashboard Admin
+                        </button>
+                    </form>
+                @else
+                    <a href="{{ url('/dashboard') }}"
+                        style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 1.1rem; background: #002f45; border-radius: 1.25rem; text-decoration: none; color: #e0decd; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 15px rgba(0,47,69,0.15); transition: all 0.3s ease;"
+                        onmouseover="this.style.background='#001f2e'; this.style.transform='translateY(-2px)'"
+                        onmouseout="this.style.background='#002f45'; this.style.transform='translateY(0)'">
+                        <span>🏠</span> Kembali ke Beranda Pilihan Portal Utama
+                    </a>
+                @endif
             </div>
 
             {{-- Footer Info --}}

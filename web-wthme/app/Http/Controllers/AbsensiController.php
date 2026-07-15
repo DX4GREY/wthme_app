@@ -6,7 +6,10 @@ use App\Models\AbsensiPeserta;
 use App\Models\AbsensiPanitia;
 use App\Models\QrSession;
 use App\Models\User;
+use App\Models\DailyAbsensiPassword;
+use App\Services\FaceRecognitionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class AbsensiController extends Controller
 {
@@ -97,15 +100,13 @@ class AbsensiController extends Controller
         }
 
         // === CEK 4: Sudah absen sebelumnya ===
-        $sudahAbsen = AbsensiPeserta::where('user_id', auth()->id())
+        $sudahAbsen = AbsensiPeserta::where('user_id', $user->id)
             ->where('qr_session_id', $qrSession->id)
             ->exists();
 
         if ($sudahAbsen) {
             return back()->with('error', 'Kamu sudah melakukan absensi untuk sesi ini.');
         }
-
-        $user = auth()->user();
 
         AbsensiPeserta::create([
             'user_id'       => $user->id,
@@ -230,11 +231,19 @@ class AbsensiController extends Controller
     {
         $userLogin = auth()->user();
 
+        // Safety check - ensure user is authenticated
+        if (!$userLogin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Please login first.'
+            ], 401);
+        }
+
         // =============== KUNCI PENGAMAN AKSES ===============
-        $isAdmin   = ($userLogin->role === 'admin' || $userLogin->divisi === 'admin');
-        $isAcara   = (strtoupper($userLogin->divisi) === 'ACARA');
-        $isKomdis  = (strtoupper($userLogin->divisi) === 'KOMDIS');
-        $isMentor  = (strtoupper($userLogin->divisi) === 'MENTOR');
+        $isAdmin   = ($userLogin->role === 'admin' || strtoupper($userLogin->divisi ?? '') === 'ADMIN');
+        $isAcara   = (strtoupper($userLogin->divisi ?? '') === 'ACARA');
+        $isKomdis  = (strtoupper($userLogin->divisi ?? '') === 'KOMDIS');
+        $isMentor  = (strtoupper($userLogin->divisi ?? '') === 'MENTOR');
 
         if (!$isAdmin && !$isAcara && !$isKomdis && !$isMentor) {
             return response()->json([
@@ -264,6 +273,15 @@ class AbsensiController extends Controller
             // Jika status adalah 'hadir' atau 'izin', buat record baru jika belum ada
             if (!$absensi) {
                 $user = User::find($request->user_id);
+                
+                // Safety check - user must exist
+                if (!$user) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User not found.'
+                    ], 404);
+                }
+                
                 $absensi = new AbsensiPeserta();
                 $absensi->user_id       = $user->id;
                 $absensi->qr_session_id = $request->qr_session_id;
@@ -304,6 +322,49 @@ class AbsensiController extends Controller
         return view('panitia.face-gate');
     }
 
+    // ===== PASSWORD VERIFICATION FOR ATTENDANCE DATA =====
+
+    public function showPasswordForm()
+    {
+        return view('panitia.absensi-password');
+    }
+
+    public function verifyPassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        $todayPassword = DailyAbsensiPassword::getTodayPassword();
+
+        if (!$todayPassword) {
+            return back()->with('error', 'Password akses absensi hari ini belum dibuat oleh admin.');
+        }
+
+        if (!Hash::check($request->password, $todayPassword->password)) {
+            return back()->with('error', 'Password salah!');
+        }
+
+        // Set session untuk 24 jam
+        $request->session()->put('absensi_password_verified', true);
+        $request->session()->put('absensi_password_verified_at', now());
+
+        // Redirect ke URL yang dituju sebelum verifikasi, atau ke dashboard panitia
+        $intendedUrl = $request->session()->get('url.intended');
+        
+        return redirect($intendedUrl ?: route('panitia.index'))
+            ->with('success', 'Password berhasil diverifikasi! Akses absensi diberikan.');
+    }
+
+    public function logoutPassword(Request $request)
+    {
+        $request->session()->forget('absensi_password_verified');
+        $request->session()->forget('absensi_password_verified_at');
+
+        return redirect()->route('panitia.index')
+            ->with('success', 'Session password absensi telah dihapus.');
+    }
+
     public function faceGateProcess(Request $request)
     {
         $request->validate([
@@ -317,13 +378,22 @@ class AbsensiController extends Controller
         if (!$result['found']) {
             return response()->json([
                 'success' => false,
-                'message' => 'Wajah tidak dikenali',
+                'message' => $result['reason'] ?? 'Wajah tidak dikenali',
                 'fallback_qr' => true,
             ]);
         }
 
         $userId = $result['user_id'];
         $user   = \App\Models\User::find($userId);
+
+        // Safety check if user not found in database
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User tidak ditemukan di database.',
+                'fallback_qr' => true,
+            ]);
+        }
 
         return response()->json([
             'success'    => true,

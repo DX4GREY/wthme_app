@@ -26,6 +26,8 @@ use App\Http\Controllers\QuestMeetController;
 use App\Http\Controllers\QuestLabController;
 use App\Http\Controllers\FotoKekeluargaanController;
 use App\Http\Controllers\CaptureMomentController;
+use App\Http\Controllers\SuaraPesertaController;
+use App\Http\Controllers\ImpersonationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -70,6 +72,11 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         Route::patch('/users/{id}/status', [AdminController::class, 'updateUserStatus'])->name('users.status');
         Route::post('/system/{action}', [AdminController::class, 'runSystemAction'])->name('system.action');
 
+         // Daily Password Management for Absensi
+         Route::get('/absensi-password', [AdminController::class, 'absensiPasswordIndex'])->name('absensi.password.index');
+         Route::post('/absensi-password', [AdminController::class, 'absensiPasswordStore'])->name('absensi.password.store');
+         Route::post('/absensi-password/generate', [AdminController::class, 'generateRandomPassword'])->name('absensi.password.generate');
+
         // 🟢 PINDAH KE SINI: Route Import Abang-Abang KBMS khusus Admin
         // --- EDIT PADA BAGIAN KELOMPOK ROUTE INI SAJA ---
         Route::prefix('abang')->name('abang.')->group(function () {
@@ -84,6 +91,13 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
 
     // --- PANITIA ---
     Route::prefix('panitia')->name('panitia.')->middleware('panitia')->group(function () {
+        // Suara Peserta (Panitia)
+        Route::prefix('suara')->name('suara.')->group(function () {
+            Route::get('/', [SuaraPesertaController::class, 'index'])->name('index');
+            Route::get('/{id}', [SuaraPesertaController::class, 'show'])->name('show');
+            Route::delete('/{id}', [SuaraPesertaController::class, 'destroy'])->name('destroy');
+        });
+
         Route::get('/', [PanitiaController::class, 'index'])->name('index');
         Route::post('/links', [PanitiaController::class, 'storeLink'])->name('links.store');
         Route::delete('/links/{id}', [PanitiaController::class, 'destroyLink'])->name('links.destroy');
@@ -95,8 +109,22 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         Route::post('/broadcast-personal', [PanitiaController::class, 'storePersonalBroadcast'])->name('info.peserta.personal.store');
         Route::put('/broadcast-personal/{id}', [PanitiaController::class, 'updatePersonalBroadcast'])->name('info.peserta.personal.update');
         Route::delete('/broadcast-personal/{id}', [PanitiaController::class, 'destroyPersonalBroadcast'])->name('info.peserta.personal.destroy');
-        Route::get('/absensi/face-gate',     [FaceAbsensiController::class, 'gate'])->name('absen.face.gate');
-        Route::post('/absensi/face-gate',    [FaceAbsensiController::class, 'gateProcess'])->name('absen.face.process');
+        // Face Gate & QR routes protected by attendance password
+        Route::middleware('absensi.password')->group(function () {
+            Route::get('/absensi/face-gate', [FaceAbsensiController::class, 'gate'])->name('absen.face.gate');
+            Route::post('/absensi/face-gate', [FaceAbsensiController::class, 'gateProcess'])->name('absen.face.process');
+
+            // QR & ABSENSI
+            Route::get('/qr/buat', [QrController::class, 'create'])->name('qr.create');
+            Route::post('/qr/buat', [QrController::class, 'store'])->name('qr.store');
+            Route::get('/qr/tampilkan/{code}', [QrController::class, 'show'])->name('qr.show');
+            Route::patch('/qr/{id}/toggle', [QrController::class, 'toggle'])->name('qr.toggle');
+            Route::get('/qr/{code}/refresh-token', [QrController::class, 'refreshToken'])->name('qr.refresh');
+
+            // Attendance data
+            Route::get('/absensi/peserta', [AbsensiController::class, 'dataPeserta'])->name('absensi.peserta');
+            Route::get('/absensi/panitia', [AbsensiController::class, 'dataPanitia'])->name('absensi.panitia');
+        });
 
         // KEAKTIFAN
         Route::prefix('keaktifan')->name('keaktifan.')->group(function () {
@@ -163,14 +191,11 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
             Route::get('/input', [LeaderboardController::class, 'inputPoint'])->name('input');
         });
 
-        // QR & ABSENSI
-        Route::get('/qr/buat',                 [QrController::class, 'create'])->name('qr.create');
-        Route::post('/qr/buat',                [QrController::class, 'store'])->name('qr.store');
-        Route::get('/qr/tampilkan/{code}',     [QrController::class, 'show'])->name('qr.show');
-        Route::patch('/qr/{id}/toggle',        [QrController::class, 'toggle'])->name('qr.toggle');
-        Route::get('/qr/{code}/refresh-token', [QrController::class, 'refreshToken'])->name('qr.refresh');
-        Route::get('/absensi/peserta', [AbsensiController::class, 'dataPeserta'])->name('absensi.peserta');
-        Route::get('/absensi/panitia', [AbsensiController::class, 'dataPanitia'])->name('absensi.panitia');
+        // Password protection routes (outside middleware so users can access them)
+        Route::get('/absensi/password', [AbsensiController::class, 'showPasswordForm'])->name('absensi.password');
+        Route::post('/absensi/password', [AbsensiController::class, 'verifyPassword'])->name('absensi.password.verify');
+        Route::post('/absensi/password/logout', [AbsensiController::class, 'logoutPassword'])->name('absensi.password.logout');
+
         Route::get('/absen',  [AbsensiController::class, 'formPanitia'])->name('absen');
         Route::post('/absen', [AbsensiController::class, 'storePanitia'])->name('absen.store');
         Route::post('/absensi/peserta/update-status', [AbsensiController::class, 'updateStatusPeserta'])->name('absensi.updateStatus');
@@ -265,6 +290,15 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         
     });
 
+    // --- IMPERSONASI ---
+    // Route khusus admin (saat masih login sebagai admin)
+    Route::middleware('admin')->group(function () {
+        Route::get('/impersonasi/peserta', [ImpersonationController::class, 'getPesertaList'])->name('impersonasi.peserta.list');
+        Route::post('/impersonasi/login/{id}', [ImpersonationController::class, 'loginAsPeserta'])->name('impersonasi.login');
+    });
+    // Route leave impersonasi — tanpa middleware admin karena user sedang sebagai peserta
+    Route::post('/impersonasi/leave', [ImpersonationController::class, 'leave'])->name('impersonasi.leave');
+
     // --- PESERTA ---
     Route::prefix('peserta')->name('peserta.')->middleware('peserta')->group(function () {
         Route::get('/',                   [PesertaController::class, 'index'])->name('index');
@@ -275,6 +309,11 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         Route::get('/tugas',             [TugasController::class, 'indexPeserta'])->name('tugas');
         Route::post('/tugas/upload',     [TugasController::class, 'uploadTugas'])->name('tugas.upload');
 
+
+        // Suara Peserta (Peserta)
+        Route::get('/suara', [SuaraPesertaController::class, 'create'])->name('suara.create');
+        Route::post('/suara', [SuaraPesertaController::class, 'store'])->name('suara.store');
+        Route::delete('/suara', [SuaraPesertaController::class, 'destroyOwn'])->name('suara.destroy');
 
         // Logistik Barang (Peserta)
         Route::get('/barang', [BarangController::class, 'pesertaIndex'])->name('barang');
@@ -334,6 +373,7 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
             Route::get('/', [CaptureMomentController::class, 'pesertaIndex'])->name('index');
             Route::post('/upload', [CaptureMomentController::class, 'pesertaStore'])->name('upload');
             Route::post('/{id}/react', [CaptureMomentController::class, 'react'])->name('react');
+            Route::delete('/{id}', [CaptureMomentController::class, 'pesertaDestroy'])->name('destroy');
         });
     });
 });

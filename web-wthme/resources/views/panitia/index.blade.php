@@ -116,6 +116,12 @@
                 <div style="display: flex; flex-direction: column; gap: 1.25rem;">
                     @php
                         $menus = [
+                        [
+                            'route' => 'panitia.suara.index',
+                            'icon' => '📢',
+                            'title' => 'Suara Peserta',
+                            'desc' => 'Lihat saran, kritik & keluhan dari peserta',
+                        ],
                             [
                                 'route' => 'panitia.gantt.index',
                                 'icon' => '📅',

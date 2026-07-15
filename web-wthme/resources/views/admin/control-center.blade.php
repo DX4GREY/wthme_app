@@ -44,6 +44,7 @@
             <p style="font-size:.8rem;opacity:.75;margin:0 0:1rem;">Aman untuk operasional; seluruh tindakan dicatat pada audit log.</p>
             <div style="display:grid;gap:.65rem;">
                 <a href="{{ url('/wthme-pma') }}" target="_blank" rel="noopener noreferrer" style="width:100%;box-sizing:border-box;padding:.7rem;border:1px solid #bdd1d3;background:transparent;color:#fff;border-radius:.5rem;text-align:left;text-decoration:none;cursor:pointer;">Buka PhpMyAdmin ↗</a>
+                <a href="{{ url('/admin/absensi-password') }}" rel="noopener noreferrer" style="width:100%;box-sizing:border-box;padding:.7rem;border:1px solid #bdd1d3;background:transparent;color:#fff;border-radius:.5rem;text-align:left;text-decoration:none;cursor:pointer;">Absensi Password</a>
                 <form method="POST" action="{{ route('admin.system.action', 'clear-cache') }}">@csrf<button onclick="return confirm('Bersihkan cache aplikasi?')" style="width:100%;padding:.7rem;border:1px solid #bdd1d3;background:transparent;color:#fff;border-radius:.5rem;text-align:left;cursor:pointer;">Bersihkan cache aplikasi</button></form>
                 <form method="POST" action="{{ route('admin.system.action', 'clear-optimized') }}">@csrf<button onclick="return confirm('Bersihkan seluruh cache optimasi?')" style="width:100%;padding:.7rem;border:0;background:#d2c296;color:#002f45;border-radius:.5rem;text-align:left;cursor:pointer;font-weight:700;">Reset cache optimasi</button></form>
             </div>
