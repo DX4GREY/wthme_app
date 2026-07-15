@@ -11,9 +11,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use App\Imports\PanitiaImport;
 use App\Imports\PesertaImport;
-use App\Exports\TemplatePesertaExport; // Pastikan kelas export ini sudah dibuat
-use App\Exports\UsersExport;
-use Maatwebsite\Excel\Facades\Excel;
+    use App\Exports\TemplatePesertaExport; // Pastikan kelas export ini sudah dibuat
+     use App\Exports\UsersExport;
+     use App\Models\AbsensiPasswordHistory;
+     use Maatwebsite\Excel\Facades\Excel;
 
 class AdminController extends Controller
 {
@@ -373,8 +374,12 @@ class AdminController extends Controller
      {
          $todayPassword = DailyAbsensiPassword::getTodayPassword();
          $recentPasswords = DailyAbsensiPassword::orderBy('tanggal', 'desc')->take(7)->get();
+         $passwordHistory = AbsensiPasswordHistory::with('createdBy')
+             ->orderBy('created_at', 'desc')
+             ->take(20)
+             ->get();
          
-         return view('admin.absensi-password', compact('todayPassword', 'recentPasswords'));
+         return view('admin.absensi-password', compact('todayPassword', 'recentPasswords', 'passwordHistory'));
      }
 
      public function absensiPasswordStore(Request $request)
@@ -393,6 +398,14 @@ class AdminController extends Controller
          $existingPassword = DailyAbsensiPassword::where('tanggal', $today)->first();
 
          if ($existingPassword) {
+             // Save old password to history before updating
+             AbsensiPasswordHistory::create([
+                 'tanggal' => $today,
+                 'password_tampil' => $existingPassword->password_tampil,
+                 'created_by' => $existingPassword->dibuat_oleh,
+                 'created_at' => now(),
+             ]);
+             
              // Update password - the model will auto-hash via booted event
              $existingPassword->password_tampil = $request->password;
              $existingPassword->password = $request->password;
@@ -409,6 +422,14 @@ class AdminController extends Controller
                  'password' => $request->password,
                  'password_tampil' => $request->password,
                  'dibuat_oleh' => $request->user()->id,
+             ]);
+             
+             // Also save to history
+             AbsensiPasswordHistory::create([
+                 'tanggal' => $today,
+                 'password_tampil' => $request->password,
+                 'created_by' => $request->user()->id,
+                 'created_at' => now(),
              ]);
              
              $message = 'Attendance password for today has been created successfully.';
@@ -430,6 +451,14 @@ class AdminController extends Controller
          $existingPassword = DailyAbsensiPassword::where('tanggal', $today)->first();
 
          if ($existingPassword) {
+             // Save old password to history before updating
+             AbsensiPasswordHistory::create([
+                 'tanggal' => $today,
+                 'password_tampil' => $existingPassword->password_tampil,
+                 'created_by' => $existingPassword->dibuat_oleh,
+                 'created_at' => now(),
+             ]);
+             
              $existingPassword->password_tampil = $randomPassword;
              $existingPassword->password = $randomPassword;
              $existingPassword->dibuat_oleh = $request->user()->id;
@@ -444,6 +473,14 @@ class AdminController extends Controller
                  'password' => $randomPassword,
                  'password_tampil' => $randomPassword,
                  'dibuat_oleh' => $request->user()->id,
+             ]);
+             
+             // Also save to history
+             AbsensiPasswordHistory::create([
+                 'tanggal' => $today,
+                 'password_tampil' => $randomPassword,
+                 'created_by' => $request->user()->id,
+                 'created_at' => now(),
              ]);
              
              $message = 'Random attendance password for today has been generated successfully.';

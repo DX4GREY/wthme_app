@@ -321,26 +321,66 @@
                                                         </svg>
                                                         Expired
                                                     </span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <div style="text-align: center; padding: 3rem 1rem;">
-                            <svg style="width: 48px; height: 48px; margin: 0 auto; color: #9ca3af;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                            </svg>
-                            <p style="margin-top: 1rem; color: #6b705c; font-size: 0.9rem;">Belum ada password yang dibuat.</p>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                                                     @endif
+                                                     </td>
+                                                 </tr>
+                                             @endforeach
+                                         </tbody>
+                                     </table>
+                                 </div>
+                             @else
+                                 <div style="text-align: center; padding: 3rem 1rem;">
+                                     <svg style="width: 48px; height: 48px; margin: 0 auto; color: #9ca3af;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                     </svg>
+                                     <p style="margin-top: 1rem; color: #6b705c; font-size: 0.9rem;">Belum ada password yang dibuat.</p>
+                                 </div>
+                             @endif
+                         </div>
+                         
+                         <!-- Password History Log -->
+                         @if($passwordHistory && $passwordHistory->count() > 0)
+                             <div style="margin-top: 2rem;">
+                                 <h4 style="font-size: 1rem; font-weight: 700; color: #002f45; margin: 0 0 1rem 0; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(0, 47, 69, 0.1);">
+                                     Riwayat Perubahan Password
+                                 </h4>
+                                 <div style="max-height: 300px; overflow-y: auto;">
+                                     <table style="width: 100%; border-collapse: collapse;">
+                                         <thead>
+                                             <tr style="background: rgba(0, 47, 69, 0.02);">
+                                                 <th style="padding: 0.75rem; text-align: left; color: #6b705c; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;">Waktu</th>
+                                                 <th style="padding: 0.75rem; text-align: left; color: #6b705c; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;">Password</th>
+                                                 <th style="padding: 0.75rem; text-align: left; color: #6b705c; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;">Oleh</th>
+                                             </tr>
+                                         </thead>
+                                         <tbody>
+                                             @foreach($passwordHistory as $history)
+                                                 <tr style="border-bottom: 1px solid rgba(0, 47, 69, 0.03);">
+                                                     <td style="padding: 0.5rem 0.75rem; font-size: 0.8rem; color: #6b705c;">
+                                                         {{ $history->created_at ? $history->created_at->format('d/m/Y H:i') : '-' }}
+                                                     </td>
+                                                     <td style="padding: 0.5rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #002f45;">
+                                                         {{ $history->password_tampil }}
+                                                     </td>
+                                                     <td style="padding: 0.5rem 0.75rem; font-size: 0.8rem; color: #002f45;">
+                                                         @if($history->createdBy)
+                                                             {{ $history->createdBy->name }} <span style="color: #6b705c; font-size: 0.7rem;">(Admin)</span>
+                                                         @else
+                                                             <span style="color: #6b705c;">System</span>
+                                                         @endif
+                                                     </td>
+                                                 </tr>
+                                             @endforeach
+                                         </tbody>
+                                     </table>
+                                 </div>
+                             </div>
+                         @endif
+                     </div>
+                 </div>
+             </div>
+         </div>
+     </div>
 
 <style>
     .glass-input {
