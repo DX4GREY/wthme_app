@@ -58,7 +58,7 @@
                     </div>
                     @if ($suara->anonim)
                     <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed rgba(0,47,69,0.1); color:#6b705c; font-size:0.8rem;">
-                        🔒 <strong>Catatan:</strong> Peserta mengirim ini secara anonim. Identitas hanya terlihat oleh admin.
+                        🔒 <strong>Catatan:</strong> Peserta mengirim ini secara anonim.
                     </div>
                     @endif
                 @else
