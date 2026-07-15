@@ -39,24 +39,41 @@
                 <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#002f45; opacity:0.4; margin-bottom:0.75rem;">
                     Informasi Pengirim
                 </div>
-                <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
-                    <div>
-                        <span style="font-size:0.7rem; color:#002f45; opacity:0.5;">Nama</span>
-                        <div style="color:#002f45; font-weight:600; font-size:0.95rem;">{{ $suara->user->name }}</div>
+                
+                @if (auth()->user()->isAdmin())
+                    {{-- Admin: lihat identitas lengkap --}}
+                    <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
+                        <div>
+                            <span style="font-size:0.7rem; color:#002f45; opacity:0.5;">Nama</span>
+                            <div style="color:#002f45; font-weight:600; font-size:0.95rem;">{{ $suara->user->name }}</div>
+                        </div>
+                        <div>
+                            <span style="font-size:0.7rem; color:#002f45; opacity:0.5;">NIM</span>
+                            <div style="color:#002f45; font-weight:600; font-size:0.95rem;">{{ $suara->user->nim }}</div>
+                        </div>
+                        <div>
+                            <span style="font-size:0.7rem; color:#002f45; opacity:0.5;">Kelompok</span>
+                            <div style="color:#002f45; font-weight:600; font-size:0.95rem;">{{ $suara->user->kelompok }}</div>
+                        </div>
                     </div>
-                    <div>
-                        <span style="font-size:0.7rem; color:#002f45; opacity:0.5;">NIM</span>
-                        <div style="color:#002f45; font-weight:600; font-size:0.95rem;">{{ $suara->user->nim }}</div>
+                    @if ($suara->anonim)
+                    <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed rgba(0,47,69,0.1); color:#6b705c; font-size:0.8rem;">
+                        🔒 <strong>Catatan:</strong> Peserta mengirim ini secara anonim. Identitas hanya terlihat oleh admin.
                     </div>
-                    <div>
-                        <span style="font-size:0.7rem; color:#002f45; opacity:0.5;">Kelompok</span>
-                        <div style="color:#002f45; font-weight:600; font-size:0.95rem;">{{ $suara->user->kelompok }}</div>
+                    @endif
+                @else
+                    {{-- Panitia: tidak lihat identitas --}}
+                    <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
+                        <div>
+                            <span style="font-size:0.7rem; color:#002f45; opacity:0.5;">Status</span>
+                            <div style="color:#002f45; font-weight:600; font-size:0.95rem;">
+                                {{ $suara->anonim ? '🕵️ Dikirim Secara Anonim' : '👤 Peserta' }}
+                            </div>
+                        </div>
                     </div>
-                </div>
-                @if ($suara->anonim)
-                <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed rgba(0,47,69,0.1); color:#6b705c; font-size:0.8rem;">
-                    🔒 <strong>Catatan:</strong> Peserta mengirim ini secara anonim. Identitas di atas hanya terlihat oleh panitia/admin.
-                </div>
+                    <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed rgba(0,47,69,0.1); color:#6b705c; font-size:0.8rem;">
+                        🔒 Identitas pengirim hanya bisa dilihat oleh admin.
+                    </div>
                 @endif
             </div>
 

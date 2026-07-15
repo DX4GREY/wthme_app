@@ -70,20 +70,31 @@
                         @endif
                     </div>
 
-                    {{-- Pengirim (untuk panitia, identitas sebenarnya tetap terlihat) --}}
+                    {{-- Pengirim --}}
                     <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
                         <div style="width:40px; height:40px; border-radius:50%; background:#e0decd; display:flex; align-items:center; justify-content:center; font-weight:700; color:#002f45; font-size:0.85rem; flex-shrink:0;">
-                            {{ strtoupper(substr($suara->user->name, 0, 1)) }}
+                            {{ $suara->anonim ? '?' : strtoupper(substr($suara->user->name, 0, 1)) }}
                         </div>
                         <div>
                             <div style="color:#002f45; font-weight:600; font-size:0.9rem;">
-                                {{ $suara->anonim ? '🕵️ Peserta (Anonim)' : $suara->user->name }}
-                                <span style="color:#002f45; opacity:0.4; font-weight:400; font-size:0.8rem;">
-                                    ({{ $suara->user->nim }})
-                                </span>
+                                @if (auth()->user()->isAdmin())
+                                    {{ $suara->anonim ? '🕵️ Peserta (Anonim)' : $suara->user->name }}
+                                    <span style="color:#002f45; opacity:0.4; font-weight:400; font-size:0.8rem;">
+                                        ({{ $suara->user->nim }})
+                                    </span>
+                                @else
+                                    @if ($suara->anonim)
+                                        🕵️ Peserta (Anonim)
+                                    @else
+                                        👤 Peserta
+                                    @endif
+                                @endif
                             </div>
                             <div style="color:#002f45; opacity:0.4; font-size:0.75rem;">
-                                Kel. {{ $suara->user->kelompok }} · {{ $suara->created_at->diffForHumans() }}
+                                @if (auth()->user()->isAdmin())
+                                    Kel. {{ $suara->user->kelompok }} · 
+                                @endif
+                                {{ $suara->created_at->diffForHumans() }}
                             </div>
                         </div>
                     </div>
