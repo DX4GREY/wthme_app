@@ -26,6 +26,7 @@ use App\Http\Controllers\QuestMeetController;
 use App\Http\Controllers\QuestLabController;
 use App\Http\Controllers\FotoKekeluargaanController;
 use App\Http\Controllers\CaptureMomentController;
+use App\Http\Controllers\ImpersonationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -263,6 +264,13 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         });
 
         
+    });
+
+    // --- IMPERSONASI (khusus admin) ---
+    Route::prefix('impersonasi')->name('impersonasi.')->middleware('admin')->group(function () {
+        Route::get('/peserta', [ImpersonationController::class, 'getPesertaList'])->name('peserta.list');
+        Route::post('/login/{id}', [ImpersonationController::class, 'loginAsPeserta'])->name('login');
+        Route::post('/leave', [ImpersonationController::class, 'leave'])->name('leave');
     });
 
     // --- PESERTA ---
