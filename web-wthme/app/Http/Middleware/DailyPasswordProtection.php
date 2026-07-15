@@ -42,9 +42,7 @@ class DailyPasswordProtection
         }
 
         // Jika belum verifikasi, redirect ke halaman verifikasi password
-        // Simpan URL yang dituju untuk redirect setelah verifikasi
-        return redirect()->route('panitia.absensi.password')
-            ->with('error', 'Silakan masukkan password akses absensi.')
-            ->with('intended_url', $request->fullUrl());
+        return redirect()->intended(route('panitia.absensi.password'))
+            ->with('error', 'Silakan masukkan password akses absensi.');
     }
 }
