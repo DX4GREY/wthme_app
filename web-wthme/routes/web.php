@@ -72,6 +72,10 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         Route::patch('/users/{id}/status', [AdminController::class, 'updateUserStatus'])->name('users.status');
         Route::post('/system/{action}', [AdminController::class, 'runSystemAction'])->name('system.action');
 
+        // Daily Password Management for Absensi
+        Route::get('/absensi-password', [AdminController::class, 'absensiPasswordIndex'])->name('absensi.password.index');
+        Route::post('/absensi-password', [AdminController::class, 'absensiPasswordStore'])->name('absensi.password.store');
+
         // 🟢 PINDAH KE SINI: Route Import Abang-Abang KBMS khusus Admin
         // --- EDIT PADA BAGIAN KELOMPOK ROUTE INI SAJA ---
         Route::prefix('abang')->name('abang.')->group(function () {
@@ -172,14 +176,21 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
             Route::get('/input', [LeaderboardController::class, 'inputPoint'])->name('input');
         });
 
+        // Password protection routes for attendance data
+        Route::get('/absensi/password', [AbsensiController::class, 'showPasswordForm'])->name('absensi.password');
+        Route::post('/absensi/password', [AbsensiController::class, 'verifyPassword'])->name('absensi.password.verify');
+        Route::post('/absensi/password/logout', [AbsensiController::class, 'logoutPassword'])->name('absensi.password.logout');
+
         // QR & ABSENSI
         Route::get('/qr/buat',                 [QrController::class, 'create'])->name('qr.create');
         Route::post('/qr/buat',                [QrController::class, 'store'])->name('qr.store');
         Route::get('/qr/tampilkan/{code}',     [QrController::class, 'show'])->name('qr.show');
         Route::patch('/qr/{id}/toggle',        [QrController::class, 'toggle'])->name('qr.toggle');
         Route::get('/qr/{code}/refresh-token', [QrController::class, 'refreshToken'])->name('qr.refresh');
-        Route::get('/absensi/peserta', [AbsensiController::class, 'dataPeserta'])->name('absensi.peserta');
-        Route::get('/absensi/panitia', [AbsensiController::class, 'dataPanitia'])->name('absensi.panitia');
+        Route::middleware('absensi.password')->group(function () {
+            Route::get('/absensi/peserta', [AbsensiController::class, 'dataPeserta'])->name('absensi.peserta');
+            Route::get('/absensi/panitia', [AbsensiController::class, 'dataPanitia'])->name('absensi.panitia');
+        });
         Route::get('/absen',  [AbsensiController::class, 'formPanitia'])->name('absen');
         Route::post('/absen', [AbsensiController::class, 'storePanitia'])->name('absen.store');
         Route::post('/absensi/peserta/update-status', [AbsensiController::class, 'updateStatusPeserta'])->name('absensi.updateStatus');

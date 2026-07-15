@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\AuditLog;
+use App\Models\DailyAbsensiPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -363,5 +364,54 @@ class AdminController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 1000),
         ]);
+    }
+
+    /**
+     * Manajemen Password Absensi Harian
+     */
+    public function absensiPasswordIndex()
+    {
+        $todayPassword = DailyAbsensiPassword::getTodayPassword();
+        $recentPasswords = DailyAbsensiPassword::orderBy('tanggal', 'desc')->take(7)->get();
+        
+        return view('admin.absensi-password', compact('todayPassword', 'recentPasswords'));
+    }
+
+    public function absensiPasswordStore(Request $request)
+    {
+        $request->validate([
+            'password' => ['required', 'string', 'min:6', 'max:50'],
+        ], [
+            'password.required' => 'Password wajib diisi.',
+            'password.min' => 'Password minimal 6 karakter.',
+            'password.max' => 'Password maksimal 50 karakter.',
+        ]);
+
+        $today = date('Y-m-d');
+
+        // Cek apakah password untuk hari ini sudah ada
+        $existingPassword = DailyAbsensiPassword::where('tanggal', $today)->first();
+
+        if ($existingPassword) {
+            // Update password jika sudah ada
+            $existingPassword->update([
+                'password' => $request->password, // Akan di-hash otomatis oleh model event
+                'dibuat_oleh' => $request->user()->id,
+            ]);
+            
+            $message = 'Password absensi hari ini berhasil diperbarui.';
+        } else {
+            // Buat password baru jika belum ada
+            DailyAbsensiPassword::create([
+                'tanggal' => $today,
+                'password' => $request->password,
+                'dibuat_oleh' => $request->user()->id,
+            ]);
+            
+            $message = 'Password absensi hari ini berhasil dibuat.';
+        }
+
+        return redirect()->route('admin.absensi.password.index')
+            ->with('success', $message);
     }
 }

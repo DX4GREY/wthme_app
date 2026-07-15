@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'mentor'               => \App\Http\Middleware\MentorMiddleware::class,
             'secure.uploads'       => \App\Http\Middleware\SecureUploadsMiddleware::class,
             'active.user'         => \App\Http\Middleware\EnsureUserIsActive::class,
+            'absensi.password'     => \App\Http\Middleware\DailyPasswordProtection::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -6,7 +6,9 @@ use App\Models\AbsensiPeserta;
 use App\Models\AbsensiPanitia;
 use App\Models\QrSession;
 use App\Models\User;
+use App\Models\DailyAbsensiPassword;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class AbsensiController extends Controller
 {
@@ -302,6 +304,46 @@ class AbsensiController extends Controller
     public function faceGate()
     {
         return view('panitia.face-gate');
+    }
+
+    // ===== PASSWORD VERIFICATION FOR ATTENDANCE DATA =====
+
+    public function showPasswordForm()
+    {
+        return view('panitia.absensi-password');
+    }
+
+    public function verifyPassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        $todayPassword = DailyAbsensiPassword::getTodayPassword();
+
+        if (!$todayPassword) {
+            return back()->with('error', 'Password akses absensi hari ini belum dibuat oleh admin.');
+        }
+
+        if (!Hash::check($request->password, $todayPassword->password)) {
+            return back()->with('error', 'Password salah!');
+        }
+
+        // Set session untuk 24 jam
+        $request->session()->put('absensi_password_verified', true);
+        $request->session()->put('absensi_password_verified_at', now());
+
+        return redirect()->route('panitia.absensi.peserta')
+            ->with('success', 'Password berhasil diverifikasi! Akses absensi diberikan.');
+    }
+
+    public function logoutPassword(Request $request)
+    {
+        $request->session()->forget('absensi_password_verified');
+        $request->session()->forget('absensi_password_verified_at');
+
+        return redirect()->route('panitia.index')
+            ->with('success', 'Session password absensi telah dihapus.');
     }
 
     public function faceGateProcess(Request $request)
