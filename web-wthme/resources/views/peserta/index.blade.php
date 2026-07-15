@@ -200,6 +200,13 @@
                 @php
                     $menus = [
                         [
+                            'route' => route('peserta.suara.create'),
+                            'icon' => '📢',
+                            'title' => 'Suara Peserta',
+                            'desc' => 'Sampaikan saran, kritik, atau keluhan ke panitia',
+                            'badge' => null,
+                        ],
+                        [
                             'route' => route('peserta.face.register'),
                             'icon' => '🤳',
                             'title' => 'Daftar Wajah',

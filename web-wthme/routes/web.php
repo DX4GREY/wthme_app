@@ -26,6 +26,7 @@ use App\Http\Controllers\QuestMeetController;
 use App\Http\Controllers\QuestLabController;
 use App\Http\Controllers\FotoKekeluargaanController;
 use App\Http\Controllers\CaptureMomentController;
+use App\Http\Controllers\SuaraPesertaController;
 use App\Http\Controllers\ImpersonationController;
 use Illuminate\Support\Facades\Route;
 
@@ -85,6 +86,13 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
 
     // --- PANITIA ---
     Route::prefix('panitia')->name('panitia.')->middleware('panitia')->group(function () {
+        // Suara Peserta (Panitia)
+        Route::prefix('suara')->name('suara.')->group(function () {
+            Route::get('/', [SuaraPesertaController::class, 'index'])->name('index');
+            Route::get('/{id}', [SuaraPesertaController::class, 'show'])->name('show');
+            Route::delete('/{id}', [SuaraPesertaController::class, 'destroy'])->name('destroy');
+        });
+
         Route::get('/', [PanitiaController::class, 'index'])->name('index');
         Route::post('/links', [PanitiaController::class, 'storeLink'])->name('links.store');
         Route::delete('/links/{id}', [PanitiaController::class, 'destroyLink'])->name('links.destroy');
@@ -285,6 +293,10 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         Route::get('/tugas',             [TugasController::class, 'indexPeserta'])->name('tugas');
         Route::post('/tugas/upload',     [TugasController::class, 'uploadTugas'])->name('tugas.upload');
 
+
+        // Suara Peserta (Peserta)
+        Route::get('/suara', [SuaraPesertaController::class, 'create'])->name('suara.create');
+        Route::post('/suara', [SuaraPesertaController::class, 'store'])->name('suara.store');
 
         // Logistik Barang (Peserta)
         Route::get('/barang', [BarangController::class, 'pesertaIndex'])->name('barang');
