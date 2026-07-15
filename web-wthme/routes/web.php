@@ -72,9 +72,10 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         Route::patch('/users/{id}/status', [AdminController::class, 'updateUserStatus'])->name('users.status');
         Route::post('/system/{action}', [AdminController::class, 'runSystemAction'])->name('system.action');
 
-        // Daily Password Management for Absensi
-        Route::get('/absensi-password', [AdminController::class, 'absensiPasswordIndex'])->name('absensi.password.index');
-        Route::post('/absensi-password', [AdminController::class, 'absensiPasswordStore'])->name('absensi.password.store');
+         // Daily Password Management for Absensi
+         Route::get('/absensi-password', [AdminController::class, 'absensiPasswordIndex'])->name('absensi.password.index');
+         Route::post('/absensi-password', [AdminController::class, 'absensiPasswordStore'])->name('absensi.password.store');
+         Route::post('/absensi-password/generate', [AdminController::class, 'generateRandomPassword'])->name('absensi.password.generate');
 
         // 🟢 PINDAH KE SINI: Route Import Abang-Abang KBMS khusus Admin
         // --- EDIT PADA BAGIAN KELOMPOK ROUTE INI SAJA ---

@@ -109,65 +109,81 @@
                         </div>
                     @endif
 
-                    <form action="{{ route('admin.absensi.password.store') }}" method="POST">
-                        @csrf
-                        <div style="margin-bottom: 1.5rem;">
-                            <label for="password" style="display: block; font-size: 0.9rem; font-weight: 700; color: #002f45; margin-bottom: 0.5rem;">
-                                @if($todayPassword)
-                                    Update Password Baru
-                                @else
-                                    Buat Password Baru
-                                @endif
-                            </label>
-                            <div style="position: relative;">
-                                <input 
-                                    type="password" 
-                                    name="password" 
-                                    id="passwordInput" 
-                                    required 
-                                    class="glass-input"
-                                    placeholder="Masukkan password harian"
-                                    autofocus
-                                    minlength="6"
-                                    maxlength="50"
-                                >
-                                <button 
-                                    type="button" 
-                                    onclick="togglePasswordVisibility('passwordInput', this)" 
-                                    style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #6b705c; padding: 0.25rem; transition: color 0.2s;"
-                                    onmouseover="this.style.color='#002f45'"
-                                    onmouseout="this.style.color='#6b705c'"
-                                >
-                                    <svg style="width: 20px; height: 20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                    </svg>
-                                </button>
-                            </div>
-                            <p style="color: #6b705c; font-size: 0.8rem; margin: 0.5rem 0 0 0;">
-                                Minimal 6 karakter, maksimal 50 karakter
-                            </p>
-                        </div>
+                     <form action="{{ route('admin.absensi.password.store') }}" method="POST" id="passwordForm">
+                         @csrf
+                         <div style="margin-bottom: 1.5rem;">
+                             <label for="password" style="display: block; font-size: 0.9rem; font-weight: 700; color: #002f45; margin-bottom: 0.5rem;">
+                                 @if($todayPassword)
+                                     Update Password Baru
+                                 @else
+                                     Buat Password Baru
+                                 @endif
+                             </label>
+                             
+                             <!-- Generate Random Password Button -->
+                             <div style="margin-bottom: 0.75rem;">
+                                 <button 
+                                     type="button" 
+                                     onclick="generateRandomPassword()"
+                                     style="width: 100%; padding: 0.625rem 1rem; background: rgba(210, 194, 150, 0.2); color: #002f45; border: 1px solid rgba(210, 194, 150, 0.4); border-radius: 0.625rem; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                                     onmouseover="this.style.background='rgba(210, 194, 150, 0.4)'"
+                                     onmouseout="this.style.background='rgba(210, 194, 150, 0.2)'"
+                                 >
+                                     <svg style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 014.582 9m0 0H9m11-11v5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                     </svg>
+                                     Generate Password Random
+                                 </button>
+                             </div>
+                            
+                             <div style="position: relative;">
+                                 <input 
+                                     type="password" 
+                                     name="password" 
+                                     id="passwordInput" 
+                                     required 
+                                     class="glass-input"
+                                     placeholder="Masukkan password harian"
+                                     minlength="6"
+                                     maxlength="50"
+                                 >
+                                 <button 
+                                     type="button" 
+                                     onclick="togglePasswordVisibility('passwordInput', this)" 
+                                     style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #6b705c; padding: 0.25rem; transition: color 0.2s;"
+                                     onmouseover="this.style.color='#002f45'"
+                                     onmouseout="this.style.color='#6b705c'"
+                                 >
+                                     <svg style="width: 20px; height: 20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                     </svg>
+                                 </button>
+                             </div>
+                             <p style="color: #6b705c; font-size: 0.8rem; margin: 0.5rem 0 0 0;">
+                                 Minimal 6 karakter, maksimal 50 karakter
+                             </p>
+                         </div>
 
-                        <button 
-                            type="submit" 
-                            style="width: 100%; padding: 0.875rem 1.25rem; background: #002f45; color: white; border: none; border-radius: 0.875rem; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
-                            onmouseover="this.style.background='#003a55'; this.style.transform='translateY(-2px)'"
-                            onmouseout="this.style.background='#002f45'; this.style.transform='translateY(0)'"
-                        >
-                            @if($todayPassword)
-                                <svg style="width: 18px; height: 18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11-11v5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                                </svg>
-                                Update Password
-                            @else
-                                <svg style="width: 18px; height: 18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                                </svg>
-                                Buat Password
-                            @endif
-                        </button>
-                    </form>
+                         <button 
+                             type="submit" 
+                             style="width: 100%; padding: 0.875rem 1.25rem; background: #002f45; color: white; border: none; border-radius: 0.875rem; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                             onmouseover="this.style.background='#003a55'; this.style.transform='translateY(-2px)'"
+                             onmouseout="this.style.background='#002f45'; this.style.transform='translateY(0)'"
+                         >
+                             @if($todayPassword)
+                                 <svg style="width: 18px; height: 18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 014.582 9m0 0H9m11-11v5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                 </svg>
+                                 Update Password
+                             @else
+                                 <svg style="width: 18px; height: 18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                 </svg>
+                                 Buat Password
+                             @endif
+                         </button>
+                     </form>
                 </div>
 
                 <!-- Info Box -->
@@ -340,7 +356,7 @@
     }
 </style>
 
-<script>
+    <script>
     // Toggle password visibility
     function togglePasswordVisibility(inputId, button) {
         const input = document.getElementById(inputId);
@@ -376,5 +392,45 @@
             alert('Gagal menyalin password');
         });
     }
-</script>
+
+    // Generate Random Password
+    function generateRandomPassword() {
+        if (!confirm('Generate password random untuk hari ini? Password lama akan diganti.')) {
+            return;
+        }
+        
+        const form = document.getElementById('passwordForm');
+        const originalAction = form.action;
+        
+        // Submit to generate route
+        fetch('{{ route("admin.absensi.password.generate") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload page to show new password
+                window.location.reload();
+            } else {
+                alert(data.message || 'Gagal generate password');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // Fallback: submit form normally
+            const tempForm = document.createElement('form');
+            tempForm.method = 'POST';
+            tempForm.action = '{{ route("admin.absensi.password.generate") }}';
+            tempForm.innerHTML = '@csrf';
+            document.body.appendChild(tempForm);
+            tempForm.submit();
+        });
+    }
+    </script>
 @endsection
