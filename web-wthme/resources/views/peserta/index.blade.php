@@ -267,13 +267,13 @@
                             'desc' => 'Foto bersama rekan angkatan. Klaim +5 XP per teman!',
                             'badge' => null,
                         ],
-                        // [
-                        //     'route' => route('peserta.capture.index'),
-                        //     'icon' => '📸',
-                        //     'title' => 'Quest Capture Moment',
-                        //     'desc' => 'Upload foto kebersamaan kelompok & menangkan hingga 200 XP!',
-                        //     'badge' => null,
-                        // ],
+                        [
+                            'route' => route('peserta.capture.index'),
+                            'icon' => '📸',
+                            'title' => 'Quest Capture Moment',
+                            'desc' => 'Upload foto kebersamaan kelompok & menangkan hingga 200 XP!',
+                            'badge' => null,
+                        ],
                         // [
                         //     'route' => route('peserta.meet.index'), // Silakan sesuaikan nama route menu barunya di sini
                         //     'icon' => '✨', // Silakan sesuaikan emoji icon sesuai keinginan
