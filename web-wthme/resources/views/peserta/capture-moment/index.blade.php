@@ -66,7 +66,8 @@
                     <div style="display:flex; gap:1.25rem; flex-wrap:wrap; align-items:flex-start; margin-bottom:1.25rem;">
                         <div style="width:220px; flex-shrink:0;">
                             <img src="{{ asset('storage/' . $milikKelompok->foto_path) }}" alt="Foto Kelompok {{ $milikKelompok->kelompok }}"
-                                style="width:100%; height:160px; border-radius:1rem; object-fit:cover; box-shadow:0 4px 15px rgba(0,0,0,0.12);">
+                                style="width:100%; height:160px; border-radius:1rem; object-fit:cover; box-shadow:0 4px 15px rgba(0,0,0,0.12); cursor:pointer;"
+                                onclick="bukaPreview('{{ asset('storage/' . $milikKelompok->foto_path) }}', '{{ addslashes($milikKelompok->caption ?? '') }}')">
                         </div>
                         <div style="flex:1; min-width:180px;">
                             @if ($milikKelompok->caption)
@@ -75,6 +76,16 @@
                             <p style="color:#002f45; opacity:0.5; font-size:0.8rem; margin:0;">
                                 Diupload oleh: <strong>{{ $milikKelompok->uploader->name ?? '-' }}</strong>
                             </p>
+                            {{-- Tombol Hapus --}}
+                            <form action="{{ route('peserta.capture.destroy', $milikKelompok->id) }}" method="POST"
+                                onsubmit="return confirm('Yakin ingin menghapus foto Capture Moment kelompok {{ auth()->user()->kelompok }}? Tindakan ini tidak bisa dibatalkan.')">
+                                @csrf @method('DELETE')
+                                <button type="submit"
+                                    style="margin-top:0.75rem; display:inline-flex; align-items:center; gap:0.4rem; background:rgba(239,68,68,0.1); color:#b91c1c; padding:0.4rem 1rem; border:1px solid rgba(239,68,68,0.2); border-radius:0.75rem; font-weight:700; font-size:0.8rem; cursor:pointer; transition:all 0.3s;"
+                                    onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">
+                                    🗑️ Hapus Foto
+                                </button>
+                            </form>
                         </div>
                     </div>
                 @else

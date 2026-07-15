@@ -357,6 +357,7 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
             Route::get('/', [CaptureMomentController::class, 'pesertaIndex'])->name('index');
             Route::post('/upload', [CaptureMomentController::class, 'pesertaStore'])->name('upload');
             Route::post('/{id}/react', [CaptureMomentController::class, 'react'])->name('react');
+            Route::delete('/{id}', [CaptureMomentController::class, 'pesertaDestroy'])->name('destroy');
         });
     });
 });

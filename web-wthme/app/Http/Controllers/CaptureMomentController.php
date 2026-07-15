@@ -96,6 +96,24 @@ class CaptureMomentController extends Controller
         return back()->with('success', 'Foto Capture Moment kelompok ' . $kelompok . ' berhasil disimpan!');
     }
 
+    public function pesertaDestroy($id)
+    {
+        $user = Auth::user();
+        $foto = CaptureMoment::where('id', $id)->where('kelompok', $user->kelompok)->firstOrFail();
+
+        // Hapus file dari storage
+        if ($foto->foto_path && Storage::disk('public')->exists($foto->foto_path)) {
+            Storage::disk('public')->delete($foto->foto_path);
+        }
+
+        // Hapus reactions terkait
+        $foto->reactions()->delete();
+
+        $foto->delete();
+
+        return back()->with('success', 'Foto Capture Moment kelompok ' . $user->kelompok . ' berhasil dihapus.');
+    }
+
     public function react(Request $request, $id)
     {
         $setting = CaptureMomentSetting::current();
