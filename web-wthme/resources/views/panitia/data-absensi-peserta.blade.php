@@ -29,8 +29,57 @@
 
             {{-- PANEL MATRIKS UTAMA --}}
             <div style="background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(15px); border-radius: 2rem; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 20px 40px rgba(0,0,0,0.04);">
-                
-                <div style="overflow-x: auto; width: 100%;">
+
+                <div style="overflow-x: auto; overflow-y: visible; width: 100%;">
+
+                    @php
+                        // ==========================================================
+                        // AGREGASI STATISTIK PER SESI (Total Hadir, Gender, Kelompok)
+                        // ==========================================================
+                        $statsPerSesi = [];
+                        foreach ($sesiList as $sesi) {
+                            $totalHadir = 0;
+                            $hadirL = 0;
+                            $hadirP = 0;
+                            $kelompokStats = [];
+
+                            foreach ($matrixData as $noKelompok => $daftarPeserta) {
+                                $kelL = 0;
+                                $kelP = 0;
+                                $kelTotal = 0;
+
+                                foreach ($daftarPeserta as $user) {
+                                    $log = $logAbsensi->get($user->id)?->get($sesi->id)?->first();
+                                    $status = $log ? $log->status : 'tidak_hadir';
+
+                                    if ($status === 'hadir') {
+                                        $totalHadir++;
+                                        $kelTotal++;
+                                        $g = strtoupper(substr($user->gender ?? '', 0, 1));
+                                        if ($g === 'L') { $hadirL++; $kelL++; }
+                                        if ($g === 'P') { $hadirP++; $kelP++; }
+                                    }
+                                }
+
+                                if ($kelTotal > 0) {
+                                    $kelompokStats[] = [
+                                        'nama'  => $noKelompok ?? 'TANPA KELOMPOK',
+                                        'L'     => $kelL,
+                                        'P'     => $kelP,
+                                        'total' => $kelTotal,
+                                    ];
+                                }
+                            }
+
+                            $statsPerSesi[$sesi->id] = [
+                                'total'    => $totalHadir,
+                                'L'        => $hadirL,
+                                'P'        => $hadirP,
+                                'kelompok' => $kelompokStats,
+                            ];
+                        }
+                    @endphp
+
                     <table style="width:100%; border-collapse:collapse; min-width: 950px;">
                         <thead>
                             <tr style="background: #002f45;">
@@ -39,41 +88,78 @@
                                 <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 90px;">NIM</th>
                                 <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 70px;">Angkatan</th>
                                 <th style="padding:1.25rem 1rem; text-align:center; color:white; font-size:0.75rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); width: 50px;">Gender</th>
-                                
+
                                 @foreach($sesiList as $sesi)
-                                    <th style="padding:1.25rem 1rem; text-align:center; color:#d2c296; font-size:0.7rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); min-width: 140px; line-height: 1.2;">
-                                        {{ $sesi->nama_sesi }}
+                                    @php $stat = $statsPerSesi[$sesi->id] ?? ['total'=>0,'L'=>0,'P'=>0,'kelompok'=>[]]; @endphp
+                                    <th style="padding:1.25rem 1rem; text-align:center; color:#d2c296; font-size:0.7rem; font-weight:800; text-transform:uppercase; border: 1px solid rgba(0,0,0,0.15); min-width: 140px; line-height: 1.2; position: relative; vertical-align: top;">
+                                        <div>{{ $sesi->nama_sesi }}</div>
                                         <div style="font-size: 0.6rem; color: white; opacity: 0.6; font-weight: 400; margin-top: 3px;">{{ $sesi->created_at->format('d/m/Y') }}</div>
+
+                                        <button type="button" onclick="toggleSesiDetail({{ $sesi->id }})"
+                                            style="margin-top:6px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; padding: 3px 10px; color: #e0decd; font-size: 0.65rem; font-weight: 700; cursor: pointer; text-transform: none; letter-spacing: 0; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;"
+                                            onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                                            ({{ $stat['total'] }} Peserta) <span id="sesi-arrow-{{ $sesi->id }}" style="transition: transform 0.2s; display:inline-block;">▾</span>
+                                        </button>
+
+                                        {{-- Panel Detail Floating --}}
+                                        <div id="sesi-detail-{{ $sesi->id }}"
+                                            style="display:none; position:absolute; top:100%; left:50%; transform:translateX(-50%); width:260px; background:#ffffff; border-radius:1rem; box-shadow:0 15px 35px rgba(0,0,0,0.2); z-index:100; padding:1rem; text-align:left; color:#002f45; text-transform:none; letter-spacing:0; font-weight:400; margin-top:8px;">
+
+                                            <div style="display:flex; gap:1.25rem; font-size:0.8rem; margin-bottom:0.65rem;">
+                                                <div><span style="opacity:0.6;">Total L Hadir:</span> <strong>{{ $stat['L'] }}</strong></div>
+                                                <div><span style="opacity:0.6;">Total P Hadir:</span> <strong>{{ $stat['P'] }}</strong></div>
+                                            </div>
+
+                                            <div style="border-top:1px solid rgba(0,47,69,0.08); padding-top:0.5rem;">
+                                                <div style="font-size:0.75rem; font-weight:700; color:#6b705c; margin-bottom:0.5rem;">Rincian Hadir Per Kelompok</div>
+                                                <div style="display:flex; flex-direction:column; gap:0.4rem; max-height:220px; overflow-y:auto;">
+                                                    @if(count($stat['kelompok']) > 0)
+                                                        @foreach(collect($stat['kelompok'])->sortBy('nama', SORT_NATURAL) as $kel)
+                                                            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,47,69,0.03); padding:0.4rem 0.65rem; border-radius:0.5rem; font-size:0.75rem;">
+                                                                <span style="font-weight:600;">{{ $kel['nama'] }}</span>
+                                                                <div style="display:flex; gap:0.6rem; opacity:0.85;">
+                                                                    <span>L: <strong>{{ $kel['L'] }}</strong></span>
+                                                                    <span>P: <strong>{{ $kel['P'] }}</strong></span>
+                                                                    <span style="border-left:1px solid rgba(0,47,69,0.15); padding-left:0.5rem; font-weight:700;">{{ $kel['total'] }}</span>
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <div style="color:#6b705c; font-style:italic; font-size:0.75rem;">Belum ada yang hadir di sesi ini.</div>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
                                     </th>
                                 @endforeach
                             </tr>
                         </thead>
                         <tbody>
-                            
+
                             @forelse($matrixData as $noKelompok => $daftarPeserta)
-                                
+
                                 <tr style="background: rgba(0, 47, 69, 0.08);">
                                     <td colspan="{{ 5 + $sesiList->count() }}" style="padding: 1rem 1.5rem; font-weight: 800; color: #002f45; font-size: 0.9rem; letter-spacing: 0.05em; border-bottom: 2px solid #002f45;">
-                                        🌿 KELOMPOK {{ $noKelompok ?? 'TANPA KELOMPOK' }} 
+                                        🌿 KELOMPOK {{ $noKelompok ?? 'TANPA KELOMPOK' }}
                                         <span style="font-weight: 500; font-size: 0.75rem; opacity: 0.7; margin-left: 8px;">(Total {{ $daftarPeserta->count() }} Anggota)</span>
                                     </td>
                                 </tr>
 
                                 @foreach($daftarPeserta as $index => $user)
                                     <tr style="border-bottom:1px solid rgba(0,0,0,0.05); transition: 0.2s warm;" onmouseover="this.style.background='rgba(255,255,255,0.45)'" onmouseout="this.style.background='transparent'">
-                                        
+
                                         <td style="padding:1rem; text-align:center; color:#002f45; opacity:0.6; font-family:monospace; font-weight:600; border-right: 1px solid rgba(0,0,0,0.02);">
                                             {{ $index + 1 }}
                                         </td>
-                                        
+
                                         <td style="padding:1rem 1.5rem; color:#002f45; font-weight:700; font-size:0.9rem;">
                                             {{ $user->name }}
                                         </td>
-                                        
+
                                         <td style="padding:1rem; text-align:center; color:#002f45; font-size:0.8rem; font-family:monospace; opacity:0.8;">
                                             {{ $user->nim }}
                                         </td>
-                                        
+
                                         <td style="padding:1rem; text-align:center; color:#002f45; font-weight:600; font-size:0.85rem;">
                                             {{ $user->angkatan }}
                                         </td>
@@ -85,35 +171,35 @@
                                         @foreach($sesiList as $sesi)
                                             @php
                                                 $log = $logAbsensi->get($user->id)?->get($sesi->id)?->first();
-                                                
+
                                                 // KUNCI PERBAIKAN UTAMA: Ambil nilai asli status dari database
                                                 $status = $log ? $log->status : 'tidak_hadir';
 
                                                 $bgSelect = '#c53030';     // Default Alfa (Merah)
                                                 $textSelect = '#ffffff';   // Default teks putih
-                                                
-                                                if($status === 'hadir') { 
+
+                                                if($status === 'hadir') {
                                                     $bgSelect = '#2f855a'; // Hijau
-                                                    $textSelect = '#ffffff'; 
+                                                    $textSelect = '#ffffff';
                                                 }
-                                                if($status === 'izin') { 
+                                                if($status === 'izin') {
                                                     $bgSelect = '#ecc94b';  // Kuning Murni untuk Izin
                                                     $textSelect = '#002f45'; // Teks gelap agar kontras
                                                 }
 
                                                 $userLogin = auth()->user();
                                                 $canEdit = (
-                                                    $userLogin->role === 'admin' || 
-                                                    $userLogin->divisi === 'admin' || 
-                                                    strtoupper($userLogin->divisi) === 'ACARA' || 
+                                                    $userLogin->role === 'admin' ||
+                                                    $userLogin->divisi === 'admin' ||
+                                                    strtoupper($userLogin->divisi) === 'ACARA' ||
                                                     strtoupper($userLogin->divisi) === 'KOMDIS' ||
                                                     strtoupper($userLogin->divisi) === 'MENTOR'
                                                 );
                                             @endphp
 
                                             <td style="padding:0.75rem 0.5rem; text-align:center; border-left: 1px solid rgba(0,0,0,0.02);">
-                                                <select class="status-select" 
-                                                        data-user="{{ $user->id }}" 
+                                                <select class="status-select"
+                                                        data-user="{{ $user->id }}"
                                                         data-session="{{ $sesi->id }}"
                                                         {{ !$canEdit ? 'disabled' : '' }}
                                                         style="padding: 0.35rem 0.6rem; border-radius: 0.5rem; border: none; font-size: 0.75rem; font-weight: 700; color: {{ $textSelect }}; outline: none; background-color: {{ $bgSelect }}; transition: 0.2s; width: 100%; max-width: 125px; text-align-last: center; {{ !$canEdit ? 'cursor: not-allowed; opacity: 0.85;' : 'cursor: pointer;' }}">
@@ -150,7 +236,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const selects = document.querySelectorAll('.status-select');
-            
+
             selects.forEach(select => {
                 // Simpan status awal untuk rollback jika seandainya gagal/ditolak backend
                 select.dataset.originalBg = select.style.backgroundColor;
@@ -201,7 +287,7 @@
                     .catch(error => {
                         console.error('Error:', error);
                         alert(error.message);
-                        
+
                         // Kembalikan tampilan dropdown ke pilihan sebelumnya jika ditolak backend
                         currentSelect.value = currentSelect.dataset.originalValue;
                         currentSelect.style.backgroundColor = currentSelect.dataset.originalBg;
@@ -209,6 +295,30 @@
                     });
                 });
             });
+        });
+
+        // ==========================================================
+        // TOGGLE PANEL DETAIL SESI (Total Hadir, Gender, Per Kelompok)
+        // ==========================================================
+        function toggleSesiDetail(id) {
+            const panel = document.getElementById('sesi-detail-' + id);
+            const arrow = document.getElementById('sesi-arrow-' + id);
+            const isOpen = panel.style.display === 'block';
+
+            document.querySelectorAll('[id^="sesi-detail-"]').forEach(p => p.style.display = 'none');
+            document.querySelectorAll('[id^="sesi-arrow-"]').forEach(a => a.style.transform = 'rotate(0deg)');
+
+            if (!isOpen) {
+                panel.style.display = 'block';
+                arrow.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('[id^="sesi-detail-"]') && !e.target.closest('button[onclick^="toggleSesiDetail"]')) {
+                document.querySelectorAll('[id^="sesi-detail-"]').forEach(p => p.style.display = 'none');
+                document.querySelectorAll('[id^="sesi-arrow-"]').forEach(a => a.style.transform = 'rotate(0deg)');
+            }
         });
     </script>
 
