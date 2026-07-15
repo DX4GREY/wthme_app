@@ -399,38 +399,13 @@
             return;
         }
         
-        const form = document.getElementById('passwordForm');
-        const originalAction = form.action;
-        
-        // Submit to generate route
-        fetch('{{ route("admin.absensi.password.generate") }}', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Reload page to show new password
-                window.location.reload();
-            } else {
-                alert(data.message || 'Gagal generate password');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            // Fallback: submit form normally
-            const tempForm = document.createElement('form');
-            tempForm.method = 'POST';
-            tempForm.action = '{{ route("admin.absensi.password.generate") }}';
-            tempForm.innerHTML = '@csrf';
-            document.body.appendChild(tempForm);
-            tempForm.submit();
-        });
+        // Create temp form and submit directly (more reliable than fetch)
+        const tempForm = document.createElement('form');
+        tempForm.method = 'POST';
+        tempForm.action = '{{ route("admin.absensi.password.generate") }}';
+        tempForm.innerHTML = '<input type="hidden" name="_token" value="{{ csrf_token() }}"><input type="hidden" name="_method" value="POST">';
+        document.body.appendChild(tempForm);
+        tempForm.submit();
     }
     </script>
 @endsection
