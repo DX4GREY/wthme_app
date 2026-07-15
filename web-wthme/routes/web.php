@@ -266,12 +266,14 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         
     });
 
-    // --- IMPERSONASI (khusus admin) ---
-    Route::prefix('impersonasi')->name('impersonasi.')->middleware('admin')->group(function () {
-        Route::get('/peserta', [ImpersonationController::class, 'getPesertaList'])->name('peserta.list');
-        Route::post('/login/{id}', [ImpersonationController::class, 'loginAsPeserta'])->name('login');
-        Route::post('/leave', [ImpersonationController::class, 'leave'])->name('leave');
+    // --- IMPERSONASI ---
+    // Route khusus admin (saat masih login sebagai admin)
+    Route::middleware('admin')->group(function () {
+        Route::get('/impersonasi/peserta', [ImpersonationController::class, 'getPesertaList'])->name('impersonasi.peserta.list');
+        Route::post('/impersonasi/login/{id}', [ImpersonationController::class, 'loginAsPeserta'])->name('impersonasi.login');
     });
+    // Route leave impersonasi — tanpa middleware admin karena user sedang sebagai peserta
+    Route::post('/impersonasi/leave', [ImpersonationController::class, 'leave'])->name('impersonasi.leave');
 
     // --- PESERTA ---
     Route::prefix('peserta')->name('peserta.')->middleware('peserta')->group(function () {
