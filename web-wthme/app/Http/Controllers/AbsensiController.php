@@ -349,7 +349,10 @@ class AbsensiController extends Controller
         $request->session()->put('absensi_password_verified', true);
         $request->session()->put('absensi_password_verified_at', now());
 
-        return redirect()->route('panitia.absensi.peserta')
+        // Redirect ke URL yang dituju sebelum verifikasi, atau ke dashboard panitia
+        $intendedUrl = $request->session()->get('url.intended');
+        
+        return redirect($intendedUrl ?: route('panitia.index'))
             ->with('success', 'Password berhasil diverifikasi! Akses absensi diberikan.');
     }
 
