@@ -77,7 +77,8 @@
                     @foreach ($foto as $item)
                         <div style="background:rgba(255,255,255,0.35); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.5); border-radius:1.25rem; overflow:hidden; box-shadow:0 6px 20px rgba(0,0,0,0.06);">
                             {{-- Thumbnail --}}
-                            <div style="position:relative;">
+                            <div style="position:relative; cursor:pointer;"
+                                onclick="bukaPreview('{{ asset('storage/' . $item->foto_path) }}', '{{ addslashes($item->caption ?? '') }}')">
                                 <img src="{{ asset('storage/' . $item->foto_path) }}" alt="Foto Kelompok {{ $item->kelompok }}"
                                     loading="lazy"
                                     style="width:100%; height:220px; object-fit:cover; display:block;">
@@ -148,4 +149,39 @@
             @endif
         </div>
     </div>
+
+    {{-- MODAL PREVIEW FOTO --}}
+    <div id="previewModal"
+        style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center; padding:2rem; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); cursor:pointer;"
+        onclick="tutupPreview()">
+        <div style="max-width:90vw; max-height:90vh; border-radius:1.25rem; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,0.5); cursor:default; position:relative;"
+            onclick="event.stopPropagation()">
+            <button onclick="tutupPreview()"
+                style="position:absolute; top:12px; right:12px; width:36px; height:36px; border-radius:50%; background:rgba(0,0,0,0.5); color:#fff; border:none; font-size:1.25rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:0.3s; z-index:10;"
+                onmouseover="this.style.background='rgba(0,0,0,0.8)'" onmouseout="this.style.background='rgba(0,0,0,0.5)'">
+                ✕
+            </button>
+            <img id="previewImage" src="" alt="Preview Foto"
+                style="width:100%; max-width:800px; max-height:85vh; object-fit:contain; display:block; background:#111;">
+            <div id="previewCaption" style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent, rgba(0,0,0,0.7)); padding:2rem 1.25rem 1rem 1.25rem; color:#fff; font-size:0.9rem; font-weight:500; text-align:center; pointer-events:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        function bukaPreview(src, caption) {
+            document.getElementById('previewImage').src = src;
+            document.getElementById('previewCaption').textContent = caption || '';
+            document.getElementById('previewModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function tutupPreview() {
+            document.getElementById('previewModal').style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') tutupPreview();
+        });
+    </script>
 @endsection
