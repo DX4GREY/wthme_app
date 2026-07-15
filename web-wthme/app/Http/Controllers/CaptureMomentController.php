@@ -60,18 +60,26 @@ class CaptureMomentController extends Controller
         }
 
         $request->validate([
-            'foto'    => 'required|image|max:15360', // max 15MB, dimensi/ukuran bebas
+            'foto'    => 'required|image|max:15360', // max 15MB
             'caption' => 'nullable|string|max:255',
         ]);
 
         $user     = Auth::user();
         $kelompok = $user->kelompok;
 
+        // ✅ Validasi: user harus punya kelompok
+        if (blank($kelompok)) {
+            return back()->with('error', 'Akun kamu belum memiliki kelompok. Hubungi panitia.');
+        }
+
         $existing = CaptureMoment::where('kelompok', $kelompok)->first();
 
-        // Hapus foto lama kalau ganti foto baru
-        if ($existing && $existing->foto_path && Storage::disk('public')->exists($existing->foto_path)) {
-            Storage::disk('public')->delete($existing->foto_path);
+        // Hapus foto lama dari storage kalau ada
+        if ($existing) {
+            $oldPath = $existing->getOriginal('foto_path') ?? $existing->foto_path;
+            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
+            }
         }
 
         $path = $request->file('foto')->store('capture-moments', 'public');
@@ -80,11 +88,8 @@ class CaptureMomentController extends Controller
             ['kelompok' => $kelompok],
             [
                 'foto_path'   => $path,
-                'caption'     => $request->caption,
+                'caption'     => $request->caption ?? '',
                 'uploaded_by' => $user->id,
-                // Catatan: skor & juara SENGAJA tidak direset di sini sesuai keputusan tim,
-                // tapi karena foto final hanya 1x boleh diganti sebelum deadline, biasanya
-                // pergantian ini terjadi sebelum proses penilaian dimulai.
             ]
         );
 
