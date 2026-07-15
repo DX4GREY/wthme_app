@@ -393,9 +393,9 @@ class AdminController extends Controller
         $existingPassword = DailyAbsensiPassword::where('tanggal', $today)->first();
 
         if ($existingPassword) {
-            // Update password - store plain for display and hash the original
+            // Update password - the model will auto-hash via booted event
             $existingPassword->password_tampil = $request->password;
-            $existingPassword->password = bcrypt($request->password);
+            $existingPassword->password = $request->password;
             $existingPassword->dibuat_oleh = $request->user()->id;
             $existingPassword->dibuat_pada = now();
             $existingPassword->save();
@@ -403,10 +403,10 @@ class AdminController extends Controller
             $message = 'Attendance password for today has been updated successfully.';
             $this->audit($request, 'absensi_password.updated', null, ['password_date' => $today]);
         } else {
-            // Create new password
+            // Create new password - the model will auto-hash via booted event
             DailyAbsensiPassword::create([
                 'tanggal' => $today,
-                'password' => bcrypt($request->password),
+                'password' => $request->password,
                 'password_tampil' => $request->password,
                 'dibuat_oleh' => $request->user()->id,
             ]);
