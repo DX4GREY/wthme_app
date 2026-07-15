@@ -86,7 +86,7 @@
                         </div>
                     </label>
                     <p style="color:#6b705c; font-size:0.75rem; margin:0.75rem 0 0 0; font-style:italic;">
-                        🔒 Identitas asli tetap aman dan hanya bisa dilihat oleh admin sistem.
+                        🔒 Identitas asli tetap aman tidak terlihat sama sekali oleh sistem.
                     </p>
                 </div>
 
