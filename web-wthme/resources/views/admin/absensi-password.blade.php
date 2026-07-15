@@ -279,10 +279,25 @@
                                             </td>
                                             <td style="padding: 1rem; color: #6b705c;">
                                                 <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                                    <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #d2c296, #e0decd); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #002f45; font-size: 0.75rem;">
-                                                        {{ substr($password->dibuatOleh->name ?? 'S', 0, 1) }}
-                                                    </div>
-                                                    <span style="font-weight: 500; color: #002f45;">{{ $password->dibuatOleh->name ?? 'System' }}</span>
+                                                    @if($password->dibuatOleh)
+                                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #d2c296, #e0decd); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #002f45; font-size: 0.75rem;">
+                                                            {{ substr($password->dibuatOleh->name, 0, 1) }}
+                                                        </div>
+                                                        <div>
+                                                            <span style="font-weight: 500; color: #002f45; font-size: 0.85rem;">{{ $password->dibuatOleh->name }}</span>
+                                                            <span style="display: block; font-size: 0.7rem; color: #6b705c;">Admin</span>
+                                                        </div>
+                                                    @else
+                                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(189, 209, 211, 0.2); display: flex; align-items: center; justify-content: center;">
+                                                            <svg style="width: 18px; height: 18px; color: #bdd1d3;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                            </svg>
+                                                        </div>
+                                                        <div>
+                                                            <span style="font-weight: 500; color: #002f45; font-size: 0.85rem;">System</span>
+                                                            <span style="display: block; font-size: 0.7rem; color: #6b705c;">Auto-Generated</span>
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             </td>
                                             <td style="padding: 1rem; color: #6b705c;">
