@@ -13,7 +13,7 @@ return new class extends Migration
             $table->date('tanggal');
             $table->string('password_tampil');
             $table->unsignedBigInteger('created_by')->nullable();
-            $table->timestamp('created_at');
+            $table->timestamp('created_at')->nullable();
             
             $table->index(['tanggal', 'created_at']);
         });

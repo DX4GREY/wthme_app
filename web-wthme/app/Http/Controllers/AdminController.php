@@ -356,11 +356,13 @@ class AdminController extends Controller
 
     private function audit(Request $request, string $event, ?User $subject = null, array $properties = []): void
     {
+        $subjectId = $subject ? $subject->id : null;
+        
         AuditLog::create([
             'actor_id' => $request->user()->id,
             'event' => $event,
             'subject_type' => $subject ? User::class : null,
-            'subject_id' => $subject?->id,
+            'subject_id' => $subjectId,
             'properties' => $properties ?: null,
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 1000),
