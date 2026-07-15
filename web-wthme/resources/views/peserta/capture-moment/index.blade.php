@@ -107,8 +107,8 @@
                                 <p style="color:#002f45; opacity:0.4; font-size:0.7rem; margin:0.25rem 0 0 0;">Maks. 15 MB · Format gambar umum</p>
                             </div>
                             <div>
-                                <label style="display:block; font-size:0.8rem; font-weight:600; color:#002f45; margin-bottom:0.35rem;">Caption <span style="opacity:0.4;">(opsional)</span></label>
-                                <textarea name="caption" placeholder="Tulis cerita singkat tentang foto ini..." maxlength="255" rows="2"
+                                <label style="display:block; font-size:0.8rem; font-weight:600; color:#002f45; margin-bottom:0.35rem;">Caption</label>
+                                <textarea name="caption" placeholder="Tulis cerita singkat tentang foto ini..." rows="2"
                                     style="width:100%; padding:0.65rem; border-radius:0.75rem; border:1px solid rgba(0,47,69,0.15); background:rgba(255,255,255,0.5); font-family:'Inter',sans-serif; resize:vertical;">{{ old('caption', $milikKelompok->caption ?? '') }}</textarea>
                             </div>
                             <button type="submit"
