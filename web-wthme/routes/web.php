@@ -374,6 +374,13 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
             Route::post('/upload', [CaptureMomentController::class, 'pesertaStore'])->name('upload');
             Route::post('/{id}/react', [CaptureMomentController::class, 'react'])->name('react');
             Route::delete('/{id}', [CaptureMomentController::class, 'pesertaDestroy'])->name('destroy');
+            
+            // Komentar
+            Route::post('/{id}/comment', [CaptureMomentController::class, 'storeComment'])->name('comment.store');
+            Route::delete('/comment/{commentId}', [CaptureMomentController::class, 'destroyComment'])->name('comment.destroy');
+            
+            // Like komentar
+            Route::post('/comment/{commentId}/like', [CaptureMomentController::class, 'toggleLikeComment'])->name('comment.like');
         });
     });
 });

@@ -202,7 +202,70 @@
                                     oleh {{ $foto->uploader->name ?? '—' }}
                                 </p>
                             </div>
+
+                            {{-- Comments Section (Instagram style) --}}
+                            @if ($setting->sedangBerjalan())
+                                {{-- Form komentar --}}
+                                <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid rgba(0,47,69,0.08);">
+                                    <form action="{{ route('peserta.capture.comment.store', $foto->id) }}" method="POST" style="display:flex; gap:0.5rem;">
+                                        @csrf
+                                        <input type="text" name="comment" placeholder="Tulis komentar..." required
+                                            style="flex:1; padding:0.5rem 0.75rem; border-radius:0.5rem; border:1px solid rgba(0,47,69,0.15); background:rgba(255,255,255,0.7); font-size:0.85rem;">
+                                        <button type="submit"
+                                            style="display:inline-flex; align-items:center; justify-content:center; background:#002f45; color:#fff; border:none; border-radius:0.5rem; padding:0 1rem; font-weight:600; font-size:0.85rem; cursor:pointer;">
+                                            Kirim
+                                        </button>
+                                    </form>
+                                </div>
+                            @endif
+
+                            {{-- Daftar komentar --}}
+                            @if ($foto->comments->count() > 0)
+                                <div style="margin-top:0.75rem; max-height:200px; overflow-y:auto; padding-right:0.25rem;">
+                                    @foreach ($foto->comments as $comment)
+                                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem; padding:0.5rem; background:rgba(0,47,69,0.03); border-radius:0.5rem;">
+                                            <div style="flex:1;">
+                                                <p style="color:#002f45; font-size:0.85rem; margin:0 0 0.25rem 0; line-height:1.4;">
+                                                    <strong style="color:#002f45;">{{ $comment->user->name ?? '—' }}</strong> {{ $comment->comment }}
+                                                </p>
+                                                <div style="display:flex; align-items:center; gap:0.5rem;">
+                                                    <small style="color:#002f45; opacity:0.4; font-size:0.7rem;">
+                                                        {{ $comment->created_at->diffForHumans() }}
+                                                    </small>
+                                                    @if ($setting->sedangBerjalan())
+                                                        <form action="{{ route('peserta.capture.comment.like', $comment->id) }}" method="POST" style="display:inline;">
+                                                            @csrf
+                                                            @php $hasLiked = isset($likeKomentarSaya[$comment->id]); @endphp
+                                                            <button type="submit"
+                                                                style="background:none; border:none; color:{{ $hasLiked ? '#ef4444' : '#002f45' }}; opacity:{{ $hasLiked ? '1' : '0.4' }}; font-size:0.9rem; cursor:pointer; padding:0; display:flex; align-items:center; gap:0.2rem;">
+                                                                ❤️ <span style="font-size:0.7rem; margin-top:0.1rem;">{{ $comment->likes->count() }}</span>
+                                                            </button>
+                                                        </form>
+                                                    @else
+                                                        <span style="color:#002f45; opacity:0.4; font-size:0.75rem; display:flex; align-items:center; gap:0.2rem;">
+                                                            ❤️ <span style="font-size:0.7rem;">{{ $comment->likes->count() }}</span>
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            {{-- Tombol hapus komentar (hanya untuk pemilik) --}}
+                                            @if ($comment->user_id === auth()->id())
+                                                <form action="{{ route('peserta.capture.comment.destroy', $comment->id) }}" method="POST" style="display:inline;"
+                                                    onsubmit="return confirm('Hapus komentar ini?')">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit"
+                                                        style="background:none; border:none; color:#b91c1c; opacity:0.5; font-size:0.9rem; cursor:pointer; padding:0.2rem; margin-left:0.5rem;">
+                                                        ✕
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+
                         </div>
+                    </div>
                     @endforeach
                 </div>
             @endif
