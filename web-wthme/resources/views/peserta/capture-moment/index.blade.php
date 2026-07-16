@@ -206,14 +206,18 @@
                             {{-- Comments Section (Instagram style) --}}
                             @if ($setting->sedangBerjalan())
                                 {{-- Form komentar --}}
-                                <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid rgba(0,47,69,0.08);">
-                                    <form action="{{ route('peserta.capture.comment.store', $foto->id) }}" method="POST" style="display:flex; gap:0.5rem;">
+                                <div style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px solid rgba(0,47,69,0.08);">
+                                    <form action="{{ route('peserta.capture.comment.store', $foto->id) }}" method="POST" style="display:flex; gap:0.4rem; align-items:center;">
                                         @csrf
-                                        <input type="text" name="comment" placeholder="Tulis komentar..." required
-                                            style="flex:1; padding:0.5rem 0.75rem; border-radius:0.5rem; border:1px solid rgba(0,47,69,0.15); background:rgba(255,255,255,0.7); font-size:0.85rem;">
+                                        <input type="text" name="comment" placeholder="Tulis komentar..." required maxlength="500"
+                                            style="flex:1; padding:0.45rem 0.75rem; border-radius:9999px; border:1px solid rgba(0,47,69,0.2); background:rgba(255,255,255,0.85); font-size:0.8rem; outline:none;"
+                                            onfocus="this.style.borderColor='#002f45'; this.style.boxShadow='0 0 0 2px rgba(0,47,69,0.1)'"
+                                            onblur="this.style.borderColor='rgba(0,47,69,0.2)'; this.style.boxShadow='none'">
                                         <button type="submit"
-                                            style="display:inline-flex; align-items:center; justify-content:center; background:#002f45; color:#fff; border:none; border-radius:0.5rem; padding:0 1rem; font-weight:600; font-size:0.85rem; cursor:pointer;">
-                                            Kirim
+                                            style="display:inline-flex; align-items:center; justify-content:center; background:#002f45; color:#fff; border:none; border-radius:9999px; width:32px; height:32px; font-weight:600; font-size:0.9rem; cursor:pointer; transition:all 0.2s;"
+                                            onmouseover="this.style.background='#001f2e'; this.style.transform='scale(1.05)'"
+                                            onmouseout="this.style.background='#002f45'; this.style.transform='scale(1)'">
+                                            ✈️
                                         </button>
                                     </form>
                                 </div>
@@ -221,30 +225,34 @@
 
                             {{-- Daftar komentar --}}
                             @if ($foto->comments->count() > 0)
-                                <div style="margin-top:0.75rem; max-height:200px; overflow-y:auto; padding-right:0.25rem;">
+                                <div class="comment-list" style="margin-top:0.5rem; max-height:180px; overflow-y:auto; padding-right:0.25rem;">
                                     @foreach ($foto->comments as $comment)
-                                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem; padding:0.5rem; background:rgba(0,47,69,0.03); border-radius:0.5rem;">
-                                            <div style="flex:1;">
-                                                <p style="color:#002f45; font-size:0.85rem; margin:0 0 0.25rem 0; line-height:1.4;">
-                                                    <strong style="color:#002f45;">{{ $comment->user->name ?? '—' }}</strong> {{ $comment->comment }}
-                                                </p>
-                                                <div style="display:flex; align-items:center; gap:0.5rem;">
-                                                    <small style="color:#002f45; opacity:0.4; font-size:0.7rem;">
-                                                        {{ $comment->created_at->diffForHumans() }}
-                                                    </small>
+                                        <div style="display:flex; align-items:flex-start; gap:0.5rem; margin-bottom:0.4rem; padding:0.4rem 0.5rem; border-radius:0.5rem; transition:background 0.2s;"
+                                            onmouseover="this.style.background='rgba(0,47,69,0.04)'"
+                                            onmouseout="this.style.background='transparent'">
+                                            {{-- Avatar inisial --}}
+                                            <div style="width:28px; height:28px; flex-shrink:0; border-radius:50%; background:linear-gradient(135deg, #6b705c, #002f45); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.75rem; margin-top:0.1rem;">
+                                                {{ strtoupper(substr($comment->user->name ?? '—', 0, 1)) }}
+                                            </div>
+                                            <div style="flex:1; min-width:0;">
+                                                <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.2rem;">
+                                                    <span style="color:#002f45; font-size:0.82rem; font-weight:600; line-height:1;">{{ $comment->user->name ?? '—' }}</span>
+                                                    <span style="color:#002f45; font-size:0.82rem; opacity:0.8; line-height:1.4; word-break:break-word;">{{ $comment->comment }}</span>
+                                                </div>
+                                                <div style="display:flex; align-items:center; gap:0.6rem;">
+                                                    <small style="color:#002f45; opacity:0.4; font-size:0.68rem;">{{ $comment->created_at->diffForHumans() }}</small>
+                                                    <span style="color:#002f45; opacity:0.4; font-size:0.68rem;">{{ $comment->likes->count() > 0 ? $comment->likes->count() . ' suka' : '' }}</span>
                                                     @if ($setting->sedangBerjalan())
                                                         <form action="{{ route('peserta.capture.comment.like', $comment->id) }}" method="POST" style="display:inline;">
                                                             @csrf
                                                             @php $hasLiked = isset($likeKomentarSaya[$comment->id]); @endphp
                                                             <button type="submit"
-                                                                style="background:none; border:none; color:{{ $hasLiked ? '#ef4444' : '#002f45' }}; opacity:{{ $hasLiked ? '1' : '0.4' }}; font-size:0.9rem; cursor:pointer; padding:0; display:flex; align-items:center; gap:0.2rem;">
-                                                                ❤️ <span style="font-size:0.7rem; margin-top:0.1rem;">{{ $comment->likes->count() }}</span>
+                                                                style="background:none; border:none; color:{{ $hasLiked ? '#ef4444' : '#002f45' }}; opacity:{{ $hasLiked ? '1' : '0.4' }}; font-size:0.9rem; cursor:pointer; padding:0; display:flex; align-items:center; gap:0.15rem; transition:all 0.2s;"
+                                                                onmouseover="this.style.opacity='0.7'"
+                                                                onmouseout="this.style.opacity='{{ $hasLiked ? '1' : '0.4' }}'">
+                                                                ❤️
                                                             </button>
                                                         </form>
-                                                    @else
-                                                        <span style="color:#002f45; opacity:0.4; font-size:0.75rem; display:flex; align-items:center; gap:0.2rem;">
-                                                            ❤️ <span style="font-size:0.7rem;">{{ $comment->likes->count() }}</span>
-                                                        </span>
                                                     @endif
                                                 </div>
                                             </div>
@@ -254,7 +262,9 @@
                                                     onsubmit="return confirm('Hapus komentar ini?')">
                                                     @csrf @method('DELETE')
                                                     <button type="submit"
-                                                        style="background:none; border:none; color:#b91c1c; opacity:0.5; font-size:0.9rem; cursor:pointer; padding:0.2rem; margin-left:0.5rem;">
+                                                        style="background:none; border:none; color:#b91c1c; opacity:0.4; font-size:0.9rem; cursor:pointer; padding:0.1rem; margin-left:0.25rem; transition:all 0.2s;"
+                                                        onmouseover="this.style.opacity='0.7'"
+                                                        onmouseout="this.style.opacity='0.4'">
                                                         ✕
                                                     </button>
                                                 </form>
