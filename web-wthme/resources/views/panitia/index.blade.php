@@ -224,12 +224,12 @@
                             //     'title' => 'Notulensi Rapat',
                             //     'desc' => 'Catat hasil & poin pembahasan',
                             // ],
-                            // [
-                            //     'route' => 'panitia.mentoring.index',
-                            //     'icon' => '🤝',
-                            //     'title' => 'Sesi Mentoring',
-                            //     'desc' => 'Kelola jadwal & progres mentoring',
-                            // ],
+                            [
+                                'route' => 'panitia.mentoring.index',
+                                'icon' => '🤝',
+                                'title' => 'Sesi Mentoring',
+                                'desc' => 'Kelola jadwal & progres mentoring',
+                            ],
                         ];
                     @endphp
 
@@ -280,7 +280,7 @@
                     @endforeach
 
                     {{-- Special Bendahara Card  --}}
-                    @if (auth()->user()->isPanitia())
+                    {{-- @if (auth()->user()->isPanitia())
                         <a href="{{ route('panitia.kas.index') }}" class="action-card bendahara-theme">
                             <div class="icon-box" style="background: rgba(210,194,150,0.2);">📒</div>
                             <div style="flex-grow: 1;">
@@ -290,7 +290,7 @@
                             <span class="role-badge"
                                 style="background: rgba(210,194,150,0.2); color: #d2c296; border-color: rgba(210,194,150,0.3);">BENDAHARA</span>
                         </a>
-                    @endif
+                    @endif --}}
                 </div>
 
                 {{-- Kolom Kanan: Sidebar --}}
