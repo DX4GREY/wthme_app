@@ -24,8 +24,16 @@ class CaptureMomentSetting extends Model
 
     public static function current(): self
     {
-        // Selalu pakai baris pertama (single-row setting)
-        return self::firstOrCreate(['id' => 1]);
+        // Cari baris pertama, atau buat baru kalau belum ada
+        $setting = self::first();
+        
+        if (!$setting) {
+            $setting = self::create([
+                'tema' => 'Kekeluargaan',
+            ]);
+        }
+        
+        return $setting;
     }
 
     public function sedangBerjalan(): bool
