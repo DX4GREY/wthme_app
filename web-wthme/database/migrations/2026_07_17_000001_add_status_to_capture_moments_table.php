@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('capture_moments', function (Blueprint $table) {
-            $table->enum('status', ['pending', 'rejected'])->default('pending')->after('juara');
+            $table->string('status', 20)->default('pending')->after('juara');
         });
     }
 
