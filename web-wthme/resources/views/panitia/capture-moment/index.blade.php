@@ -91,6 +91,11 @@
                                             {{ $item->labelJuara() }} · {{ $item->poin }} pts
                                         </span>
                                     @endif
+                                    @if ($item->isRejected())
+                                        <span style="background:#b91c1c; color:#fff; font-size:0.65rem; font-weight:800; padding:4px 12px; border-radius:50px; backdrop-filter:blur(4px);">
+                                            ⛔ Ditolak
+                                        </span>
+                                    @endif
                                 </div>
                             </div>
 
@@ -142,6 +147,35 @@
                                         {{ $item->sudahDinilai() ? '🔄 Update Nilai (Total: ' . $item->total_skor . ')' : '📝 Simpan Nilai' }}
                                     </button>
                                 </form>
+
+                                {{-- Action buttons: Tolak & Hapus --}}
+                                @if (!$item->sudahDinilai())
+                                    <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+                                        {{-- Tombol Tolak --}}
+                                        <form action="{{ route('panitia.capture.tolak', $item->id) }}" method="POST"
+                                            onsubmit="return confirm('Yakin menolak foto kelompok {{ $item->kelompok }}? Peserta dapat mengunggah ulang.')">
+                                            @csrf
+                                            <button type="submit"
+                                                style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:0.4rem; background:#fef2f2; color:#b91c1c; padding:0.5rem; border:1px solid #fca5a5; border-radius:0.5rem; font-weight:600; font-size:0.8rem; cursor:pointer; transition:all 0.2s;"
+                                                onmouseover="this.style.background='#fee2e2'"
+                                                onmouseout="this.style.background='#fef2f2'">
+                                                ⛔ Tolak Foto
+                                            </button>
+                                        </form>
+                                        
+                                        {{-- Tombol Hapus --}}
+                                        <form action="{{ route('panitia.capture.destroy', $item->id) }}" method="POST"
+                                            onsubmit="return confirm('Yakin hapus foto kelompok {{ $item->kelompok }}? Tindakan ini tidak dapat dibatalkan.')">
+                                            @csrf @method('DELETE')
+                                            <button type="submit"
+                                                style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:0.4rem; background:#fef2f2; color:#b91c1c; padding:0.5rem; border:1px solid #fca5a5; border-radius:0.5rem; font-weight:600; font-size:0.8rem; cursor:pointer; transition:all 0.2s;"
+                                                onmouseover="this.style.background='#fee2e2'"
+                                                onmouseout="this.style.background='#fef2f2'">
+                                                🗑️ Hapus Foto
+                                            </button>
+                                        </form>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @endforeach

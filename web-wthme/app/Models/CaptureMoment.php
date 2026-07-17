@@ -19,7 +19,12 @@ class CaptureMoment extends Model
         'dinilai_at',
         'juara',
         'poin',
+        'status',
     ];
+    public function isRejected(): bool
+    {
+        return $this->status === 'rejected';
+    }
 
     protected function casts(): array
     {

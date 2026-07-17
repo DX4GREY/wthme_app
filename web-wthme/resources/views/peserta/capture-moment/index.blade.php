@@ -66,12 +66,19 @@
                     <div style="display:flex; gap:1.25rem; flex-wrap:wrap; align-items:flex-start; margin-bottom:1.25rem;">
                         <div style="width:220px; flex-shrink:0;">
                             <img src="{{ asset('storage/' . $milikKelompok->foto_path) }}" alt="Foto Kelompok {{ $milikKelompok->kelompok }}"
-                                style="width:100%; height:160px; border-radius:1rem; object-fit:cover; box-shadow:0 4px 15px rgba(0,0,0,0.12); cursor:pointer;"
+                                style="width:100%; height:160px; border-radius:1rem; object-fit:cover; box-shadow:0 4px 15px rgba(0,0,0,0.12); cursor:pointer; @if($milikKelompok->isRejected()) opacity:0.5; @endif"
                                 onclick="bukaPreview('{{ asset('storage/' . $milikKelompok->foto_path) }}', '{{ addslashes($milikKelompok->caption ?? '') }}')">
+                            @if ($milikKelompok->isRejected())
+                                <div style="margin-top:0.4rem; text-align:center;">
+                                    <span style="background:#b91c1c; color:#fff; font-size:0.7rem; font-weight:700; padding:2px 10px; border-radius:9999px;">
+                                        ⛔ Foto Ditolak - Silakan upload ulang
+                                    </span>
+                                </div>
+                            @endif
                         </div>
                         <div style="flex:1; min-width:180px;">
                             @if ($milikKelompok->caption)
-                                <p style="color:#002f45; margin:0 0 0.5rem 0; font-size:0.9rem;">{{ $milikKelompok->caption }}</p>
+                                <p style="color:#002f45; margin:0 0 0.5rem 0; font-size:0.9rem; @if($milikKelompok->isRejected()) opacity:0.5; @endif">{{ $milikKelompok->caption }}</p>
                             @endif
                             <p style="color:#002f45; opacity:0.5; font-size:0.8rem; margin:0;">
                                 Diupload oleh: <strong>{{ $milikKelompok->uploader->name ?? '-' }}</strong>
