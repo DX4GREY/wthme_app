@@ -287,11 +287,39 @@ class CaptureMomentController extends Controller
             'total_skor'       => $total,
             'dinilai_oleh'     => Auth::id(),
             'dinilai_at'       => now(),
+            // Reset rilis jika nilai diubah, panitia harus rilis ulang
+            'is_released'      => false,
         ]);
+
+        return back()->with('success', 'Penilaian kelompok ' . $foto->kelompok . ' tersimpan. Nilai belum dirilis ke peserta.');
+    }
+
+    // Rilis nilai satu kelompok ke peserta (hitung ranking & tampilkan)
+    public function rilisNilai($id)
+    {
+        $foto = CaptureMoment::findOrFail($id);
+
+        if (!$foto->sudahDinilai()) {
+            return back()->with('error', 'Foto ini belum dinilai. Isi nilai terlebih dahulu.');
+        }
+
+        $foto->update(['is_released' => true]);
 
         $this->hitungUlangRanking();
 
-        return back()->with('success', 'Penilaian kelompok ' . $foto->kelompok . ' tersimpan & ranking diperbarui.');
+        return back()->with('success', 'Nilai kelompok ' . $foto->kelompok . ' berhasil dirilis ke peserta.');
+    }
+
+    // Rilis semua nilai yang sudah dinilai sekaligus
+    public function rilisSemuaNilai()
+    {
+        $updated = CaptureMoment::whereNotNull('total_skor')
+            ->where('is_released', false)
+            ->update(['is_released' => true]);
+
+        $this->hitungUlangRanking();
+
+        return back()->with('success', $updated . ' nilai berhasil dirilis ke semua peserta.');
     }
 
     // Dipanggil otomatis tiap kali ada penilaian baru: urutkan ulang juara & poin

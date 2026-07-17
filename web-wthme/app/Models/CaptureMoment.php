@@ -20,6 +20,7 @@ class CaptureMoment extends Model
         'juara',
         'poin',
         'status',
+        'is_released',
     ];
     public function isRejected(): bool
     {

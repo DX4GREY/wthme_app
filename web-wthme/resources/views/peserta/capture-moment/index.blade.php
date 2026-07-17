@@ -50,9 +50,13 @@
                     <h3 style="color:#002f45; font-family:'Playfair Display',serif; font-size:1.15rem; font-weight:700; margin:0;">
                         🏕️ Foto Kelompok {{ auth()->user()->kelompok }}
                     </h3>
-                    @if ($milikKelompok && $milikKelompok->sudahDinilai())
+                    @if ($milikKelompok && $milikKelompok->is_released)
                         <span style="display:inline-flex; align-items:center; gap:0.3rem; background:#002f45; color:#fff; padding:0.3rem 1rem; border-radius:2rem; font-size:0.8rem; font-weight:700;">
                             {{ $milikKelompok->labelJuara() ?? 'Dinilai' }} · {{ $milikKelompok->total_skor }} pts
+                        </span>
+                    @elseif ($milikKelompok && $milikKelompok->sudahDinilai())
+                        <span style="display:inline-flex; align-items:center; gap:0.3rem; background:rgba(255,193,7,0.12); color:#856404; padding:0.3rem 1rem; border-radius:2rem; font-size:0.8rem; font-weight:700;">
+                            ⏳ Nilai belum dirilis panitia
                         </span>
                     @elseif ($milikKelompok)
                         <span style="display:inline-flex; align-items:center; gap:0.3rem; background:rgba(0,47,69,0.08); color:#002f45; padding:0.3rem 1rem; border-radius:2rem; font-size:0.8rem; font-weight:700;">
@@ -177,7 +181,7 @@
                                 {{-- Baris badge atas: juara / ditolak --}}
                                 <div style="position:absolute; top:0; left:0; right:0; padding:0.7rem; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none;">
                                     <span></span>
-                                    @if ($foto->labelJuara())
+                                    @if ($foto->is_released && $foto->labelJuara())
                                         <span style="background:linear-gradient(135deg, #e8d9a8, #d2c296); color:#002f45; font-size:0.65rem; font-weight:800; padding:5px 12px; border-radius:50px; box-shadow:0 3px 10px rgba(0,0,0,0.15); letter-spacing:0.02em;">
                                             🏆 {{ $foto->labelJuara() }}
                                         </span>

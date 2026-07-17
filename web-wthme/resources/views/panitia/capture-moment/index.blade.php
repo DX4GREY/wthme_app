@@ -13,7 +13,7 @@
                     📸 Kelola <span style="color:#6b705c; font-style:italic;">Capture Moment</span>
                 </h1>
                 <p style="color:#002f45; opacity:0.6; margin-top:0.4rem; font-size:0.95rem;">
-                    Nilai foto tiap kelompok — ranking & poin terhitung otomatis dari total skor.
+                    Nilai foto tiap kelompok — ranking & poin akan dihitung otomatis saat nilai dirilis ke peserta.
                 </p>
             </div>
 
@@ -79,6 +79,21 @@
                     <p style="color:#002f45; opacity:0.6; margin:0;">Belum ada kelompok yang upload foto.</p>
                 </div>
             @else
+                <div style="margin-bottom:1rem; text-align:right;">
+                    @php $belumDirilis = $foto->filter(fn($f) => $f->sudahDinilai() && !$f->is_released)->count(); @endphp
+                    @if ($belumDirilis > 0)
+                        <form action="{{ route('panitia.capture.rilis-semua') }}" method="POST" style="display:inline;">
+                            @csrf
+                            <button type="submit"
+                                onclick="return confirm('Rilis {{ $belumDirilis }} nilai yang belum dirilis ke semua peserta?')"
+                                style="display:inline-flex; align-items:center; gap:0.4rem; background:#002f45; color:#fff; padding:0.55rem 1.5rem; border:none; border-radius:0.75rem; font-weight:700; font-size:0.85rem; cursor:pointer; transition:all 0.3s;"
+                                onmouseover="this.style.background='#001f2e'; this.style.transform='translateY(-2px)'"
+                                onmouseout="this.style.background='#002f45'; this.style.transform='translateY(0)'">
+                                📢 Rilis Semua ({{ $belumDirilis }})
+                            </button>
+                        </form>
+                    @endif
+                </div>
                 <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:1.25rem;">
                     @foreach ($foto as $item)
                         <div style="background:rgba(255,255,255,0.35); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.5); border-radius:1.25rem; overflow:hidden; box-shadow:0 6px 20px rgba(0,0,0,0.06);">
@@ -92,9 +107,13 @@
                                     <span style="background:rgba(0,47,69,0.85); color:#fff; font-size:0.65rem; font-weight:800; padding:4px 12px; border-radius:50px; backdrop-filter:blur(4px);">
                                         Kelompok {{ $item->kelompok }}
                                     </span>
-                                    @if ($item->labelJuara())
+                                    @if ($item->is_released && $item->labelJuara())
                                         <span style="background:rgba(210,194,150,0.9); color:#002f45; font-size:0.65rem; font-weight:800; padding:4px 12px; border-radius:50px; backdrop-filter:blur(4px);">
                                             {{ $item->labelJuara() }} · {{ $item->poin }} pts
+                                        </span>
+                                    @elseif ($item->sudahDinilai() && !$item->is_released)
+                                        <span style="background:rgba(255,193,7,0.9); color:#664d03; font-size:0.65rem; font-weight:800; padding:4px 12px; border-radius:50px; backdrop-filter:blur(4px);">
+                                            ⏳ {{ $item->total_skor }} pts — Blm Dirilis
                                         </span>
                                     @endif
                                     @if ($item->isRejected())
@@ -121,6 +140,13 @@
                                     <p style="color:#002f45; font-size:0.85rem; margin:0 0 0.75rem 0; line-height:1.5; background:rgba(0,47,69,0.03); padding:0.5rem 0.75rem; border-radius:0.5rem;">
                                         {{ $item->caption }}
                                     </p>
+                                @endif
+
+                                {{-- Status rilis --}}
+                                @if ($item->is_released)
+                                    <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.6rem; padding:0.3rem 0.6rem; background:rgba(40,167,69,0.08); border-radius:0.5rem; font-size:0.75rem; font-weight:600; color:#28a745;">
+                                        ✅ Telah dirilis ke peserta
+                                    </div>
                                 @endif
 
                                 {{-- Form penilaian --}}
@@ -154,8 +180,33 @@
                                     </button>
                                 </form>
 
-                                {{-- Action buttons: Tolak & Hapus --}}
-                                @if (!$item->sudahDinilai())
+                                {{-- Action buttons --}}
+                                @if ($item->sudahDinilai() && !$item->is_released)
+                                    <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+                                        {{-- Tombol Rilis --}}
+                                        <form action="{{ route('panitia.capture.rilis', $item->id) }}" method="POST"
+                                            onsubmit="return confirm('Rilis nilai kelompok {{ $item->kelompok }} ke peserta?')">
+                                            @csrf
+                                            <button type="submit"
+                                                style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:0.4rem; background:#e6f4ea; color:#1e7e34; padding:0.5rem; border:1px solid #b7dfb9; border-radius:0.5rem; font-weight:600; font-size:0.8rem; cursor:pointer; transition:all 0.2s;"
+                                                onmouseover="this.style.background='#d4edda'"
+                                                onmouseout="this.style.background='#e6f4ea'">
+                                                📢 Rilis ke Peserta
+                                            </button>
+                                        </form>
+                                        {{-- Tombol Hapus --}}
+                                        <form action="{{ route('panitia.capture.destroy', $item->id) }}" method="POST"
+                                            onsubmit="return confirm('Yakin hapus foto kelompok {{ $item->kelompok }}? Tindakan ini tidak dapat dibatalkan.')">
+                                            @csrf @method('DELETE')
+                                            <button type="submit"
+                                                style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:0.4rem; background:#fef2f2; color:#b91c1c; padding:0.5rem; border:1px solid #fca5a5; border-radius:0.5rem; font-weight:600; font-size:0.8rem; cursor:pointer; transition:all 0.2s;"
+                                                onmouseover="this.style.background='#fee2e2'"
+                                                onmouseout="this.style.background='#fef2f2'">
+                                                🗑️ Hapus Foto
+                                            </button>
+                                        </form>
+                                    </div>
+                                @elseif (!$item->sudahDinilai())
                                     <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
                                         {{-- Tombol Tolak --}}
                                         <form action="{{ route('panitia.capture.tolak', $item->id) }}" method="POST"
@@ -168,7 +219,6 @@
                                                 ⛔ Tolak Foto
                                             </button>
                                         </form>
-                                        
                                         {{-- Tombol Hapus --}}
                                         <form action="{{ route('panitia.capture.destroy', $item->id) }}" method="POST"
                                             onsubmit="return confirm('Yakin hapus foto kelompok {{ $item->kelompok }}? Tindakan ini tidak dapat dibatalkan.')">
