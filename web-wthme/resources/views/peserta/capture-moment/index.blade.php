@@ -13,7 +13,7 @@
                     📸 <span style="color:#6b705c; font-style:italic;">Capture Moment</span>
                 </h1>
                 <p style="color:#002f45; opacity:0.6; margin-top:0.5rem; font-size:0.95rem;">
-                    Abadikan momen kebersamaan kelompok kamu — Tema: <strong>Kekeluargaan</strong>
+                    Abadikan momen kebersamaan kelompok kamu — Tema: <strong>{{ $setting->tema ?? 'Kekeluargaan' }}</strong>
                 </p>
 
                 {{-- Status periode --}}

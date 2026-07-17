@@ -304,12 +304,14 @@ class CaptureMomentController extends Controller
         $request->validate([
             'mulai_at'   => 'nullable|date',
             'selesai_at' => 'nullable|date|after_or_equal:mulai_at',
+            'tema'       => 'nullable|string|max:100',
         ]);
 
         $setting = CaptureMomentSetting::current();
         $setting->update([
             'mulai_at'   => $request->mulai_at,
             'selesai_at' => $request->selesai_at,
+            'tema'       => $request->tema ?? 'Kekeluargaan',
         ]);
 
         return back()->with('success', 'Periode Capture Moment berhasil diperbarui.');

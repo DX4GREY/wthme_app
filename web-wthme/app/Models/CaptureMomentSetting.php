@@ -11,6 +11,7 @@ class CaptureMomentSetting extends Model
     protected $fillable = [
         'mulai_at',
         'selesai_at',
+        'tema',
     ];
 
     protected function casts(): array
