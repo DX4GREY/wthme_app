@@ -222,15 +222,28 @@ class CaptureMomentController extends Controller
 
         $foto = CaptureMoment::findOrFail($id);
 
-        CaptureMomentReaction::updateOrCreate(
-            [
+        // Cek apakah user sudah punya reaksi di foto ini
+        $existingReaction = CaptureMomentReaction::where('capture_moment_id', $foto->id)
+            ->where('user_id', Auth::id())
+            ->first();
+
+        if ($existingReaction) {
+            // Jika emoji sama, hapus reaksi (un-react)
+            if ($existingReaction->emoji === $request->emoji) {
+                $existingReaction->delete();
+                return back()->with('success', 'Reaksi dihapus!');
+            }
+
+            // Jika emoji berbeda, update reaksi
+            $existingReaction->update(['emoji' => $request->emoji]);
+        } else {
+            // Belum punya reaksi, buat baru
+            CaptureMomentReaction::create([
                 'capture_moment_id' => $foto->id,
                 'user_id'           => Auth::id(),
-            ],
-            [
-                'emoji' => $request->emoji,
-            ]
-        );
+                'emoji'             => $request->emoji,
+            ]);
+        }
 
         return back()->with('success', 'Reaction terkirim!');
     }

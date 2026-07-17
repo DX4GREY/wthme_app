@@ -216,6 +216,29 @@
                                     <p style="color:#002f45; font-size:0.85rem; margin:0 0 0.85rem 0; line-height:1.5; opacity:0.85;">{{ $foto->caption }}</p>
                                 @endif
 
+                                {{-- Emoji reaction buttons --}}
+                                @if ($setting->sedangBerjalan())
+                                    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:0.6rem;">
+                                        @php $emojiList = ['❤️', '😂', '😍', '🔥', '👍', '🎉', '😮', '😢', '🙏', '💯']; @endphp
+                                        @foreach ($emojiList as $emoji)
+                                            @php
+                                                $userReacted = isset($reaksiSaya[$foto->id]) && $reaksiSaya[$foto->id] === $emoji;
+                                            @endphp
+                                            <form action="{{ route('peserta.capture.react', $foto->id) }}" method="POST" style="display:inline;">
+                                                @csrf
+                                                <input type="hidden" name="emoji" value="{{ $emoji }}">
+                                                <button type="submit"
+                                                    style="background:{{ $userReacted ? 'rgba(0,47,69,0.12)' : 'rgba(0,47,69,0.04)' }}; border:1px solid {{ $userReacted ? 'rgba(0,47,69,0.25)' : 'rgba(0,47,69,0.08)' }}; padding:3px 8px; border-radius:50px; font-size:0.85rem; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:2px; {{ $userReacted ? 'box-shadow:0 0 0 2px rgba(0,47,69,0.08);' : '' }}"
+                                                    onmouseover="this.style.background='rgba(0,47,69,0.1)'; this.style.borderColor='rgba(0,47,69,0.2)';"
+                                                    onmouseout="this.style.background='{{ $userReacted ? 'rgba(0,47,69,0.12)' : 'rgba(0,47,69,0.04)' }}'; this.style.borderColor='{{ $userReacted ? 'rgba(0,47,69,0.25)' : 'rgba(0,47,69,0.08)' }}';"
+                                                    title="{{ $userReacted ? 'Klik untuk menghapus reaksi' : 'Reaksi ' . $emoji }}">
+                                                    {{ $emoji }}
+                                                </button>
+                                            </form>
+                                        @endforeach
+                                    </div>
+                                @endif
+
                                 {{-- Reaction summary --}}
                                 <div style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:0.65rem;">
                                     @forelse ($foto->reactions->groupBy('emoji') as $emoji => $group)
