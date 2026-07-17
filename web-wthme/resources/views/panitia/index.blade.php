@@ -174,14 +174,14 @@
                                 'desc' => 'Cek dan setujui bukti selfie laboratorium peserta',
                                 'restricted_to' => 'acara_and_admin',
                             ],
-                            // 🟢 MENU BARU: VALIDASI SUBMISI MEET KBM (ACC/TOLAK BUKTI MEET)
-                            [
-                                'route' => 'panitia.meet.index',
-                                'icon' => '👥',
-                                'title' => 'Validasi Meet KBM',
-                                'desc' => 'Antrean verifikasi acc/tolak bukti meet abang tingkat peserta',
-                                'restricted_to' => 'acara_and_admin',
-                            ],
+                            // // 🟢 MENU BARU: VALIDASI SUBMISI MEET KBM (ACC/TOLAK BUKTI MEET)
+                            // [
+                            //     'route' => 'panitia.meet.index',
+                            //     'icon' => '👥',
+                            //     'title' => 'Validasi Meet KBM',
+                            //     'desc' => 'Antrean verifikasi acc/tolak bukti meet abang tingkat peserta',
+                            //     'restricted_to' => 'acara_and_admin',
+                            // ],
                             [
                                 'route' => 'panitia.kesehatan.index',
                                 'icon' => '🩺',
@@ -224,12 +224,12 @@
                             //     'title' => 'Notulensi Rapat',
                             //     'desc' => 'Catat hasil & poin pembahasan',
                             // ],
-                            [
-                                'route' => 'panitia.mentoring.index',
-                                'icon' => '🤝',
-                                'title' => 'Sesi Mentoring',
-                                'desc' => 'Kelola jadwal & progres mentoring',
-                            ],
+                            // [
+                            //     'route' => 'panitia.mentoring.index',
+                            //     'icon' => '🤝',
+                            //     'title' => 'Sesi Mentoring',
+                            //     'desc' => 'Kelola jadwal & progres mentoring',
+                            // ],
                         ];
                     @endphp
 
