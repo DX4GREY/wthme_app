@@ -202,7 +202,95 @@
                                     oleh {{ $foto->uploader->name ?? '—' }}
                                 </p>
                             </div>
+
+                            {{-- Comments Section (Instagram style) --}}
+                            @if ($setting->sedangBerjalan())
+                                {{-- Form komentar --}}
+                                <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid rgba(0,47,69,0.08);">
+                                    <form action="{{ route('peserta.capture.comment.store', $foto->id) }}" method="POST" style="display:flex; gap:0.4rem; align-items:center;">
+                                        @csrf
+                                        <input type="text" name="comment" placeholder="Tulis komentar..." required maxlength="500"
+                                            style="flex:1; padding:0.45rem 0.75rem; border-radius:9999px; border:1px solid rgba(0,47,69,0.2); background:rgba(255,255,255,0.85); font-size:0.8rem; outline:none;"
+                                            onfocus="this.style.borderColor='#002f45'; this.style.boxShadow='0 0 0 2px rgba(0,47,69,0.1)'"
+                                            onblur="this.style.borderColor='rgba(0,47,69,0.2)'; this.style.boxShadow='none'">
+                                        <button type="submit"
+                                            style="display:inline-flex; align-items:center; justify-content:center; background:#002f45; color:#fff; border:none; border-radius:9999px; width:32px; height:32px; font-weight:600; font-size:0.9rem; cursor:pointer; transition:all 0.2s;"
+                                            onmouseover="this.style.background='#001f2e'; this.style.transform='scale(1.05)'"
+                                            onmouseout="this.style.background='#002f45'; this.style.transform='scale(1)'">
+                                            ✈️
+                                        </button>
+                                    </form>
+                                </div>
+                            @endif
+
+                            {{-- Tombol Show/Hide Comments --}}
+                            @if ($foto->comments->count() > 0)
+                                <div style="margin-top:0.5rem;">
+                                    <button type="button" onclick="toggleComments({{ $foto->id }})"
+                                        style="background:none; border:none; color:#002f45; font-size:0.8rem; font-weight:600; cursor:pointer; padding:0.2rem 0; display:flex; align-items:center; gap:0.2rem; transition:all 0.2s;"
+                                        onmouseover="this.style.opacity='0.7'"
+                                        onmouseout="this.style.opacity='1'">
+                                        <span id="toggle-text-{{ $foto->id }}">Show {{ $foto->comments->count() }} comments</span>
+                                        <span id="toggle-icon-{{ $foto->id }}">▼</span>
+                                    </button>
+                                </div>
+                            @endif
+
+                            {{-- Daftar komentar (default hidden) --}}
+                            @if ($foto->comments->count() > 0)
+                                <div id="comments-container-{{ $foto->id }}" style="display:none; margin-top:0.4rem; max-height:180px; overflow-y:auto; padding-right:0.25rem;">
+                                    @foreach ($foto->comments as $comment)
+                                        <div style="display:flex; align-items:flex-start; gap:0.5rem; margin-bottom:0.4rem; padding:0.4rem 0.5rem; border-radius:0.5rem; transition:background 0.2s;"
+                                            onmouseover="this.style.background='rgba(0,47,69,0.04)'"
+                                            onmouseout="this.style.background='transparent'">
+                                            {{-- Avatar inisial --}}
+                                            <div style="width:28px; height:28px; flex-shrink:0; border-radius:50%; background:linear-gradient(135deg, #6b705c, #002f45); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.75rem; margin-top:0.1rem;">
+                                                {{ strtoupper(substr($comment->user->name ?? '—', 0, 1)) }}
+                                            </div>
+                                            <div style="flex:1; min-width:0;">
+                                                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.3rem; margin-bottom:0.2rem;">
+                                                    <span style="color:#002f45; font-size:0.82rem; font-weight:600; line-height:1;">{{ $comment->user->name ?? '—' }}</span>
+                                                    <span style="color:#002f45; font-size:0.82rem; opacity:0.8; line-height:1.4; word-break:break-word;">{{ $comment->comment }}</span>
+                                                </div>
+                                                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                                                    <small style="color:#002f45; opacity:0.4; font-size:0.68rem;">{{ $comment->created_at->diffForHumans() }}</small>
+                                                    @if ($comment->likes->count() > 0)
+                                                        <span style="color:#002f45; opacity:0.4; font-size:0.68rem;">❤️ {{ $comment->likes->count() }}</span>
+                                                    @endif
+                                                    @if ($setting->sedangBerjalan())
+                                                        <form action="{{ route('peserta.capture.comment.like', $comment->id) }}" method="POST" style="display:inline;">
+                                                            @csrf
+                                                            @php $hasLiked = isset($likeKomentarSaya[$comment->id]); @endphp
+                                                            <button type="submit"
+                                                                style="background:none; border:none; color:{{ $hasLiked ? '#ef4444' : '#002f45' }}; opacity:{{ $hasLiked ? '1' : '0.4' }}; font-size:0.9rem; cursor:pointer; padding:0; display:flex; align-items:center; gap:0.15rem; transition:all 0.2s;"
+                                                                onmouseover="this.style.opacity='0.7'"
+                                                                onmouseout="this.style.opacity='{{ $hasLiked ? '1' : '0.4' }}'">
+                                                                ❤️
+                                                            </button>
+                                                        </form>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            {{-- Tombol hapus komentar (hanya untuk pemilik) --}}
+                                            @if ($comment->user_id === auth()->id())
+                                                <form action="{{ route('peserta.capture.comment.destroy', $comment->id) }}" method="POST" style="display:inline;"
+                                                    onsubmit="return confirm('Hapus komentar ini?')">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit"
+                                                        style="background:none; border:none; color:#b91c1c; opacity:0.4; font-size:0.9rem; cursor:pointer; padding:0.1rem; margin-left:0.25rem; transition:all 0.2s;"
+                                                        onmouseover="this.style.opacity='0.7'"
+                                                        onmouseout="this.style.opacity='0.4'">
+                                                        ✕
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+
                         </div>
+                    </div>
                     @endforeach
                 </div>
             @endif
@@ -246,6 +334,22 @@
         function tutupPreview() {
             document.getElementById('previewModal').style.display = 'none';
             document.body.style.overflow = '';
+        }
+
+        function toggleComments(fotoId) {
+            const container = document.getElementById('comments-container-' + fotoId);
+            const toggleText = document.getElementById('toggle-text-' + fotoId);
+            const toggleIcon = document.getElementById('toggle-icon-' + fotoId);
+            
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                toggleText.textContent = 'Hide comments';
+                toggleIcon.textContent = '▲';
+            } else {
+                container.style.display = 'none';
+                toggleText.textContent = 'Show ' + container.children.length + ' comments';
+                toggleIcon.textContent = '▼';
+            }
         }
 
         document.addEventListener('keydown', function(e) {

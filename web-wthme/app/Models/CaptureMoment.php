@@ -43,6 +43,11 @@ class CaptureMoment extends Model
         return $this->hasMany(CaptureMomentReaction::class);
     }
 
+    public function comments()
+    {
+        return $this->hasMany(CaptureMomentComment::class)->orderBy('created_at', 'asc');
+    }
+
     public function sudahDinilai(): bool
     {
         return !is_null($this->total_skor);

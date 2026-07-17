@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\CaptureMoment;
+use App\Models\CaptureMomentComment;
+use App\Models\CaptureMomentCommentLike;
 use App\Models\CaptureMomentReaction;
 use App\Models\CaptureMomentSetting;
 use Illuminate\Http\Request;
@@ -35,7 +37,7 @@ class CaptureMomentController extends Controller
         $milikKelompok = CaptureMoment::where('kelompok', $user->kelompok)->first();
 
         // Galeri semua kelompok, urut dari yang paling baru update-nya
-        $semuaFoto = CaptureMoment::with(['uploader', 'reactions'])
+        $semuaFoto = CaptureMoment::with(['uploader', 'reactions', 'comments.user', 'comments.likes'])
             ->orderByDesc('updated_at')
             ->get();
 
@@ -43,11 +45,16 @@ class CaptureMomentController extends Controller
         $reaksiSaya = CaptureMomentReaction::where('user_id', $user->id)
             ->pluck('emoji', 'capture_moment_id');
 
+        // Likes komentar milik user sendiri
+        $likeKomentarSaya = CaptureMomentCommentLike::where('user_id', $user->id)
+            ->pluck('id', 'capture_moment_comment_id');
+
         return view('peserta.capture-moment.index', [
-            'setting'       => $setting,
-            'milikKelompok' => $milikKelompok,
-            'semuaFoto'     => $semuaFoto,
-            'reaksiSaya'    => $reaksiSaya,
+            'setting'        => $setting,
+            'milikKelompok'  => $milikKelompok,
+            'semuaFoto'      => $semuaFoto,
+            'reaksiSaya'     => $reaksiSaya,
+            'likeKomentarSaya' => $likeKomentarSaya,
         ]);
     }
 
@@ -106,12 +113,82 @@ class CaptureMomentController extends Controller
             Storage::disk('public')->delete($foto->foto_path);
         }
 
-        // Hapus reactions terkait
+        // Hapus reactions dan comments terkait
         $foto->reactions()->delete();
+        $foto->comments()->delete();
 
         $foto->delete();
 
         return back()->with('success', 'Foto Capture Moment kelompok ' . $user->kelompok . ' berhasil dihapus.');
+    }
+
+    // Store komentar baru
+    public function storeComment(Request $request, $id)
+    {
+        $setting = CaptureMomentSetting::current();
+
+        if (!$setting->sedangBerjalan()) {
+            return back()->with('error', 'Periode komentar sudah ditutup.');
+        }
+
+        $request->validate([
+            'comment' => 'required|string|max:1000',
+        ]);
+
+        $foto = CaptureMoment::findOrFail($id);
+
+        CaptureMomentComment::create([
+            'capture_moment_id' => $foto->id,
+            'user_id' => Auth::id(),
+            'comment' => $request->comment,
+        ]);
+
+        return back()->with('success', 'Komentar berhasil ditambahkan!');
+    }
+
+    // Toggle like komentar (like/unlike)
+    public function toggleLikeComment($commentId)
+    {
+        $setting = CaptureMomentSetting::current();
+
+        if (!$setting->sedangBerjalan()) {
+            return back()->with('error', 'Periode komentar sudah ditutup.');
+        }
+
+        $comment = CaptureMomentComment::findOrFail($commentId);
+
+        // Cek apakah user sudah like komentar ini
+        $existingLike = CaptureMomentCommentLike::where('capture_moment_comment_id', $comment->id)
+            ->where('user_id', Auth::id())
+            ->first();
+
+        if ($existingLike) {
+            // Jika sudah like, hapus (unlike)
+            $existingLike->delete();
+        } else {
+            // Jika belum like, tambahkan
+            CaptureMomentCommentLike::create([
+                'capture_moment_comment_id' => $comment->id,
+                'user_id' => Auth::id(),
+            ]);
+        }
+
+        return back()->with('success', 'Berhasil!');
+    }
+
+    // Hapus komentar (hanya oleh pemilik komentar)
+    public function destroyComment($commentId)
+    {
+        $comment = CaptureMomentComment::findOrFail($commentId);
+
+        // Hanya pemilik komentar yang bisa hapus
+        if ($comment->user_id !== Auth::id()) {
+            return back()->with('error', 'Kamu tidak berhak menghapus komentar ini.');
+        }
+
+        $comment->delete();
+
+        return back()->with('success', 'Komentar berhasil dihapus.');
     }
 
     public function react(Request $request, $id)
