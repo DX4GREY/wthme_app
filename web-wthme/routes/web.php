@@ -137,6 +137,8 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
         Route::prefix('capture-moment')->name('capture.')->group(function () {
             Route::get('/', [CaptureMomentController::class, 'panitiaIndex'])->name('index');
             Route::post('/{id}/nilai', [CaptureMomentController::class, 'nilai'])->name('nilai');
+            Route::post('/{id}/rilis', [CaptureMomentController::class, 'rilisNilai'])->name('rilis');
+            Route::post('/rilis-semua', [CaptureMomentController::class, 'rilisSemuaNilai'])->name('rilis-semua');
             Route::post('/settings', [CaptureMomentController::class, 'settingsUpdate'])->name('settings');
             Route::post('/{id}/tolak', [CaptureMomentController::class, 'tolak'])->name('tolak');
             Route::delete('/{id}', [CaptureMomentController::class, 'panitiaDestroy'])->name('destroy');
