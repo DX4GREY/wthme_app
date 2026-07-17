@@ -138,6 +138,8 @@ Route::middleware(['auth', 'active.user', 'secure.uploads'])->group(function () 
             Route::get('/', [CaptureMomentController::class, 'panitiaIndex'])->name('index');
             Route::post('/{id}/nilai', [CaptureMomentController::class, 'nilai'])->name('nilai');
             Route::post('/settings', [CaptureMomentController::class, 'settingsUpdate'])->name('settings');
+            Route::post('/{id}/tolak', [CaptureMomentController::class, 'tolak'])->name('tolak');
+            Route::delete('/{id}', [CaptureMomentController::class, 'panitiaDestroy'])->name('destroy');
         });
 
         // Fitur Kontrol Divisi Acara & Admin untuk Quest Meet KBM (Tanpa Route Import)

@@ -91,13 +91,30 @@ class CaptureMomentController extends Controller
 
         $path = $request->file('foto')->store('capture-moments', 'public');
 
+        // Build update data - reset status to pending for fresh upload
+        $updateData = [
+            'foto_path'   => $path,
+            'caption'     => $request->caption ?? '',
+            'uploaded_by' => $user->id,
+            'status'      => 'pending',
+        ];
+
+        // If existing record, preserve scores if already graded (don't reset scores)
+        if ($existing && $existing->sudahDinilai()) {
+            // Already graded - don't change scores, just update photo
+            $updateData['skor_kelengkapan'] = $existing->skor_kelengkapan;
+            $updateData['skor_tema'] = $existing->skor_tema;
+            $updateData['skor_estetika'] = $existing->skor_estetika;
+            $updateData['total_skor'] = $existing->total_skor;
+            $updateData['dinilai_oleh'] = $existing->dinilai_oleh;
+            $updateData['dinilai_at'] = $existing->dinilai_at;
+            $updateData['juara'] = $existing->juara;
+            $updateData['poin'] = $existing->poin;
+        }
+
         CaptureMoment::updateOrCreate(
             ['kelompok' => $kelompok],
-            [
-                'foto_path'   => $path,
-                'caption'     => $request->caption ?? '',
-                'uploaded_by' => $user->id,
-            ]
+            $updateData
         );
 
         return back()->with('success', 'Foto Capture Moment kelompok ' . $kelompok . ' berhasil disimpan!');
@@ -218,15 +235,16 @@ class CaptureMomentController extends Controller
         return back()->with('success', 'Reaction terkirim!');
     }
 
-    /* =========================================================
-     |  PANITIA
-     * ========================================================= */
+/* =========================================================
+      |  PANITIA
+      * ========================================================= */
 
     public function panitiaIndex()
     {
         $setting = CaptureMomentSetting::current();
 
         $foto = CaptureMoment::with(['uploader', 'penilai', 'reactions'])
+            ->orderBy('status') // pending dulu, baru rejected
             ->orderByDesc('total_skor')
             ->orderBy('created_at')
             ->get();
@@ -295,5 +313,41 @@ class CaptureMomentController extends Controller
         ]);
 
         return back()->with('success', 'Periode Capture Moment berhasil diperbarui.');
+    }
+
+    // Tolak pengumpulan foto oleh panitia
+    public function tolak($id)
+    {
+        $foto = CaptureMoment::findOrFail($id);
+
+        // Jika sudah dinilai, jangan biarkan ditolak
+        if ($foto->sudahDinilai()) {
+            return back()->with('error', 'Foto ini sudah dinilai dan tidak dapat ditolak.');
+        }
+
+        $foto->update([
+            'status' => 'rejected',
+        ]);
+
+        return back()->with('success', 'Foto kelompok ' . $foto->kelompok . ' berhasil ditolak. Peserta dapat mengunggah ulang.');
+    }
+
+    // Hapus foto oleh panitia
+    public function panitiaDestroy($id)
+    {
+        $foto = CaptureMoment::findOrFail($id);
+
+        // Hapus file dari storage
+        if ($foto->foto_path && Storage::disk('public')->exists($foto->foto_path)) {
+            Storage::disk('public')->delete($foto->foto_path);
+        }
+
+        // Hapus reactions dan comments terkait
+        $foto->reactions()->delete();
+        $foto->comments()->delete();
+
+        $foto->delete();
+
+        return back()->with('success', 'Foto kelompok ' . $foto->kelompok . ' berhasil dihapus secara permanen.');
     }
 }
