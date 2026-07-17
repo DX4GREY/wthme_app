@@ -119,7 +119,7 @@
                             </div>
                             <div>
                                 <label style="display:block; font-size:0.8rem; font-weight:600; color:#002f45; margin-bottom:0.35rem;">Caption</label>
-                                <textarea name="caption" placeholder="Tulis cerita singkat tentang foto ini..." rows="2"
+                                <textarea name="caption" placeholder="Tulis cerita singkat tentang foto ini..." rows="5"
                                     style="width:100%; padding:0.65rem; border-radius:0.75rem; border:1px solid rgba(0,47,69,0.15); background:rgba(255,255,255,0.5); font-family:'Inter',sans-serif; resize:vertical;">{{ old('caption', $milikKelompok->caption ?? '') }}</textarea>
                             </div>
                             <button type="submit"

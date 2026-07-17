@@ -68,7 +68,7 @@ class CaptureMomentController extends Controller
 
         $request->validate([
             'foto'    => 'required|image|max:15360', // max 15MB
-            'caption' => 'nullable|string|max:255',
+            'caption' => 'nullable|string|max:1000',
         ]);
 
         $user     = Auth::user();
