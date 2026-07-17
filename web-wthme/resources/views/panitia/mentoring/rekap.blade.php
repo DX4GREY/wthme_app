@@ -44,32 +44,44 @@
                     $namaKegiatan = $rd->mentoring->nama_kegiatan ?? 'Kegiatan Tanpa Nama';
                     $tanggalKegiatan = $rd->mentoring->tanggal ?? null;
                     
-                    // Hitung jumlah kehadiran statis per sesi mentoring saat ini untuk footer komponen card
-                    $allDetailsInSession = $rekapDetail->where('mentoring_id', $loopMentoringId);
+                    // Filter details khusus untuk Kelompok saat ini DAN Sesi Mentoring saat ini agar hitungan akurat per card
+                    $allDetailsInSession = $rekapDetail->where('mentoring_id', $loopMentoringId)->filter(function($item) use ($loopKelompok) {
+                        return ($item->peserta->kelompok ?? 'Tanpa Kelompok') === $loopKelompok;
+                    });
                     $hadirCount = $allDetailsInSession->where('kehadiran', 'Hadir')->count();
                     $tidakHadirCount = $allDetailsInSession->whereIn('kehadiran', ['Izin', 'Alpha'])->count();
                 @endphp
 
-                {{-- JIKA KELOMPOK BERUBAH: Buka container kelompok baru --}}
-                @if($currentKelompok !== $loopKelompok)
-                    @if($currentKelompok !== null)
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div style="padding:1rem 2rem; background: rgba(255, 255, 255, 0.2); border-top:1px solid rgba(255,255,255,0.1); display:flex; gap:2rem; font-size:0.85rem;">
-                                    <span style="color:#166534; font-weight:600;">
-                                        <span style="opacity:0.7;">✅ Hadir:</span> <strong>{{ $hadirCount }}</strong>
-                                    </span>
-                                    <span style="color:#991b1b; font-weight:600;">
-                                        <span style="opacity:0.7;">❌ Tidak Hadir:</span> <strong>{{ $tidakHadirCount }}</strong>
-                                    </span>
-                                </div>
+                {{-- JIKA KELOMPOK BERUBAH ATAU MENTORING BERUBAH: Tutup struktur sebelumnya jika ada --}}
+                @if(($currentKelompok !== null && $currentKelompok !== $loopKelompok) || ($currentMentoringId !== null && $currentMentoringId !== $loopMentoringId))
+                    {{-- Tutup baris tabel dan tabel pembungkus kegiatan --}}
+                                    </tbody>
+                                </table>
                             </div>
-                        </div> {{-- Penutup grid kegiatan --}}
-                    </div> {{-- Penutup box kelompok --}}
-                    @endif
+                            {{-- Footer Statistik Sesi Kehadiran --}}
+                            <div style="padding:1rem 2rem; background: rgba(255, 255, 255, 0.2); border-top:1px solid rgba(255,255,255,0.1); display:flex; gap:2rem; font-size:0.85rem;">
+                                <span style="color:#166534; font-weight:600;">
+                                    <span style="opacity:0.7;">✅ Hadir:</span> <strong>{{ $allDetailsInSession->where('kehadiran', 'Hadir')->count() }}</strong>
+                                </span>
+                                <span style="color:#991b1b; font-weight:600;">
+                                    <span style="opacity:0.7;">❌ Tidak Hadir:</span> <strong>{{ $allDetailsInSession->whereIn('kehadiran', ['Izin', 'Alpha'])->count() }}</strong>
+                                </span>
+                            </div>
+                        </div> {{-- Penutup Card Kegiatan --}}
 
-                    @php $currentKelompok = $loopKelompok; $currentMentoringId = null; @endphp
+                    {{-- Jika ternyata kelompoknya yang berubah, tutup container Grid dan Box Kelompok lama --}}
+                    @if($currentKelompok !== $loopKelompok)
+                        </div> {{-- Penutup Grid Kegiatan --}}
+                    </div> {{-- Penutup Box Kelompok --}}
+                    @endif
+                @endif
+
+                {{-- BUKA KELOMPOK BARU --}}
+                @if($currentKelompok !== $loopKelompok)
+                    @php 
+                        $currentKelompok = $loopKelompok; 
+                        $currentMentoringId = null; // Reset mentoring ID agar card baru dibuat di bawah kelompok baru
+                    @endphp
 
                     <div style="margin-bottom:5rem;">
                         {{-- JUDUL KELOMPOK --}}
@@ -87,23 +99,8 @@
                         <div style="display:grid; grid-template-columns: 1fr; gap:2.5rem; padding-left:1.5rem; border-left:2px solid rgba(0,47,69,0.1);">
                 @endif
 
-                {{-- JIKA KEGIATAN/SESI BERUBAH: Ganti card tabel pembungkus baru --}}
+                {{-- BUKA SESI / CARD KEGIATAN BARU --}}
                 @if($currentMentoringId !== $loopMentoringId)
-                    @if($currentMentoringId !== null)
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div style="padding:1rem 2rem; background: rgba(255, 255, 255, 0.2); border-top:1px solid rgba(255,255,255,0.1); display:flex; gap:2rem; font-size:0.85rem;">
-                                    <span style="color:#166534; font-weight:600;">
-                                        <span style="opacity:0.7;">✅ Hadir:</span> <strong>{{ $hadirCount }}</strong>
-                                    </span>
-                                    <span style="color:#991b1b; font-weight:600;">
-                                        <span style="opacity:0.7;">❌ Tidak Hadir:</span> <strong>{{ $tidakHadirCount }}</strong>
-                                    </span>
-                                </div>
-                            </div>
-                    @endif
-
                     @php $currentMentoringId = $loopMentoringId; @endphp
 
                     <div style="background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 1.5rem; overflow:hidden; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);">
@@ -184,7 +181,7 @@
                     </td>
                 </tr>
 
-                {{-- Kunci Penutup Iterasi Terakhir --}}
+                {{-- Kunci Penutup Semua Tag HTML Di Iterasi Paling Terakhir --}}
                 @if($loop->last)
                                     </tbody>
                                 </table>

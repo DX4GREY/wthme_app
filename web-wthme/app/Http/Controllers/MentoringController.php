@@ -113,24 +113,28 @@ class MentoringController extends Controller
     public function rekapGlobal()
     {
         try {
-            // Ambil semua detail mentoring yang valid dan urutkan dari kelompok terkecil secara natural
-            $rekapDetail = MentoringDetail::with(['mentoring', 'peserta'])
-                ->whereHas('peserta', function ($query) {
-                    $query->whereNotNull('kelompok');
-                })
-                ->whereHas('mentoring', function ($query) {
-                    $query->whereNotNull('nama_kegiatan');
-                })
-                // Join tipis untuk kebutuhan sorting kelompok secara numerik alami (1, 2, 3.. 10)
-                ->join('users', 'mentoring_details.peserta_id', '=', 'users.id')
-                ->orderByRaw('CAST(users.kelompok AS UNSIGNED) ASC')
+            $rekapDetail = MentoringDetail::query()
+                ->select('mentoring_details.*')
+                ->with(['mentoring', 'peserta'])
+                // LEFT JOIN, bukan INNER JOIN — supaya peserta yang sudah terhapus
+                // tetap ikut tampil (fallback "User Terhapus" di blade tetap kepakai)
+                ->leftJoin('users', 'mentoring_details.peserta_id', '=', 'users.id')
+                ->leftJoin('mentorings', 'mentoring_details.mentoring_id', '=', 'mentorings.id')
+                // Filter kegiatan yang namanya kosong tetap boleh, tapi jangan
+                // sampai baris ikut hilang gara-gara whereHas ke tabel users
+                ->whereNotNull('mentorings.nama_kegiatan')
+                // Urutan SANGAT penting untuk grouping di blade:
+                // 1. per kelompok (numerik, kelompok kosong taruh di akhir)
+                // 2. per sesi mentoring (biar 1 card = 1 sesi, tidak kepecah)
+                // 3. per nama peserta di dalam sesi itu
+                ->orderByRaw("CAST(COALESCE(users.kelompok, '99999') AS UNSIGNED) ASC")
+                ->orderBy('mentorings.tanggal', 'ASC')
+                ->orderBy('mentoring_details.mentoring_id', 'ASC')
                 ->orderBy('users.name', 'ASC')
-                ->select('mentoring_details.*') // Ambil hanya kolom aslinya agar aman
                 ->get();
 
             return view('panitia.mentoring.rekap', compact('rekapDetail'));
         } catch (\Exception $e) {
-            // Jika ada kesalahan ketik/kolom di database, ia akan memunculkan pesan error aslinya (bukan 500 kosong)
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Gagal memuat rekap global: ' . $e->getMessage()

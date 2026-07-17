@@ -105,10 +105,10 @@
                         }
                     </script>
                 </div>
-                <div class="stat-glass">
+                {{-- <div class="stat-glass">
                     <span class="stat-label">Panitia Hadir</span>
                     <span class="stat-value">{{ $totalPanitiaHadir }}</span>
-                </div>
+                </div> --}}
             </div>
 
             <div class="main-layout-grid">
