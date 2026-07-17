@@ -57,6 +57,12 @@
                             value="{{ $setting->selesai_at?->format('Y-m-d\TH:i') }}"
                             style="padding:0.5rem 0.75rem; border-radius:0.75rem; border:1px solid rgba(0,47,69,0.15); background:rgba(255,255,255,0.5); font-size:0.85rem;">
                     </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; font-weight:600; color:#002f45; opacity:0.6; margin-bottom:4px;">Tema Quest</label>
+                        <input type="text" name="tema" placeholder="Kekeluargaan"
+                            value="{{ $setting->tema ?? 'Kekeluargaan' }}"
+                            style="padding:0.5rem 0.75rem; border-radius:0.75rem; border:1px solid rgba(0,47,69,0.15); background:rgba(255,255,255,0.5); font-size:0.85rem; width:150px;">
+                    </div>
                     <button type="submit"
                         style="display:inline-flex; align-items:center; gap:0.4rem; background:#002f45; color:#fff; padding:0.55rem 1.5rem; border:none; border-radius:0.75rem; font-weight:700; font-size:0.85rem; cursor:pointer; transition:all 0.3s;"
                         onmouseover="this.style.background='#001f2e'; this.style.transform='translateY(-2px)'"

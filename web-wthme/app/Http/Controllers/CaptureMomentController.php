@@ -222,15 +222,28 @@ class CaptureMomentController extends Controller
 
         $foto = CaptureMoment::findOrFail($id);
 
-        CaptureMomentReaction::updateOrCreate(
-            [
+        // Cek apakah user sudah punya reaksi di foto ini
+        $existingReaction = CaptureMomentReaction::where('capture_moment_id', $foto->id)
+            ->where('user_id', Auth::id())
+            ->first();
+
+        if ($existingReaction) {
+            // Jika emoji sama, hapus reaksi (un-react)
+            if ($existingReaction->emoji === $request->emoji) {
+                $existingReaction->delete();
+                return back()->with('success', 'Reaksi dihapus!');
+            }
+
+            // Jika emoji berbeda, update reaksi
+            $existingReaction->update(['emoji' => $request->emoji]);
+        } else {
+            // Belum punya reaksi, buat baru
+            CaptureMomentReaction::create([
                 'capture_moment_id' => $foto->id,
                 'user_id'           => Auth::id(),
-            ],
-            [
-                'emoji' => $request->emoji,
-            ]
-        );
+                'emoji'             => $request->emoji,
+            ]);
+        }
 
         return back()->with('success', 'Reaction terkirim!');
     }
@@ -304,12 +317,14 @@ class CaptureMomentController extends Controller
         $request->validate([
             'mulai_at'   => 'nullable|date',
             'selesai_at' => 'nullable|date|after_or_equal:mulai_at',
+            'tema'       => 'nullable|string|max:100',
         ]);
 
         $setting = CaptureMomentSetting::current();
         $setting->update([
             'mulai_at'   => $request->mulai_at,
             'selesai_at' => $request->selesai_at,
+            'tema'       => $request->tema ?? 'Kekeluargaan',
         ]);
 
         return back()->with('success', 'Periode Capture Moment berhasil diperbarui.');
